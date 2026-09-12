@@ -1,0 +1,12 @@
+# Regras do RPG - Sistema Simplificado
+
+1. ATRIBUTOS BÁSICOS: Força, Destreza, Inteligência, Percepção, Investigação, Carisma.
+2. RESOLUÇÃO DE AÇÕES: Sempre que uma ação tiver risco, o jogador deve indicar qual atributo está usando (ex: "uso Investigação para procurar armadilhas").
+3. COMBATE: Ataques diretos usam Força ou Destreza. Magias usam Inteligência.
+4. ECONOMIA DE AÇÕES: Cada jogador pode fazer 1 movimento e 1 ação principal por turno.
+5. CONTESTAÇÕES: Os outros jogadores podem contestar se a ação for muito arriscada ou ignorar um perigo óbvio, sugerindo uma alternativa mais segura ou estratégica.
+
+Personagens:
+- JogadorA: Especialista em Investigação e Furtividade.
+- JogadorB: Especialista em Combate corpo a corpo e Força.
+- JogadorC: Especialista em Magia e Percepção.
