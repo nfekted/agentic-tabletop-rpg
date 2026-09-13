@@ -146,6 +146,16 @@ Para encerrar qualquer um dos dois, use `Ctrl+C` no terminal.
 
 ## Funcionalidades
 
+### Regras da mesa
+
+É possível determinar as regras da mesa que funcionam como a instrução base para o agente, o ideal é simplificar as instruções do seu manual para ações simples, em exemplo:
+
+"Quando o jogador decide realizar uma ação ela terá base em um atributo, o jogador então rola o dado para verificar a somatória de pontuação e determinar a taxa de sucesso da ação, podendo somar os bonus da ficha[...]"
+
+Como instrução de regras, determinamos apenas o "core" basico dessa explicação:
+
+"Quando realizar uma ação ela será relacionada com um atributo (ex: mover uma pedra = força, correr = agilidade)"
+
 ### Fichas dos personagens
 
 Cada jogador tem um arquivo de ficha em `fichas/{nome_do_jogador}.txt`, que

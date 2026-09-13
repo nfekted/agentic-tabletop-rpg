@@ -25,7 +25,7 @@ if not (os.getenv("GEMINI_API_KEY")):
 # --- LISTA DE JOGADORES ---
 # Pode ser editada manualmente aqui, ou através do botão "Adicionar Jogador"
 # na tela do Streamlit (que reescreve esta lista automaticamente).
-AGENTES = ["JogadorA", "JogadorB", "JogadorC"]
+AGENTES = []
 
 # --- MODELOS DE LINGUAGEM ---
 llm_historiador = ChatGoogleGenerativeAI(model="gemini-3.5-flash", temperature=0.3)
