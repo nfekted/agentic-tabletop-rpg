@@ -1,0 +1,27 @@
+# FICHA DE PERSONAGEM
+
+## INFORMAÇÕES BÁSICAS
+- **Nome:** [Nome do Personagem]
+- **Classe/Ocupação:** [Ex: Guerreiro / Mago]
+- **Passado:** [Uma frase resumindo quem ele é e sua motivação]
+
+## STATUS ATUAIS
+- **PV:** 20 / 20
+- **MP:** 10 / 10
+- **DEF:** 12
+
+## ATRIBUTOS
+- **Força:** 1
+- **Agilidade:** 2
+- **Intelecto:** 3
+
+## EQUIPAMENTO E ITENS
+- **Arma:** Pistola 9mm (Munição: 12/12)
+
+## HABILIDADES E PODERES
+- **Visão Aguçada:** Recebe bônus em testes de Percepção visual.
+
+## PERSONALIDADE E REGRAS DE INTERPRETAÇÃO (ROLEPLAY)
+- **Tratamento:** Cético, analítico, fala de forma calma e ponderada.
+- **Medos/Gatilhos:** Lugares fechados e escuros.
+- **Segredo (Público/Privado):** Guarda uma foto antiga que nunca mostra a ninguém.

@@ -1,0 +1,5 @@
+# Regras do RPG
+
+## ATRIBUTOS BÁSICOS (exemplo de tópico)
+ - Descrição da regra 1
+ - Descrição da regra 2

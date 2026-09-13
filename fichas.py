@@ -1,7 +1,9 @@
 # Carregamento/edição de regras, fichas dos personagens e status (vivo/morto/etc.).
 import os
+import re
 
-CAMINHO_REGRAS = "regras_rpg.txt"
+PASTA_REGRAS = "regras"
+CAMINHO_REGRA_ATIVA = os.path.join(PASTA_REGRAS, ".ativa")
 PASTA_FICHAS = "fichas"
 
 
@@ -20,12 +22,82 @@ def salvar_arquivo(caminho: str, conteudo: str):
         f.write(conteudo)
 
 
+def caminho_regra(nome_arquivo: str) -> str:
+    return os.path.join(PASTA_REGRAS, nome_arquivo)
+
+
+def listar_arquivos_regras() -> list:
+    # Lista os arquivos .txt dentro de regras/.
+    if not os.path.exists(PASTA_REGRAS):
+        os.makedirs(PASTA_REGRAS, exist_ok=True)
+
+    arquivos = sorted(
+        f
+        for f in os.listdir(PASTA_REGRAS)
+        if f.endswith(".txt") and not f.startswith(".")
+    )
+
+    return arquivos
+
+
+def obter_regra_ativa() -> str:
+    # Retorna o nome do arquivo (ex: 'combate.txt') atualmente marcado como ativo.
+    arquivos = listar_arquivos_regras()
+    ativa = carregar_arquivo(CAMINHO_REGRA_ATIVA, "").strip()
+    if ativa not in arquivos:
+        ativa = arquivos[0]
+        definir_regra_ativa(ativa)
+    return ativa
+
+
+def definir_regra_ativa(nome_arquivo: str):
+    salvar_arquivo(CAMINHO_REGRA_ATIVA, nome_arquivo)
+
+
+def carregar_regra(nome_arquivo: str) -> str:
+    return carregar_arquivo(caminho_regra(nome_arquivo), "")
+
+
+def salvar_regra(nome_arquivo: str, conteudo: str):
+    salvar_arquivo(caminho_regra(nome_arquivo), conteudo)
+
+
+def criar_arquivo_regra(nome: str) -> str:
+    # Cria um novo conjunto de regras vazio a partir de um nome digitado
+    nome = nome.strip()
+    if not nome:
+        return None
+
+    slug = re.sub(r"[^a-zA-Z0-9_-]+", "_", nome).strip("_").lower()
+    if not slug:
+        return None
+
+    nome_arquivo = f"{slug}.txt"
+    if os.path.exists(caminho_regra(nome_arquivo)):
+        return None
+
+    salvar_arquivo(caminho_regra(nome_arquivo), "")
+    return nome_arquivo
+
+
+def remover_arquivo_regra(nome_arquivo: str) -> bool:
+    # Remove um conjunto de regras. Nunca remove o último restante (sempre precisa haver pelo menos um).
+    arquivos = listar_arquivos_regras()
+    if nome_arquivo not in arquivos or len(arquivos) <= 1:
+        return False
+
+    os.remove(caminho_regra(nome_arquivo))
+
+    if carregar_arquivo(CAMINHO_REGRA_ATIVA, "").strip() == nome_arquivo:
+        restantes = [a for a in arquivos if a != nome_arquivo]
+        definir_regra_ativa(restantes[0])
+
+    return True
+
+
 def carregar_regras() -> str:
-    return carregar_arquivo(CAMINHO_REGRAS, "Regras: D20 para testes de habilidade.")
-
-
-def salvar_regras(conteudo: str):
-    salvar_arquivo(CAMINHO_REGRAS, conteudo)
+    # Usada pelo prompt dos agentes: sempre retorna só o conteúdo do conjunto de regras ATIVO no momento
+    return carregar_regra(obter_regra_ativa())
 
 
 def caminho_ficha(agente: str) -> str:
@@ -41,21 +113,16 @@ def salvar_ficha(agente: str, conteudo: str):
 
 
 def carregar_fichas(agentes) -> dict:
-    #Monta o dicionário {agente: conteúdo_da_ficha} para a lista de agentes dada.
+    # Monta o dicionário {agente: conteúdo_da_ficha} para a lista de agentes dada.
     return {ag: carregar_ficha(ag) for ag in agentes}
 
 
-# Mantido por compatibilidade com o código antigo (main.py / agentes.py usavam
-# a constante fixa REGRAS/FICHAS calculada na importação). Agora preferimos
-# carregar sob demanda via carregar_regras()/carregar_ficha(), pois o
-# Streamlit pode alterar os arquivos em disco a qualquer momento durante a
-# mesma sessão do processo.
 REGRAS = carregar_regras()
 FICHAS = {}
 
 
 def definir_status_jogador(agente: str, status: str):
-    #Atualiza (ou insere) a linha 'status: ...' no topo da ficha do agente, preservando o restante do conteúdo da ficha.
+    # Atualiza (ou insere) a linha 'status: ...' no topo da ficha do agente
     conteudo = carregar_ficha(agente)
     linhas = conteudo.split("\n") if conteudo else []
     if linhas and "status:" in linhas[0].lower():

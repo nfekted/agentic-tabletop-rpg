@@ -217,4 +217,11 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-regras_rpg.txt
+# Pasta de Regras fichas e imagens
+regras/*
+img/*
+ficha/*
+
+!regras/default.txt
+!img/default.txt
+!ficha/default.txt

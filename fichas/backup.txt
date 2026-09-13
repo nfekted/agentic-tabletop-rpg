@@ -1,0 +1,39 @@
+# FICHA DE PERSONAGEM
+
+## INFORMAÇÕES BÁSICAS
+- **Nome:** [Nome do Personagem]
+- **Classe/Ocupação:** [Ex: Investigador / Ocultista / Combatente]
+- **Conceito:** [Uma frase resumindo quem ele é e sua motivação]
+
+## STATUS ATUAIS
+- **PV (Pontos de Vida):** 20 / 20
+- **PE (Pontos de Esforço):** 10 / 10
+- **SAN (Sanidade):** 15 / 15
+
+## ATRIBUTOS
+- **Força:** 1
+- **Agilidade:** 2
+- **Intelecto:** 3
+- **Presença:** 2
+- **Vigor:** 1
+
+## PERÍCIAS TREINADAS
+- **Investigação:** Treinado (+5)
+- **Percepção:** Treinado (+5)
+- **Pontaria:** Treinado (+5)
+- **Ocultismo:** Treinado (+5)
+*(Nota: Qualquer perícia não listada aqui é considerada DESTREINADA com bônus +0).*
+
+## HABILIDADES E PODERES
+- **Visão Aguçada:** Recebe bônus em testes de Percepção visual.
+- **Tiro Certeiro (1 PE):** Gastando 1 PE, adiciona +2 no dano de um ataque à distância.
+
+## EQUIPAMENTO E ITENS
+- **Arma:** Pistola 9mm (Munição: 12/12)
+- **Utensílios:** Lanterna tática, Kit de Primeiros Socorros, Caderno de anotações.
+- **Proteção:** Colete leve (+2 DEF já incluso nos Status).
+
+## PERSONALIDADE E REGRAS DE INTERPRETAÇÃO (ROLEPLAY)
+- **Tratamento:** Cético, analítico, fala de forma calma e ponderada.
+- **Medos/Gatilhos:** Lugares fechados e escuros.
+- **Segredo (Público/Privado):** Guarda uma foto antiga que nunca mostra a ninguém.

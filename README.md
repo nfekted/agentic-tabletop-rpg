@@ -1,4 +1,4 @@
-# 🎲 Agentic Tabletop RPG
+# 🎲 Mesa de RPG — Painel do Mestre
 
 Sistema que simula uma mesa de RPG cooperativo: você é o mestre, e cada
 jogador é conduzido por um agente de IA com ficha, personalidade e memória
@@ -19,6 +19,7 @@ preferir.
 - [Como rodar](#como-rodar)
 - [Funcionalidades](#funcionalidades)
   - [Fichas dos personagens](#fichas-dos-personagens)
+  - [Conjuntos de regras (regras/)](#conjuntos-de-regras-regras)
   - [Ações do mestre](#ações-do-mestre)
   - [Tags de resposta: \[acao\], \[duvida\] e \[pensamento\]](#tags-de-resposta-acao-duvida-e-pensamento)
   - [Fluxo de aprovação](#fluxo-de-aprovação)
@@ -88,9 +89,6 @@ sudo dnf install python3 python3-pip
 
 ## Instalação
 
-Os comandos são os mesmos nos três sistemas a partir daqui — só muda o
-comando de ativar o ambiente virtual.
-
 1. Baixe/clone este repositório e entre na pasta:
    ```bash
    git clone https://github.com/nfekted/agentic-tabletop-rpg
@@ -107,14 +105,14 @@ comando de ativar o ambiente virtual.
 ## Configurando a chave de API (.env)
 
 O projeto usa o Gemini (Google) para gerar as respostas dos jogadores e do
-historiador. Inicialmente foi escolhido o Gemini pela janela de contexto (1M tokens) e pela cota gratuita ser mais generosa que as demais, futuramente planejo incluir outras opções. Você precisa de uma chave de API gratuita:
+historiador. Você precisa de uma chave de API gratuita:
 
 1. Gere uma chave em <https://aistudio.google.com/apikey>.
 2. Crie um arquivo chamado **`.env`** (sem nome antes do ponto) na mesma
    pasta onde estão `app.py`, `main.py`, `config.py` etc.
 3. Coloque essa linha dentro dele:
    ```
-   GOOGLE_API_KEY="sua_chave_aqui"
+   GOOGLE_API_KEY=sua_chave_aqui
    ```
    Sem aspas em volta do valor, sem espaço antes/depois do `=`. O `.env`
    **não deve ser versionado no Git** — adicione `.env` ao seu
@@ -146,16 +144,6 @@ Para encerrar qualquer um dos dois, use `Ctrl+C` no terminal.
 
 ## Funcionalidades
 
-### Regras da mesa
-
-É possível determinar as regras da mesa que funcionam como a instrução base para o agente, o ideal é simplificar as instruções do seu manual para ações simples, em exemplo:
-
-"Quando o jogador decide realizar uma ação ela terá base em um atributo, o jogador então rola o dado para verificar a somatória de pontuação e determinar a taxa de sucesso da ação, podendo somar os bonus da ficha[...]"
-
-Como instrução de regras, determinamos apenas o "core" basico dessa explicação:
-
-"Quando realizar uma ação ela será relacionada com um atributo (ex: mover uma pedra = força, correr = agilidade)"
-
 ### Fichas dos personagens
 
 Cada jogador tem um arquivo de ficha em `fichas/{nome_do_jogador}.txt`, que
@@ -165,6 +153,27 @@ botão ✏️ no card do jogador para editar e salvar a ficha sem precisar abrir
 nenhum arquivo manualmente. A primeira linha da ficha também guarda o
 status do personagem (`vivo`, `morto` ou `inconsciente`), controlado pelo
 seletor abaixo do card.
+
+### Conjuntos de regras (regras/)
+
+O `regras_rpg.txt` único foi substituído por uma pasta `regras/`, que pode
+conter **vários conjuntos de regras** (por exemplo `geral.txt`,
+`combate.txt`, `exploracao.txt`) — mas só o **conjunto marcado como ativo**
+é enviado no prompt de cada jogador. Isso evita gastar tokens à toa
+mandando regras de combate durante uma cena de exploração (ou vice-versa).
+
+Pela barra lateral você pode:
+- **Trocar rapidamente** o conjunto ativo num seletor direto, sem abrir
+  nenhum painel — ideal para alternar entre "exploração" e "combate" no
+  meio de uma cena.
+- Clicar em **"✏️ Gerenciar / Criar Regras"** para abrir o painel completo,
+  onde dá para editar o conteúdo de um conjunto existente, marcar outro
+  como ativo, **criar** um conjunto novo (vazio, para você preencher) ou
+  **excluir** um conjunto (não é possível excluir o único restante).
+
+Se você já usava a versão antiga com um único `regras_rpg.txt` na raiz do
+projeto, na primeira execução esse arquivo é migrado automaticamente para
+`regras/geral.txt` e marcado como ativo — nada se perde.
 
 ### Ações do mestre
 
@@ -286,7 +295,10 @@ já aparece na fila junto com os demais, sem precisar reiniciar o app.
 ├── agentes.py                  # Monta o prompt e gera as respostas dos jogadores
 ├── requirements.txt
 ├── .env                    # Sua chave de API (não versionar)
-├── regras_rpg.txt          # Regras gerais da mesa (criado ao salvar pela tela)
+├── regras/                 # Conjuntos de regras (um arquivo por cenário)
+│   ├── .ativa               # Marca qual arquivo está em uso agora
+│   ├── geral.txt
+│   └── combate.txt
 ├── fichas/
 │   ├── jogadora.txt
 │   ├── jogadorb.txt
@@ -316,4 +328,11 @@ adicione um pela barra lateral.
 
 **A ficha ou as regras aparecem vazias**
 Isso é normal se ainda não foram salvas nenhuma vez pela interface — clique
-em ✏️ Ficha (ou "📖 Editar Regras Gerais"), escreva o conteúdo e salve.
+em ✏️ Ficha (para a ficha) ou em "✏️ Gerenciar / Criar Regras" na barra
+lateral (para as regras), escreva o conteúdo e salve.
+
+**Criei um novo conjunto de regras e ele não afeta as respostas dos jogadores**
+Criar um arquivo em `regras/` não o torna automaticamente ativo. Depois de
+escrever o conteúdo, clique em "⭐ Usar agora" (no painel) ou selecione-o no
+seletor rápido da barra lateral — só o conjunto marcado como ativo é
+enviado no prompt dos jogadores.
