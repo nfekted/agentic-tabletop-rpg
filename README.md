@@ -1,6 +1,6 @@
-# Mesa de RPG — Painel do Mestre (Streamlit)
+# Agentic Tabletop RPG
 
-Versão visual do sistema, para uso sem precisar mexer em terminal ou arquivos.
+Projeto feito para aqueles que não tem uma galera para jogar aquele RPG de mesa, configure o resumo das regras, faça as fichas de personagens, conecte o agente, e deixe a mesa começar.
 
 ## Como rodar
 

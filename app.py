@@ -12,7 +12,12 @@ from fichas import (
     obter_status_jogador,
     definir_status_jogador,
 )
-from imagens import salvar_imagem_upload, caminho_avatar, salvar_avatar_jogador, remover_avatar_jogador
+from imagens import (
+    salvar_imagem_upload,
+    caminho_avatar,
+    salvar_avatar_jogador,
+    remover_avatar_jogador,
+)
 from memoria import obter_pasta_agente, obter_arquivos_memoria, GerenciadorMemoriaRPG
 from agentes import gerar_resposta_agente
 
@@ -48,15 +53,33 @@ for ag in carregar_agentes():
     obter_pasta_agente(ag)
 
 
-def registrar_fala(agente: str, texto: str, aprovada: bool = True):
-    #Guarda a última fala de um agente para exibir como balão junto ao seu
-    #card. 'aprovada=False' marca uma resposta ainda não espelhada pelo mestre
-    #(aparece com estilo tracejado até ser aprovada ou descartada).
-    st.session_state.ultima_fala[agente] = {"texto": texto, "aprovada": aprovada}
+def registrar_fala(
+    agente: str, texto: str, aprovada: bool = True, privado: bool = False
+):
+    # Guarda a última fala de um agente para exibir como balão junto ao seu card.
+    st.session_state.ultima_fala[agente] = {
+        "texto": texto,
+        "aprovada": aprovada,
+        "privado": privado,
+    }
 
 
 def limpar_fala(agente: str):
     st.session_state.ultima_fala.pop(agente, None)
+
+
+def eh_pensamento(resposta: str) -> bool:
+    return "[pensamento]" in resposta.lower()
+
+
+def salvar_pensamento_privado(agente: str, resposta: str):
+    # Trata a tag [pensamento]: nunca entra no histórico compartilhado
+    if st.session_state.rodada_ativa:
+        GerenciadorMemoriaRPG.salvar_log_rodada_atual(
+            f"{agente} (pensamento): {resposta}", [agente]
+        )
+    st.session_state.envolvidos_rodada_atual.add(agente)
+    registrar_fala(agente, resposta, aprovada=True, privado=True)
 
 
 def chunked(lista, tamanho):
@@ -116,11 +139,15 @@ def acao_falar_com_todos(presentes, comando_mestre, caminho_imagem):
             continue
         resposta = gerar_resposta_agente(
             ag,
-            f"O mestre disse a todos: '{comando_mestre}'. Dê sua reação breve.",
+            f"O mestre disse a todos: '{comando_mestre}'. Dê sua reação breve "
+            f"(ou use [pensamento] se for algo que seu personagem não diz em voz alta).",
             st.session_state.historico,
             caminho_imagem=caminho_imagem,
         )
         log_ag = f"{ag}: {resposta}"
+        if eh_pensamento(resposta):
+            salvar_pensamento_privado(ag, resposta)
+            continue
         st.session_state.historico.append(log_ag)
         registrar_fala(ag, resposta, aprovada=True)
         if st.session_state.rodada_ativa:
@@ -140,17 +167,25 @@ def acao_falar_direcionado(presentes, is_privado, comando_mestre, caminho_imagem
     alvo_principal = presentes[0]
     status_alvo = obter_status_jogador(alvo_principal)
     if status_alvo != "vivo":
-        st.session_state.mensagem_info = (
-            f"⚠️ Não é possível falar com {alvo_principal}. Status: [{status_alvo.upper()}]."
-        )
+        st.session_state.mensagem_info = f"⚠️ Não é possível falar com {alvo_principal}. Status: [{status_alvo.upper()}]."
         return
 
     resposta = gerar_resposta_agente(
         alvo_principal,
-        f"O mestre direcionou a você: '{comando_mestre}'. Responda usando [acao] para agir ou [duvida] para consultar outro jogador.",
+        f"O mestre direcionou a você: '{comando_mestre}'. Responda usando [acao] para agir, "
+        f"[duvida] para consultar outro jogador, ou [pensamento] se for algo que seu personagem "
+        f"NÃO diz em voz alta.",
         st.session_state.historico,
         caminho_imagem=caminho_imagem,
     )
+
+    if eh_pensamento(resposta):
+        salvar_pensamento_privado(alvo_principal, resposta)
+        st.session_state.mensagem_info = (
+            f"💭 {alvo_principal} teve um pensamento privado — não foi compartilhado "
+            f"com mais ninguém, só ficou guardado na memória dele(a)."
+        )
+        return
 
     st.session_state.pending_principal = {
         "alvo": alvo_principal,
@@ -192,10 +227,14 @@ def aprovar_principal():
                 continue
             resp_outro = gerar_resposta_agente(
                 ou,
-                f"O jogador {p['alvo']} acabou de dizer/fazer: '{p['resposta']}'. Você concorda, opina ou faz ressalva? Seja breve.",
+                f"O jogador {p['alvo']} acabou de dizer/fazer: '{p['resposta']}'. Você concorda, opina, faz ressalva "
+                f"ou apenas pensa a respeito (nesse caso use [pensamento])? Seja breve.",
                 st.session_state.historico,
                 caminho_imagem=None,
             )
+            if eh_pensamento(resp_outro):
+                salvar_pensamento_privado(ou, resp_outro)
+                continue
             log_outro = f"{ou} (opinião): {resp_outro}"
             st.session_state.historico.append(log_outro)
             registrar_fala(ou, resp_outro, aprovada=True)
@@ -214,10 +253,14 @@ def gerar_redirects(destinos):
         resp = gerar_resposta_agente(
             destino,
             f"{ar['alvo_principal']} perguntou diretamente a você: '{ar['resposta_pergunta']}'. "
-            f"Responda a pergunta dele(a) diretamente, sem apenas opinar sobre o assunto.",
+            f"Responda a pergunta dele(a) diretamente "
+            f"(ou use [pensamento] se preferir refletir sem responder em voz alta).",
             st.session_state.historico,
             caminho_imagem=None,
         )
+        if eh_pensamento(resp):
+            salvar_pensamento_privado(destino, resp)
+            continue
         pendentes.append(
             {
                 "destino": destino,
@@ -229,6 +272,8 @@ def gerar_redirects(destinos):
         registrar_fala(destino, resp, aprovada=False)
     st.session_state.pending_redirects = pendentes
     st.session_state.aguardando_redirect = None
+    if not pendentes and destinos:
+        st.session_state.mensagem_info = "💭 A resposta foi um pensamento privado — não há nada para aprovar/espelhar."
 
 
 def aprovar_redirect(indice):
@@ -281,7 +326,9 @@ with st.sidebar:
         if enviado:
             if adicionar_agente(novo_nome):
                 obter_pasta_agente(novo_nome.strip())
-                st.session_state.mensagem_info = f"✅ {novo_nome.strip()} adicionado à mesa."
+                st.session_state.mensagem_info = (
+                    f"✅ {novo_nome.strip()} adicionado à mesa."
+                )
             else:
                 st.session_state.mensagem_info = "⚠️ Nome inválido ou já existente."
             st.rerun()
@@ -339,7 +386,7 @@ CSS_AVATAR = """
 """
 
 CSS_BALAO = """
-<div style="text-align:center; font-size:16px; line-height:8px; color:{borda};">▲</div>
+<div style="text-align:center; font-size:16px; line-height:8px; color:{borda};">{seta}</div>
 <div style="
     position:relative;
     background:{fundo};
@@ -347,6 +394,7 @@ CSS_BALAO = """
     border-radius:12px;
     padding:8px 10px;
     font-size:13px;
+    font-style:{fonte_estilo};
     max-height:150px;
     overflow-y:auto;
     white-space:pre-wrap;
@@ -374,19 +422,34 @@ for grupo in chunked(agentes, 4):
                 st.caption(f"status: {status}")
 
                 b1, b2, b3 = st.columns(3)
-                if b1.button("✏️", key=f"btn_ficha_{nome}", use_container_width=True, help="Editar ficha"):
+                if b1.button(
+                    "✏️",
+                    key=f"btn_ficha_{nome}",
+                    use_container_width=True,
+                    help="Editar ficha",
+                ):
                     st.session_state.editando_ficha = nome
                     st.session_state.vendo_memoria = None
                     st.session_state.editando_regras = False
                     st.session_state.trocando_avatar = None
                     st.rerun()
-                if b2.button("📜", key=f"btn_mem_{nome}", use_container_width=True, help="Ver memória"):
+                if b2.button(
+                    "📜",
+                    key=f"btn_mem_{nome}",
+                    use_container_width=True,
+                    help="Ver memória",
+                ):
                     st.session_state.vendo_memoria = nome
                     st.session_state.editando_ficha = None
                     st.session_state.editando_regras = False
                     st.session_state.trocando_avatar = None
                     st.rerun()
-                if b3.button("🖼️", key=f"btn_avatar_{nome}", use_container_width=True, help="Trocar foto"):
+                if b3.button(
+                    "🖼️",
+                    key=f"btn_avatar_{nome}",
+                    use_container_width=True,
+                    help="Trocar foto",
+                ):
                     st.session_state.trocando_avatar = nome
                     st.session_state.editando_ficha = None
                     st.session_state.vendo_memoria = None
@@ -396,9 +459,11 @@ for grupo in chunked(agentes, 4):
                 novo_status = st.selectbox(
                     "Status",
                     ["vivo", "morto", "inconsciente"],
-                    index=["vivo", "morto", "inconsciente"].index(status)
-                    if status in ["vivo", "morto", "inconsciente"]
-                    else 0,
+                    index=(
+                        ["vivo", "morto", "inconsciente"].index(status)
+                        if status in ["vivo", "morto", "inconsciente"]
+                        else 0
+                    ),
                     key=f"status_{nome}",
                     label_visibility="collapsed",
                 )
@@ -409,16 +474,45 @@ for grupo in chunked(agentes, 4):
                 fala = st.session_state.ultima_fala.get(nome)
                 if fala:
                     aprovada = fala["aprovada"]
+                    privado = fala.get("privado", False)
+                    if privado:
+                        fundo, borda, estilo_borda, seta, fonte_estilo = (
+                            "#ede7f6",
+                            "#7e57c2",
+                            "solid",
+                            "💭",
+                            "italic",
+                        )
+                    elif aprovada:
+                        fundo, borda, estilo_borda, seta, fonte_estilo = (
+                            "#f0f2f6",
+                            "#c9c9c9",
+                            "solid",
+                            "▲",
+                            "normal",
+                        )
+                    else:
+                        fundo, borda, estilo_borda, seta, fonte_estilo = (
+                            "#fff8e1",
+                            "#d9a441",
+                            "dashed",
+                            "▲",
+                            "normal",
+                        )
                     st.markdown(
                         CSS_BALAO.format(
-                            fundo="#f0f2f6" if aprovada else "#fff8e1",
-                            borda="#c9c9c9" if aprovada else "#d9a441",
-                            estilo_borda="solid" if aprovada else "dashed",
+                            fundo=fundo,
+                            borda=borda,
+                            estilo_borda=estilo_borda,
+                            seta=seta,
+                            fonte_estilo=fonte_estilo,
                             texto=fala["texto"],
                         ),
                         unsafe_allow_html=True,
                     )
-                    if not aprovada:
+                    if privado:
+                        st.caption("💭 pensamento privado — só o mestre vê")
+                    elif not aprovada:
                         st.caption("⏳ aguardando aprovação do mestre")
 
 st.divider()
@@ -434,21 +528,34 @@ if st.session_state.trocando_avatar:
     if atual:
         st.image(atual, width=120, caption="Foto atual")
     else:
-        st.caption("Este jogador ainda não tem foto — está usando o quadrado com iniciais.")
+        st.caption(
+            "Este jogador ainda não tem foto — está usando o quadrado com iniciais."
+        )
 
     nova_foto = st.file_uploader(
-        "Selecionar nova imagem", type=["png", "jpg", "jpeg", "webp"], key=f"upload_avatar_{nome}"
+        "Selecionar nova imagem",
+        type=["png", "jpg", "jpeg", "webp"],
+        key=f"upload_avatar_{nome}",
     )
     c1, c2, c3 = st.columns(3)
-    if c1.button("💾 Salvar foto", type="primary", key=f"salvar_avatar_{nome}", disabled=nova_foto is None):
+    if c1.button(
+        "💾 Salvar foto",
+        type="primary",
+        key=f"salvar_avatar_{nome}",
+        disabled=nova_foto is None,
+    ):
         salvar_avatar_jogador(nome, nova_foto)
         st.session_state.trocando_avatar = None
         st.session_state.mensagem_info = f"✅ Foto de {nome} atualizada."
         st.rerun()
-    if c2.button("🗑️ Remover foto", key=f"remover_avatar_{nome}", disabled=atual is None):
+    if c2.button(
+        "🗑️ Remover foto", key=f"remover_avatar_{nome}", disabled=atual is None
+    ):
         remover_avatar_jogador(nome)
         st.session_state.trocando_avatar = None
-        st.session_state.mensagem_info = f"🗑️ Foto de {nome} removida — voltou ao quadrado com iniciais."
+        st.session_state.mensagem_info = (
+            f"🗑️ Foto de {nome} removida — voltou ao quadrado com iniciais."
+        )
         st.rerun()
     if c3.button("Cancelar", key=f"cancelar_avatar_{nome}"):
         st.session_state.trocando_avatar = None
@@ -462,7 +569,10 @@ if st.session_state.editando_ficha:
     nome = st.session_state.editando_ficha
     st.subheader(f"✏️ Editando ficha de {nome}")
     conteudo_ficha = st.text_area(
-        "Conteúdo da ficha", value=carregar_ficha(nome), height=250, key=f"txt_ficha_{nome}"
+        "Conteúdo da ficha",
+        value=carregar_ficha(nome),
+        height=250,
+        key=f"txt_ficha_{nome}",
     )
     c1, c2 = st.columns([1, 1])
     if c1.button("💾 Salvar ficha", type="primary", key=f"salvar_ficha_{nome}"):
@@ -565,7 +675,9 @@ if st.session_state.pending_principal:
     if c2.button("❌ Descartar", key="descartar_principal"):
         limpar_fala(p["alvo"])
         st.session_state.pending_principal = None
-        st.session_state.mensagem_info = "❌ Mensagem descartada. Nada foi salvo na história."
+        st.session_state.mensagem_info = (
+            "❌ Mensagem descartada. Nada foi salvo na história."
+        )
         st.rerun()
     st.divider()
 
@@ -625,5 +737,7 @@ else:
             autor, resto = linha.split(":", 1)
         else:
             autor, resto = "Mestre", linha
-        with st.chat_message("assistant" if autor.strip() not in ("Mestre",) else "user"):
+        with st.chat_message(
+            "assistant" if autor.strip() not in ("Mestre",) else "user"
+        ):
             st.markdown(f"**{autor.strip()}**: {resto.strip()}")

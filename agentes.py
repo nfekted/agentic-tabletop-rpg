@@ -29,7 +29,8 @@ INSTRUÇÕES OBRIGATÓRIAS DE FORMATO DA RESPOSTA:
 2. Seja conciso. Suas respostas devem simular uma conversa onde cada um fala um pouco, limite-se a paragrafos maiores para discursos motivacionais, ou argumentação em uma cena caso extremamente necessário.
 3. Use [acao] para descrever a ação física ou movimento final do turno conforme regras gerais.
 4. Use [duvida] para perguntar a outro jogador, ou mestre, sobre alguma ação, cena ou iteração possível.
-5. Em caso de texto sem tags será considerado uma fala normal, podendo falar diretamente como o personagem sem por "meu personagem faz...", entre no roleplay.
+5. Para reflexões internas, planos ou suspeitas não ditos, inicie obrigatoriamente com a tag [pensamento]. Pensamentos não são ouvidos pelos outros."
+6. Em caso de texto sem tags será considerado uma fala normal, podendo falar diretamente como o personagem sem por "meu personagem faz...", entre no roleplay.
 """
 
 
