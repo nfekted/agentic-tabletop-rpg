@@ -1,4 +1,3 @@
-# Seleção/entrada de imagens e conversão para uso multimodal (base64 + mimetype).
 import os
 import base64
 import tempfile
@@ -94,7 +93,7 @@ def salvar_imagem_upload(arquivo_upload) -> str:
 
 
 def caminho_avatar(agente: str) -> str:
-    #Retorna o caminho do avatar do jogador
+    # Retorna o caminho do avatar do jogador
     pasta = obter_pasta_agente(agente)
     for ext in _EXTENSOES_AVATAR:
         caminho = os.path.join(pasta, f"avatar{ext}")
@@ -104,7 +103,7 @@ def caminho_avatar(agente: str) -> str:
 
 
 def salvar_avatar_jogador(agente: str, arquivo_upload) -> str:
-    #Salva a foto vinda de st.file_uploader como memoria_{agente}/avatar
+    # Salva a foto vinda de st.file_uploader como memoria_{agente}/avatar
     if arquivo_upload is None:
         return None
 

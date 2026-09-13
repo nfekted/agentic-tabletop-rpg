@@ -15,7 +15,7 @@ def obter_pasta_agente(agente: str) -> str:
 
 
 def carregar_memoria_longo_prazo(agente: str) -> str:
-    #Carrega a memória de longo prazo específica do diretório do agente.
+    # Carrega a memória de longo prazo específica do diretório do agente.
     pasta = obter_pasta_agente(agente)
     memoria = ""
 
@@ -73,9 +73,13 @@ def obter_arquivos_memoria(agente: str) -> dict:
     rodadas = sorted(
         f
         for f in os.listdir(pasta)
-        if f.startswith("rodada_") and f.endswith(".txt") and f != "rodada_atual_temp.txt"
+        if f.startswith("rodada_")
+        and f.endswith(".txt")
+        and f != "rodada_atual_temp.txt"
     )
-    cenas = sorted(f for f in os.listdir(pasta) if f.startswith("cena_") and f.endswith(".txt"))
+    cenas = sorted(
+        f for f in os.listdir(pasta) if f.startswith("cena_") and f.endswith(".txt")
+    )
 
     return {
         "rodada_atual": temp,
@@ -88,7 +92,7 @@ def obter_arquivos_memoria(agente: str) -> dict:
 class GerenciadorMemoriaRPG:
     @staticmethod
     def salvar_log_rodada_atual(texto: str, agentes_alvo: List[str]):
-        #Grava a linha de log do turno temporário na pasta dos agentes alvo.
+        # Grava a linha de log do turno temporário na pasta dos agentes alvo.
         for agente in agentes_alvo:
             pasta = obter_pasta_agente(agente)
             caminho_temp = os.path.join(pasta, "rodada_atual_temp.txt")
@@ -97,7 +101,7 @@ class GerenciadorMemoriaRPG:
 
     @staticmethod
     def limpar_temp_nao_envolvidos(agentes_nao_envolvidos: List[str]):
-        #Remove o rodada_atual_temp.txt de agentes que não participaram da rodada.
+        # Remove o rodada_atual_temp.txt de agentes que não participaram da rodada.
         for agente in agentes_nao_envolvidos:
             pasta = obter_pasta_agente(agente)
             caminho_temp = os.path.join(pasta, "rodada_atual_temp.txt")
@@ -106,7 +110,7 @@ class GerenciadorMemoriaRPG:
 
     @staticmethod
     def finalizar_rodada(agentes_alvo: List[str]):
-        #Consolida a rodada temporária em um resumo individual/replicado para cada agente alvo.
+        # Consolida a rodada temporária em um resumo individual/replicado para cada agente alvo.
         for agente in agentes_alvo:
             pasta = obter_pasta_agente(agente)
             caminho_temp = os.path.join(pasta, "rodada_atual_temp.txt")
@@ -152,7 +156,9 @@ class GerenciadorMemoriaRPG:
         for arq in arquivos_rodadas:
             if os.path.exists(arq):
                 with open(arq, "r", encoding="utf-8") as f:
-                    conteudo_rodadas += f"\n--- {os.path.basename(arq)} ---\n" + f.read()
+                    conteudo_rodadas += (
+                        f"\n--- {os.path.basename(arq)} ---\n" + f.read()
+                    )
 
         prompt = f"Sintetize estes resumos de rodadas da perspectiva de {agente} em uma narrativa fluida de CENA:\n{conteudo_rodadas}"
         resumo_cena = llm_historiador.invoke(prompt).content.strip()

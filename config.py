@@ -18,7 +18,7 @@ if not (os.getenv("GEMINI_API_KEY")):
     raise RuntimeError(
         "Nenhuma API key encontrada. Verifique se existe um arquivo '.env' em "
         f"'{_PASTA_DESTE_ARQUIVO}' contendo a linha:\n"
-        "GEMINI_API_KEY=\"sua_chave_aqui\"\n"
+        'GEMINI_API_KEY="sua_chave_aqui"\n'
         "(sem aspas, sem espaços ao redor do '=')."
     )
 

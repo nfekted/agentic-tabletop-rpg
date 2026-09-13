@@ -1,6 +1,4 @@
-# Interface visual (Streamlit) para o Mestre conduzir a mesa de RPG,
-# substituindo o menu de terminal do main.py original por botões/campos.
-
+# Interface visual (Streamlit) para o Mestre conduzir a mesa de RPG
 import streamlit as st
 
 from config import carregar_agentes, adicionar_agente
@@ -17,7 +15,12 @@ from fichas import (
     obter_status_jogador,
     definir_status_jogador,
 )
-from imagens import salvar_imagem_upload, caminho_avatar, salvar_avatar_jogador, remover_avatar_jogador
+from imagens import (
+    salvar_imagem_upload,
+    caminho_avatar,
+    salvar_avatar_jogador,
+    remover_avatar_jogador,
+)
 from memoria import obter_pasta_agente, obter_arquivos_memoria, GerenciadorMemoriaRPG
 from agentes import gerar_resposta_agente
 
@@ -54,7 +57,9 @@ for ag in carregar_agentes():
     obter_pasta_agente(ag)
 
 
-def registrar_fala(agente: str, texto: str, aprovada: bool = True, privado: bool = False):
+def registrar_fala(
+    agente: str, texto: str, aprovada: bool = True, privado: bool = False
+):
     # Guarda a última fala de um agente para exibir como balão junto ao seu card.
     st.session_state.ultima_fala[agente] = {
         "texto": texto,
@@ -165,9 +170,7 @@ def acao_falar_direcionado(presentes, is_privado, comando_mestre, caminho_imagem
     alvo_principal = presentes[0]
     status_alvo = obter_status_jogador(alvo_principal)
     if status_alvo != "vivo":
-        st.session_state.mensagem_info = (
-            f"⚠️ Não é possível falar com {alvo_principal}. Status: [{status_alvo.upper()}]."
-        )
+        st.session_state.mensagem_info = f"⚠️ Não é possível falar com {alvo_principal}. Status: [{status_alvo.upper()}]."
         return
 
     resposta = gerar_resposta_agente(
@@ -273,9 +276,7 @@ def gerar_redirects(destinos):
     st.session_state.pending_redirects = pendentes
     st.session_state.aguardando_redirect = None
     if not pendentes and destinos:
-        st.session_state.mensagem_info = (
-            "💭 A resposta foi um pensamento privado — não há nada para aprovar/espelhar."
-        )
+        st.session_state.mensagem_info = "💭 A resposta foi um pensamento privado — não há nada para aprovar/espelhar."
 
 
 def aprovar_redirect(indice):
@@ -325,7 +326,9 @@ with st.sidebar:
     )
     if troca_rapida != regra_ativa_sidebar:
         definir_regra_ativa(troca_rapida)
-        st.session_state.mensagem_info = f"⭐ '{troca_rapida}' passou a ser o conjunto ativo."
+        st.session_state.mensagem_info = (
+            f"⭐ '{troca_rapida}' passou a ser o conjunto ativo."
+        )
         st.rerun()
 
     if st.button("✏️ Gerenciar / Criar Regras (regras/)", use_container_width=True):
@@ -343,7 +346,9 @@ with st.sidebar:
         if enviado:
             if adicionar_agente(novo_nome):
                 obter_pasta_agente(novo_nome.strip())
-                st.session_state.mensagem_info = f"✅ {novo_nome.strip()} adicionado à mesa."
+                st.session_state.mensagem_info = (
+                    f"✅ {novo_nome.strip()} adicionado à mesa."
+                )
             else:
                 st.session_state.mensagem_info = "⚠️ Nome inválido ou já existente."
             st.rerun()
@@ -380,7 +385,10 @@ if st.session_state.editando_regras:
     st.session_state.regra_selecionada = sel
 
     conteudo_regra = st.text_area(
-        f"Conteúdo de {sel}", value=carregar_regra(sel), height=220, key=f"txt_regra_{sel}"
+        f"Conteúdo de {sel}",
+        value=carregar_regra(sel),
+        height=220,
+        key=f"txt_regra_{sel}",
     )
 
     c1, c2, c3 = st.columns(3)
@@ -388,7 +396,9 @@ if st.session_state.editando_regras:
         salvar_regra(sel, conteudo_regra)
         st.session_state.mensagem_info = f"✅ '{sel}' salvo."
         st.rerun()
-    if c2.button("⭐ Usar agora", key=f"ativar_regra_{sel}", disabled=(sel == regra_ativa)):
+    if c2.button(
+        "⭐ Usar agora", key=f"ativar_regra_{sel}", disabled=(sel == regra_ativa)
+    ):
         definir_regra_ativa(sel)
         st.session_state.mensagem_info = f"⭐ '{sel}' passou a ser o conjunto ativo."
         st.rerun()
@@ -402,7 +412,9 @@ if st.session_state.editando_regras:
             st.session_state.regra_selecionada = None
             st.session_state.mensagem_info = f"🗑️ '{sel}' excluído."
         else:
-            st.session_state.mensagem_info = "⚠️ Não foi possível excluir esse conjunto."
+            st.session_state.mensagem_info = (
+                "⚠️ Não foi possível excluir esse conjunto."
+            )
         st.rerun()
 
     st.markdown("**➕ Criar novo conjunto de regras**")
@@ -415,11 +427,11 @@ if st.session_state.editando_regras:
             novo_arquivo = criar_arquivo_regra(nome_nova_regra)
             if novo_arquivo:
                 st.session_state.regra_selecionada = novo_arquivo
-                st.session_state.mensagem_info = (
-                    f"✅ '{novo_arquivo}' criado (vazio) — selecione-o acima para escrever o conteúdo."
-                )
+                st.session_state.mensagem_info = f"✅ '{novo_arquivo}' criado (vazio) — selecione-o acima para escrever o conteúdo."
             else:
-                st.session_state.mensagem_info = "⚠️ Nome inválido ou já existe um arquivo com esse nome."
+                st.session_state.mensagem_info = (
+                    "⚠️ Nome inválido ou já existe um arquivo com esse nome."
+                )
             st.rerun()
 
     if st.button("Fechar", key="fechar_regras"):
@@ -487,19 +499,34 @@ for grupo in chunked(agentes, 4):
                 st.caption(f"status: {status}")
 
                 b1, b2, b3 = st.columns(3)
-                if b1.button("✏️", key=f"btn_ficha_{nome}", use_container_width=True, help="Editar ficha"):
+                if b1.button(
+                    "✏️",
+                    key=f"btn_ficha_{nome}",
+                    use_container_width=True,
+                    help="Editar ficha",
+                ):
                     st.session_state.editando_ficha = nome
                     st.session_state.vendo_memoria = None
                     st.session_state.editando_regras = False
                     st.session_state.trocando_avatar = None
                     st.rerun()
-                if b2.button("📜", key=f"btn_mem_{nome}", use_container_width=True, help="Ver memória"):
+                if b2.button(
+                    "📜",
+                    key=f"btn_mem_{nome}",
+                    use_container_width=True,
+                    help="Ver memória",
+                ):
                     st.session_state.vendo_memoria = nome
                     st.session_state.editando_ficha = None
                     st.session_state.editando_regras = False
                     st.session_state.trocando_avatar = None
                     st.rerun()
-                if b3.button("🖼️", key=f"btn_avatar_{nome}", use_container_width=True, help="Trocar foto"):
+                if b3.button(
+                    "🖼️",
+                    key=f"btn_avatar_{nome}",
+                    use_container_width=True,
+                    help="Trocar foto",
+                ):
                     st.session_state.trocando_avatar = nome
                     st.session_state.editando_ficha = None
                     st.session_state.vendo_memoria = None
@@ -509,9 +536,11 @@ for grupo in chunked(agentes, 4):
                 novo_status = st.selectbox(
                     "Status",
                     ["vivo", "morto", "inconsciente"],
-                    index=["vivo", "morto", "inconsciente"].index(status)
-                    if status in ["vivo", "morto", "inconsciente"]
-                    else 0,
+                    index=(
+                        ["vivo", "morto", "inconsciente"].index(status)
+                        if status in ["vivo", "morto", "inconsciente"]
+                        else 0
+                    ),
                     key=f"status_{nome}",
                     label_visibility="collapsed",
                 )
@@ -576,21 +605,34 @@ if st.session_state.trocando_avatar:
     if atual:
         st.image(atual, width=120, caption="Foto atual")
     else:
-        st.caption("Este jogador ainda não tem foto — está usando o quadrado com iniciais.")
+        st.caption(
+            "Este jogador ainda não tem foto — está usando o quadrado com iniciais."
+        )
 
     nova_foto = st.file_uploader(
-        "Selecionar nova imagem", type=["png", "jpg", "jpeg", "webp"], key=f"upload_avatar_{nome}"
+        "Selecionar nova imagem",
+        type=["png", "jpg", "jpeg", "webp"],
+        key=f"upload_avatar_{nome}",
     )
     c1, c2, c3 = st.columns(3)
-    if c1.button("💾 Salvar foto", type="primary", key=f"salvar_avatar_{nome}", disabled=nova_foto is None):
+    if c1.button(
+        "💾 Salvar foto",
+        type="primary",
+        key=f"salvar_avatar_{nome}",
+        disabled=nova_foto is None,
+    ):
         salvar_avatar_jogador(nome, nova_foto)
         st.session_state.trocando_avatar = None
         st.session_state.mensagem_info = f"✅ Foto de {nome} atualizada."
         st.rerun()
-    if c2.button("🗑️ Remover foto", key=f"remover_avatar_{nome}", disabled=atual is None):
+    if c2.button(
+        "🗑️ Remover foto", key=f"remover_avatar_{nome}", disabled=atual is None
+    ):
         remover_avatar_jogador(nome)
         st.session_state.trocando_avatar = None
-        st.session_state.mensagem_info = f"🗑️ Foto de {nome} removida — voltou ao quadrado com iniciais."
+        st.session_state.mensagem_info = (
+            f"🗑️ Foto de {nome} removida — voltou ao quadrado com iniciais."
+        )
         st.rerun()
     if c3.button("Cancelar", key=f"cancelar_avatar_{nome}"):
         st.session_state.trocando_avatar = None
@@ -604,7 +646,10 @@ if st.session_state.editando_ficha:
     nome = st.session_state.editando_ficha
     st.subheader(f"✏️ Editando ficha de {nome}")
     conteudo_ficha = st.text_area(
-        "Conteúdo da ficha", value=carregar_ficha(nome), height=250, key=f"txt_ficha_{nome}"
+        "Conteúdo da ficha",
+        value=carregar_ficha(nome),
+        height=250,
+        key=f"txt_ficha_{nome}",
     )
     c1, c2 = st.columns([1, 1])
     if c1.button("💾 Salvar ficha", type="primary", key=f"salvar_ficha_{nome}"):
@@ -707,7 +752,9 @@ if st.session_state.pending_principal:
     if c2.button("❌ Descartar", key="descartar_principal"):
         limpar_fala(p["alvo"])
         st.session_state.pending_principal = None
-        st.session_state.mensagem_info = "❌ Mensagem descartada. Nada foi salvo na história."
+        st.session_state.mensagem_info = (
+            "❌ Mensagem descartada. Nada foi salvo na história."
+        )
         st.rerun()
     st.divider()
 
@@ -767,5 +814,7 @@ else:
             autor, resto = linha.split(":", 1)
         else:
             autor, resto = "Mestre", linha
-        with st.chat_message("assistant" if autor.strip() not in ("Mestre",) else "user"):
+        with st.chat_message(
+            "assistant" if autor.strip() not in ("Mestre",) else "user"
+        ):
             st.markdown(f"**{autor.strip()}**: {resto.strip()}")
