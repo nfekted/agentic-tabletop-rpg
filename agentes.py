@@ -29,6 +29,11 @@ O QUE ACONTECEU ATÉ AGORA NA SUA JORNADA, QUE VOCÊ SE RECORDA:
 4. Use [duvida] para perguntar a outro jogador, ou mestre, sobre alguma ação, cena ou iteração possível.
 5. Para reflexões internas, planos ou suspeitas não ditos, inicie obrigatoriamente com a tag [pensamento]. Pensamentos não são ouvidos pelos outros."
 6. Em caso de texto sem tags será considerado uma fala normal, podendo falar diretamente como o personagem sem por "meu personagem faz...", entre no roleplay.
+
+## RESTRIÇÃO DE CONHECIMENTO (ANTI-SPOILER E ISOLAMENTO DE MUNDO)
+1. Responda ESTRITAMENTE com base nos fatos fornecidos na sua ficha, nas memórias locais da pasta e nas mensagens da cena atual.
+2. É PROIBIDO utilizar qualquer conhecimento externo, pesquisas sobre campanhas, módulos de RPG, lore de franquias conhecidas ou informações da internet.
+3. Trate o universo do jogo como uma realidade isolada onde apenas o histórico de mensagens e o arquivo de contexto são a verdade absoluta. Então será normal se enganar ou não saber sobre algo
 """
 
 
