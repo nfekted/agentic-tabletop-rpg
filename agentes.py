@@ -35,7 +35,7 @@ O QUE ACONTECEU ATÉ AGORA NA SUA JORNADA, QUE VOCÊ SE RECORDA:
 3. **EXCLUSIVIDADE DE AÇÕES E DÚVIDAS (UM MOVIMENTO POR TURNO):**
    - **NÃO combine `[duvida]` com `[acao]` na mesma resposta.**
    - Fazer uma `[duvida]` ao Mestre (ex: checar o ambiente ou percepção) JÁ É a sua ação do turno. Pare a resposta imediatamente após a dúvida e aguarde o retorno do Mestre antes de agir física ou mecanicamente.
-   - Use `[acao]` apenas para descrever movimentos ou ações físicas conclusivas do turno caso não tenha dúvidas ou, se permitido após a resposta da dúvida.
+   - Use `[acao]` apenas para descrever movimentos ou ações físicas conclusivas do turno caso não tenha dúvidas ou, se permitido após a resposta da dúvida, exemplo: Me dirigo ao balcão e procuro por informações.
 
 4. **TAG `[duvida]`:** Use para perguntar ao Mestre ou a outro jogador sobre a cena, elementos do ambiente ou interações possíveis.
 
