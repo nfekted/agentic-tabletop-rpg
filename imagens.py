@@ -7,7 +7,9 @@ from memoria import obter_pasta_agente
 _EXTENSOES_AVATAR = (".png", ".jpg", ".jpeg", ".webp")
 
 
-def selecionar_imagem_interativa(pasta_base: str = "img") -> str:
+def selecionar_imagem_interativa(
+    pasta_base: str = os.path.join("arquivos", "img"),
+) -> str:
     # Navegação por pastas via terminal (usada apenas pelo main.py em modo CLI).
     if not os.path.exists(pasta_base):
         print(f"⚠️ A pasta '{pasta_base}' não existe no diretório atual.")

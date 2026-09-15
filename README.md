@@ -19,7 +19,7 @@ preferir.
 - [Como rodar](#como-rodar)
 - [Funcionalidades](#funcionalidades)
   - [Fichas dos personagens](#fichas-dos-personagens)
-  - [Conjuntos de regras (regras/)](#conjuntos-de-regras-regras)
+  - [Conjuntos de regras (arquivos/regras/)](#conjuntos-de-regras-arquivosregras)
   - [Ações do mestre](#ações-do-mestre)
   - [Tags de resposta: \[acao\], \[duvida\] e \[pensamento\]](#tags-de-resposta-acao-duvida-e-pensamento)
   - [Fluxo de aprovação](#fluxo-de-aprovação)
@@ -146,7 +146,7 @@ Para encerrar qualquer um dos dois, use `Ctrl+C` no terminal.
 
 ### Fichas dos personagens
 
-Cada jogador tem um arquivo de ficha em `fichas/{nome_do_jogador}.txt`, que
+Cada jogador tem um arquivo de ficha em `arquivos/fichas/{nome_do_jogador}.txt`, que
 descreve personalidade, história e características do personagem — é isso
 que molda como o agente de IA responde por ele. Pela interface, clique no
 botão ✏️ no card do jogador para editar e salvar a ficha sem precisar abrir
@@ -154,9 +154,9 @@ nenhum arquivo manualmente. A primeira linha da ficha também guarda o
 status do personagem (`vivo`, `morto` ou `inconsciente`), controlado pelo
 seletor abaixo do card.
 
-### Conjuntos de regras (regras/)
+### Conjuntos de regras (arquivos/regras/)
 
-O `regras_rpg.txt` único foi substituído por uma pasta `regras/`, que pode
+O `regras_rpg.txt` único foi substituído por uma pasta `arquivos/regras/`, que pode
 conter **vários conjuntos de regras** (por exemplo `geral.txt`,
 `combate.txt`, `exploracao.txt`) — mas só o **conjunto marcado como ativo**
 é enviado no prompt de cada jogador. Isso evita gastar tokens à toa
@@ -173,7 +173,7 @@ Pela barra lateral você pode:
 
 Se você já usava a versão antiga com um único `regras_rpg.txt` na raiz do
 projeto, na primeira execução esse arquivo é migrado automaticamente para
-`regras/geral.txt` e marcado como ativo — nada se perde.
+`arquivos/regras/geral.txt` e marcado como ativo — nada se perde.
 
 ### Ações do mestre
 
@@ -212,7 +212,7 @@ recusar algo que não fez sentido, antes que vire "fato" na campanha.
 
 ### Sistema de memória (rodada → cena → mesa)
 
-Cada jogador tem sua própria pasta `memoria_{nome}/`, com uma hierarquia de
+Cada jogador tem sua própria pasta `arquivos/memoria_{nome}/`, com uma hierarquia de
 três níveis:
 
 1. **Rodada** — enquanto a rodada está aberta, cada linha relevante é
@@ -272,7 +272,7 @@ Cada card de jogador mostra um balão com a última fala dele:
 
 No lugar do quadrado com as iniciais, você pode enviar uma foto para cada
 jogador pelo botão 🖼️ no card. A imagem fica salva dentro da própria pasta
-de memória do personagem (`memoria_{nome}/avatar.<extensão>`).
+de memória do personagem (`arquivos/memoria_{nome}/avatar.<extensão>`).
 
 ### Adicionando jogadores
 
@@ -295,20 +295,23 @@ já aparece na fila junto com os demais, sem precisar reiniciar o app.
 ├── agentes.py                  # Monta o prompt e gera as respostas dos jogadores
 ├── requirements.txt
 ├── .env                    # Sua chave de API (não versionar)
-├── regras/                 # Conjuntos de regras (um arquivo por cenário)
-│   ├── .ativa               # Marca qual arquivo está em uso agora
-│   ├── geral.txt
-│   └── combate.txt
-├── fichas/
-│   ├── jogadora.txt
-│   ├── jogadorb.txt
-│   └── ...
-└── memoria_JogadorA/
-    ├── rodada_atual_temp.txt
-    ├── rodada_1.txt
-    ├── cena_1.txt
-    ├── mesa.txt
-    └── avatar.png
+└── arquivos/               # Pasta centralizadora de dados e mídias
+    ├── regras/                 # Conjuntos de regras (um arquivo por cenário)
+    │   ├── .ativa               # Marca qual arquivo está em uso agora
+    │   ├── geral.txt
+    │   └── combate.txt
+    ├── fichas/
+    │   ├── jogadora.txt
+    │   ├── jogadorb.txt
+    │   └── ...
+    ├── img/
+    │   └── ...
+    └── memoria_JogadorA/
+        ├── rodada_atual_temp.txt
+        ├── rodada_1.txt
+        ├── cena_1.txt
+        ├── mesa.txt
+        └── avatar.png
 ```
 
 ---
@@ -332,7 +335,7 @@ em ✏️ Ficha (para a ficha) ou em "✏️ Gerenciar / Criar Regras" na barra
 lateral (para as regras), escreva o conteúdo e salve.
 
 **Criei um novo conjunto de regras e ele não afeta as respostas dos jogadores**
-Criar um arquivo em `regras/` não o torna automaticamente ativo. Depois de
+Criar um arquivo em `arquivos/regras/` não o torna automaticamente ativo. Depois de
 escrever o conteúdo, clique em "⭐ Usar agora" (no painel) ou selecione-o no
 seletor rápido da barra lateral — só o conjunto marcado como ativo é
 enviado no prompt dos jogadores.

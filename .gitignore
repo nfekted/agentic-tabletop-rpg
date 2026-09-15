@@ -217,11 +217,9 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# Pasta de Regras fichas e imagens
-regras/*
-img/*
-ficha/*
+# Pasta de arquivos (regras, fichas, imagens e memórias)
+arquivos/**/*
 
-!regras/default.txt
-!img/default.txt
-!ficha/default.txt
+!arquivos/regras/default.txt
+!arquivos/img/default.txt
+!arquivos/fichas/default.txt

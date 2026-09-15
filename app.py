@@ -338,7 +338,10 @@ with st.sidebar:
         )
         st.rerun()
 
-    if st.button("✏️ Gerenciar / Criar Regras (regras/)", use_container_width=True):
+    if st.button(
+        "✏️ Gerenciar / Criar Regras (arquivos/regras/)",
+        use_container_width=True,
+    ):
         st.session_state.editando_regras = True
         st.session_state.editando_ficha = None
         st.session_state.vendo_memoria = None
@@ -371,7 +374,7 @@ if st.session_state.mensagem_info:
 
 
 # ----------------------------------------------------------------------------
-# GERENCIAMENTO DE REGRAS (múltiplos conjuntos em regras/, um ativo por vez)
+# GERENCIAMENTO DE REGRAS (múltiplos conjuntos em arquivos/regras/, um ativo por vez)
 # ----------------------------------------------------------------------------
 if st.session_state.editando_regras:
     st.subheader("📖 Conjuntos de regras")
@@ -427,7 +430,7 @@ if st.session_state.editando_regras:
     st.markdown("**➕ Criar novo conjunto de regras**")
     with st.form("form_nova_regra", clear_on_submit=True):
         nome_nova_regra = st.text_input(
-            "Nome (ex: combate, exploracao, social) — vira combate.txt dentro de regras/"
+            "Nome (ex: combate, exploracao, social) — vira combate.txt dentro de arquivos/regras/"
         )
         criar_regra = st.form_submit_button("Criar")
         if criar_regra:

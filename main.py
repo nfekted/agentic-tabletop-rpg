@@ -1,6 +1,7 @@
 # Ponto de entrada do sistema RPG Agent em modo TERMINAL (menu de texto).
 # Para a versão visual, rode: streamlit run app.py
 
+import os
 from config import AGENTES
 from fichas import obter_status_jogador
 from imagens import selecionar_imagem_interativa
@@ -97,7 +98,9 @@ def main():
         img_selecionada = None
 
         if anexar == "s":
-            img_selecionada = selecionar_imagem_interativa(pasta_base="img")
+            img_selecionada = selecionar_imagem_interativa(
+                pasta_base=os.path.join("arquivos", "img")
+            )
 
         log_mestre = f"Mestre (para {', '.join(presentes)}): {comando_mestre}"
         historico_em_memoria.append(log_mestre)

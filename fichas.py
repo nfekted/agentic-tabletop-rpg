@@ -2,9 +2,10 @@
 import os
 import re
 
-PASTA_REGRAS = "regras"
+PASTA_BASE = "arquivos"
+PASTA_REGRAS = os.path.join(PASTA_BASE, "regras")
 CAMINHO_REGRA_ATIVA = os.path.join(PASTA_REGRAS, ".ativa")
-PASTA_FICHAS = "fichas"
+PASTA_FICHAS = os.path.join(PASTA_BASE, "fichas")
 
 
 def carregar_arquivo(caminho: str, padrao: str = "") -> str:

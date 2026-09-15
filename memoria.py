@@ -8,7 +8,7 @@ from fichas import carregar_arquivo
 
 
 def obter_pasta_agente(agente: str) -> str:
-    pasta = f"memoria_{agente}"
+    pasta = os.path.join("arquivos", f"memoria_{agente}")
     if not os.path.exists(pasta):
         os.makedirs(pasta, exist_ok=True)
     return pasta
