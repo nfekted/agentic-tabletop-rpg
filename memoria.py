@@ -63,8 +63,6 @@ def carregar_memoria_longo_prazo(agente: str) -> str:
 
 def obter_arquivos_memoria(agente: str) -> dict:
     # Retorna, de forma estruturada, todo o conteúdo de memória de um agente
-    # para exibição somente-leitura na interface (rodada atual, rodadas
-    # fechadas, cenas compiladas e o mesa.txt permanente).
     pasta = obter_pasta_agente(agente)
 
     caminho_temp = os.path.join(pasta, "rodada_atual_temp.txt")

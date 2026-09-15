@@ -117,10 +117,6 @@ def carregar_fichas(agentes) -> dict:
     return {ag: carregar_ficha(ag) for ag in agentes}
 
 
-REGRAS = carregar_regras()
-FICHAS = {}
-
-
 def definir_status_jogador(agente: str, status: str):
     # Atualiza (ou insere) a linha 'status: ...' no topo da ficha do agente
     conteudo = carregar_ficha(agente)

@@ -90,6 +90,13 @@ def chunked(lista, tamanho):
         yield lista[i : i + tamanho]
 
 
+def indice_seguro(lista, valor, padrao=0):
+    try:
+        return lista.index(valor)
+    except ValueError:
+        return padrao
+
+
 def iniciais(nome: str) -> str:
     return "".join([p[0].upper() for p in nome.replace("_", " ").split()][:2]) or "?"
 
@@ -320,7 +327,7 @@ with st.sidebar:
     troca_rapida = st.selectbox(
         "Trocar rapidamente",
         arquivos_regras_sidebar,
-        index=arquivos_regras_sidebar.index(regra_ativa_sidebar),
+        index=indice_seguro(arquivos_regras_sidebar, regra_ativa_sidebar),
         key="troca_rapida_regras",
         label_visibility="collapsed",
     )
@@ -379,7 +386,7 @@ if st.session_state.editando_regras:
     sel = st.selectbox(
         "Selecione o conjunto para visualizar/editar",
         arquivos_regras,
-        index=arquivos_regras.index(st.session_state.regra_selecionada),
+        index=indice_seguro(arquivos_regras, st.session_state.regra_selecionada),
         key="select_regra_arquivo",
     )
     st.session_state.regra_selecionada = sel
@@ -718,13 +725,18 @@ if tipo_acao == "Falar com Todos (Público)":
 else:
     selecionados = st.multiselect("Selecione o(s) jogador(es) envolvidos", agentes)
 
-comando_mestre = st.text_area("Sua mensagem/orientação", key="txt_comando_mestre")
-imagem_upload = st.file_uploader(
-    "Anexar imagem (opcional)", type=["png", "jpg", "jpeg", "webp"]
-)
+with st.form("form_envio_mestre", clear_on_submit=True):
+    comando_mestre = st.text_area("Sua mensagem/orientação")
+    imagem_upload = st.file_uploader(
+        "Anexar imagem (opcional)", type=["png", "jpg", "jpeg", "webp"]
+    )
+    enviado = st.form_submit_button(
+        "📨 Enviar",
+        type="primary",
+        disabled=not (bool(comando_mestre.strip()) and bool(selecionados)),
+    )
 
-pode_enviar = bool(comando_mestre.strip()) and bool(selecionados)
-if st.button("📨 Enviar", type="primary", disabled=not pode_enviar):
+if enviado:
     caminho_imagem = salvar_imagem_upload(imagem_upload) if imagem_upload else None
 
     if tipo_acao == "Falar com Todos (Público)":
