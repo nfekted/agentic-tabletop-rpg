@@ -288,7 +288,7 @@ já aparece na fila junto com os demais, sem precisar reiniciar o app.
 .
 ├── app.py                 # Interface visual (Streamlit)
 ├── main.py                # Interface de terminal (menu por texto)
-├── config.py               # Lista de jogadores e modelos de IA
+├── config.py               # Modelos de IA e configurações
 ├── fichas.py                # Leitura/edição de fichas e regras
 ├── imagens.py                # Upload de imagens de contexto e fotos de jogador
 ├── memoria.py                 # Hierarquia de memória rodada → cena → mesa
@@ -296,6 +296,7 @@ já aparece na fila junto com os demais, sem precisar reiniciar o app.
 ├── requirements.txt
 ├── .env                    # Sua chave de API (não versionar)
 └── arquivos/               # Pasta centralizadora de dados e mídias
+    ├── jogadores.json          # Lista centralizada de jogadores da mesa
     ├── regras/                 # Conjuntos de regras (um arquivo por cenário)
     │   ├── .ativa               # Marca qual arquivo está em uso agora
     │   ├── geral.txt
@@ -326,8 +327,8 @@ Streamlit por completo (`Ctrl+C` e rode `streamlit run app.py` de novo) —
 variáveis de ambiente só são lidas quando o processo sobe.
 
 **Nenhum jogador aparece na tela**
-Confira se `config.py` tem pelo menos um nome na lista `AGENTES`, ou
-adicione um pela barra lateral.
+Confira se `arquivos/jogadores.json` tem pelo menos um nome na lista, ou
+adicione um novo jogador pela barra lateral.
 
 **A ficha ou as regras aparecem vazias**
 Isso é normal se ainda não foram salvas nenhuma vez pela interface — clique

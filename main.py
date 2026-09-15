@@ -2,7 +2,7 @@
 # Para a versão visual, rode: streamlit run app.py
 
 import os
-from config import AGENTES
+from config import carregar_agentes
 from fichas import obter_status_jogador
 from imagens import selecionar_imagem_interativa
 from memoria import obter_pasta_agente, GerenciadorMemoriaRPG
@@ -15,7 +15,7 @@ def main():
     print("==================================================")
 
     # Garante que as pastas de memória existem
-    for ag in AGENTES:
+    for ag in carregar_agentes():
         obter_pasta_agente(ag)
 
     historico_em_memoria = []
@@ -23,6 +23,8 @@ def main():
     envolvidos_rodada_atual = set()
 
     while True:
+        agentes = carregar_agentes()
+
         print("\n--- MENU DO MESTRE ---")
         print("1. [Inicio da rodada]")
         print("2. [Fim da rodada]")
@@ -41,7 +43,7 @@ def main():
             envolvidos_rodada_atual = set()
             msg = "--- ÍNICIO DA RODADA ---"
             print(f"\n🟢 {msg}")
-            GerenciadorMemoriaRPG.salvar_log_rodada_atual(msg, AGENTES)
+            GerenciadorMemoriaRPG.salvar_log_rodada_atual(msg, agentes)
             continue
 
         if opcao == "2":
@@ -51,12 +53,12 @@ def main():
 
             msg = "--- FIM DA RODADA ---"
             alvos_finalizacao = (
-                list(envolvidos_rodada_atual) if envolvidos_rodada_atual else AGENTES
+                list(envolvidos_rodada_atual) if envolvidos_rodada_atual else agentes
             )
             GerenciadorMemoriaRPG.salvar_log_rodada_atual(msg, alvos_finalizacao)
             GerenciadorMemoriaRPG.finalizar_rodada(alvos_finalizacao)
 
-            nao_envolvidos = [ag for ag in AGENTES if ag not in alvos_finalizacao]
+            nao_envolvidos = [ag for ag in agentes if ag not in alvos_finalizacao]
             if nao_envolvidos:
                 GerenciadorMemoriaRPG.limpar_temp_nao_envolvidos(nao_envolvidos)
 
@@ -68,15 +70,15 @@ def main():
         is_privado = False
 
         if opcao == "3":
-            presentes = AGENTES.copy()
+            presentes = agentes.copy()
         elif opcao in ["4", "5"]:
             is_privado = opcao == "5"
-            print(f"\nJogadores disponíveis: {', '.join(AGENTES)}")
+            print(f"\nJogadores disponíveis: {', '.join(agentes)}")
             entrada = input(
                 "Digite o(s) jogador(es) envolvidos separados por vírgula: "
             ).strip()
 
-            presentes = [p.strip() for p in entrada.split(",") if p.strip() in AGENTES]
+            presentes = [p.strip() for p in entrada.split(",") if p.strip() in agentes]
 
             if not presentes:
                 print("⚠️ Nenhum jogador válido selecionado!")
@@ -85,7 +87,7 @@ def main():
             print("Opção inválida!")
             continue
 
-        agentes_alvo_log = presentes if is_privado else AGENTES
+        agentes_alvo_log = presentes if is_privado else agentes
         for p in agentes_alvo_log:
             envolvidos_rodada_atual.add(p)
 
@@ -125,7 +127,7 @@ def main():
                 log_ag = f"{ag}: {resposta}"
                 historico_em_memoria.append(log_ag)
                 if rodada_ativa:
-                    GerenciadorMemoriaRPG.salvar_log_rodada_atual(log_ag, AGENTES)
+                    GerenciadorMemoriaRPG.salvar_log_rodada_atual(log_ag, agentes)
 
         else:
             alvo_principal = presentes[0]
