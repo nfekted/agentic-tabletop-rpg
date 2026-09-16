@@ -23,6 +23,15 @@ from imagens import (
 )
 from memoria import obter_pasta_agente, obter_arquivos_memoria, GerenciadorMemoriaRPG
 from agentes import gerar_resposta_agente
+from tags import (
+    extrair_tags_resposta,
+    formatar_conteudo_publico,
+    formatar_para_autor,
+    tem_acao,
+    tem_duvida,
+    tem_pensamento,
+    apenas_pensamento,
+)
 
 st.set_page_config(page_title="Mesa de RPG — Painel do Mestre", layout="wide")
 
@@ -149,19 +158,32 @@ def acao_falar_com_todos(presentes, comando_mestre, caminho_imagem):
             continue
         resposta = gerar_resposta_agente(
             ag,
-            f"O mestre disse a todos: '{comando_mestre}'. Dê sua reação breve "
-            f"(ou use [pensamento] se for algo que seu personagem não diz em voz alta).",
+            f"O mestre disse a todos: '{comando_mestre}'. Dê sua reação no formato com tags [pensamento], [fala], [acao] ou [duvida].",
             st.session_state.historico,
             caminho_imagem=caminho_imagem,
         )
-        log_ag = f"{ag}: {resposta}"
-        if eh_pensamento(resposta):
-            salvar_pensamento_privado(ag, resposta)
-            continue
-        st.session_state.historico.append(log_ag)
-        registrar_fala(ag, resposta, aprovada=True)
-        if st.session_state.rodada_ativa:
-            GerenciadorMemoriaRPG.salvar_log_rodada_atual(log_ag, presentes)
+        tags = extrair_tags_resposta(resposta)
+        publico = formatar_conteudo_publico(tags)
+
+        # 1. Salva pensamento na memória privada do personagem
+        if tags.get("pensamento"):
+            salvar_pensamento_privado(
+                ag, f"[pensamento]{tags['pensamento']}[/pensamento]"
+            )
+
+        # 2. Se houver fala ou ação pública, espelha para o chat e para os presentes
+        if publico:
+            log_ag = f"{ag}: {publico}"
+            st.session_state.historico.append(log_ag)
+            registrar_fala(ag, publico, aprovada=True, privado=False)
+            if st.session_state.rodada_ativa:
+                GerenciadorMemoriaRPG.salvar_resposta_agente(ag, resposta, presentes)
+        elif not tags.get("pensamento"):
+            log_ag = f"{ag}: {resposta}"
+            st.session_state.historico.append(log_ag)
+            registrar_fala(ag, resposta, aprovada=True, privado=False)
+            if st.session_state.rodada_ativa:
+                GerenciadorMemoriaRPG.salvar_log_rodada_atual(log_ag, presentes)
 
 
 def acao_falar_direcionado(presentes, is_privado, comando_mestre, caminho_imagem):
@@ -182,52 +204,65 @@ def acao_falar_direcionado(presentes, is_privado, comando_mestre, caminho_imagem
 
     resposta = gerar_resposta_agente(
         alvo_principal,
-        f"O mestre direcionou a você: '{comando_mestre}'. Responda usando [acao] para agir, "
-        f"[duvida] para consultar outro jogador, ou [pensamento] se for algo que seu personagem "
-        f"NÃO diz em voz alta.",
+        f"O mestre direcionou a você: '{comando_mestre}'. Responda usando as tags [pensamento], [fala], [acao] ou [duvida].",
         st.session_state.historico,
         caminho_imagem=caminho_imagem,
     )
 
-    if eh_pensamento(resposta):
-        salvar_pensamento_privado(alvo_principal, resposta)
+    tags = extrair_tags_resposta(resposta)
+    publico = formatar_conteudo_publico(tags)
+
+    # 1. Se houver pensamento, grava imediatamente na memória privada do personagem
+    if tags.get("pensamento"):
+        salvar_pensamento_privado(
+            alvo_principal, f"[pensamento]{tags['pensamento']}[/pensamento]"
+        )
+
+    # 2. Se for apenas pensamento, encerra o turno
+    if apenas_pensamento(tags):
         st.session_state.mensagem_info = (
-            f"💭 {alvo_principal} teve um pensamento privado — não foi compartilhado "
-            f"com mais ninguém, só ficou guardado na memória dele(a)."
+            f"💭 {alvo_principal} teve um pensamento privado — não realizou ações públicas neste turno."
         )
         return
 
+    # 3. Se houver conteúdo público (fala/ação/dúvida), envia para aprovação do Mestre
+    conteudo_para_aprovar = publico or resposta
     st.session_state.pending_principal = {
         "alvo": alvo_principal,
-        "resposta": resposta,
+        "resposta_completa": resposta,
+        "conteudo_publico": conteudo_para_aprovar,
+        "tags": tags,
         "presentes": presentes,
         "agentes_alvo_log": agentes_alvo_log,
     }
-    registrar_fala(alvo_principal, resposta, aprovada=False)
+    registrar_fala(alvo_principal, conteudo_para_aprovar, aprovada=False, privado=False)
 
 
 def aprovar_principal():
     p = st.session_state.pending_principal
-    log_acao = f"{p['alvo']}: {p['resposta']}"
+    tags = p.get("tags") or extrair_tags_resposta(p["resposta_completa"])
+    publico = p["conteudo_publico"]
+
+    log_acao = f"{p['alvo']}: {publico}"
     st.session_state.historico.append(log_acao)
-    registrar_fala(p["alvo"], p["resposta"], aprovada=True)
+    registrar_fala(p["alvo"], publico, aprovada=True, privado=False)
+
     if st.session_state.rodada_ativa:
-        GerenciadorMemoriaRPG.salvar_log_rodada_atual(log_acao, p["agentes_alvo_log"])
+        GerenciadorMemoriaRPG.salvar_resposta_agente(
+            p["alvo"], p["resposta_completa"], p["agentes_alvo_log"]
+        )
 
     outros_presentes = [x for x in p["presentes"] if x != p["alvo"]]
-    resposta_lower = p["resposta"].lower()
-    tem_duvida = "[duvida]" in resposta_lower
-    tem_acao = "[acao]" in resposta_lower
 
-    if tem_duvida and outros_presentes:
+    if tem_duvida(tags) and outros_presentes:
         candidatos = [x for x in outros_presentes if obter_status_jogador(x) == "vivo"]
         st.session_state.aguardando_redirect = {
             "candidatos": candidatos,
             "alvo_principal": p["alvo"],
-            "resposta_pergunta": p["resposta"],
+            "resposta_pergunta": tags.get("duvida") or publico,
             "agentes_alvo_log": p["agentes_alvo_log"],
         }
-    elif tem_acao:
+    elif tem_acao(tags):
         st.session_state.mensagem_info = (
             f"✅ Ação de {p['alvo']} resolvida. Nenhuma reação automática dos demais."
         )
@@ -237,21 +272,27 @@ def aprovar_principal():
                 continue
             resp_outro = gerar_resposta_agente(
                 ou,
-                f"O jogador {p['alvo']} acabou de dizer/fazer: '{p['resposta']}'. Você concorda, opina, faz ressalva "
-                f"ou apenas pensa a respeito (nesse caso use [pensamento])? Seja breve.",
+                f"O jogador {p['alvo']} acabou de dizer/fazer: '{publico}'. Você concorda, opina, faz ressalva "
+                f"ou apenas pensa a respeito? Use as tags [pensamento], [fala], [acao] ou [duvida]. Seja breve.",
                 st.session_state.historico,
                 caminho_imagem=None,
             )
-            if eh_pensamento(resp_outro):
-                salvar_pensamento_privado(ou, resp_outro)
-                continue
-            log_outro = f"{ou} (opinião): {resp_outro}"
-            st.session_state.historico.append(log_outro)
-            registrar_fala(ou, resp_outro, aprovada=True)
-            if st.session_state.rodada_ativa:
-                GerenciadorMemoriaRPG.salvar_log_rodada_atual(
-                    log_outro, p["agentes_alvo_log"]
+            tags_outro = extrair_tags_resposta(resp_outro)
+            publico_outro = formatar_conteudo_publico(tags_outro)
+
+            if tags_outro.get("pensamento"):
+                salvar_pensamento_privado(
+                    ou, f"[pensamento]{tags_outro['pensamento']}[/pensamento]"
                 )
+
+            if publico_outro:
+                log_outro = f"{ou} (opinião): {publico_outro}"
+                st.session_state.historico.append(log_outro)
+                registrar_fala(ou, publico_outro, aprovada=True, privado=False)
+                if st.session_state.rodada_ativa:
+                    GerenciadorMemoriaRPG.salvar_resposta_agente(
+                        ou, resp_outro, p["agentes_alvo_log"]
+                    )
 
     st.session_state.pending_principal = None
 
@@ -263,23 +304,34 @@ def gerar_redirects(destinos):
         resp = gerar_resposta_agente(
             destino,
             f"{ar['alvo_principal']} perguntou diretamente a você: '{ar['resposta_pergunta']}'. "
-            f"Responda a pergunta dele(a) diretamente, sem apenas opinar sobre o assunto "
-            f"(ou use [pensamento] se preferir refletir sem responder em voz alta).",
+            f"Responda diretamente usando as tags [pensamento], [fala], [acao] ou [duvida].",
             st.session_state.historico,
             caminho_imagem=None,
         )
-        if eh_pensamento(resp):
-            salvar_pensamento_privado(destino, resp)
+        tags = extrair_tags_resposta(resp)
+        publico = formatar_conteudo_publico(tags)
+
+        if tags.get("pensamento"):
+            salvar_pensamento_privado(
+                destino, f"[pensamento]{tags['pensamento']}[/pensamento]"
+            )
+
+        if apenas_pensamento(tags):
             continue
+
+        conteudo_para_aprovar = publico or resp
         pendentes.append(
             {
                 "destino": destino,
-                "resposta": resp,
+                "resposta_completa": resp,
+                "conteudo_publico": conteudo_para_aprovar,
+                "tags": tags,
                 "alvo_principal": ar["alvo_principal"],
                 "agentes_alvo_log": ar["agentes_alvo_log"],
             }
         )
-        registrar_fala(destino, resp, aprovada=False)
+        registrar_fala(destino, conteudo_para_aprovar, aprovada=False, privado=False)
+
     st.session_state.pending_redirects = pendentes
     st.session_state.aguardando_redirect = None
     if not pendentes and destinos:
@@ -288,12 +340,12 @@ def gerar_redirects(destinos):
 
 def aprovar_redirect(indice):
     r = st.session_state.pending_redirects.pop(indice)
-    log_redirect = f"{r['destino']} (resposta a {r['alvo_principal']}): {r['resposta']}"
+    log_redirect = f"{r['destino']} (resposta a {r['alvo_principal']}): {r['conteudo_publico']}"
     st.session_state.historico.append(log_redirect)
-    registrar_fala(r["destino"], r["resposta"], aprovada=True)
+    registrar_fala(r["destino"], r["conteudo_publico"], aprovada=True, privado=False)
     if st.session_state.rodada_ativa:
-        GerenciadorMemoriaRPG.salvar_log_rodada_atual(
-            log_redirect, r["agentes_alvo_log"]
+        GerenciadorMemoriaRPG.salvar_resposta_agente(
+            r["destino"], r["resposta_completa"], r["agentes_alvo_log"]
         )
 
 
@@ -758,8 +810,22 @@ st.divider()
 # ----------------------------------------------------------------------------
 if st.session_state.pending_principal:
     p = st.session_state.pending_principal
+    tags = p.get("tags") or extrair_tags_resposta(p.get("resposta_completa", ""))
     st.subheader(f"🤖 Retorno de {p['alvo']}")
-    st.markdown(f"> {p['resposta']}")
+
+    if tags.get("pensamento"):
+        st.info(
+            f"💭 **Pensamento Íntimo (privado do personagem):**\n\n_{tags['pensamento']}_"
+        )
+    if tags.get("fala"):
+        st.markdown(f"🗣️ **Fala:** *\"{tags['fala']}\"*")
+    if tags.get("acao"):
+        st.markdown(f"⚔️ **Ação:** *{tags['acao']}*")
+    if tags.get("duvida"):
+        st.markdown(f"❓ **Dúvida:** *{tags['duvida']}*")
+    if not (tags.get("fala") or tags.get("acao") or tags.get("duvida")):
+        st.markdown(f"> {p.get('conteudo_publico', '')}")
+
     c1, c2 = st.columns(2)
     if c1.button("✅ Aprovar / Espelhar", type="primary", key="aprovar_principal"):
         aprovar_principal()
@@ -805,8 +871,18 @@ if st.session_state.aguardando_redirect:
 if st.session_state.pending_redirects:
     st.subheader("🤖 Respostas às dúvidas redirecionadas")
     for i, r in enumerate(list(st.session_state.pending_redirects)):
+        tags_r = r.get("tags") or extrair_tags_resposta(r.get("resposta_completa", ""))
         st.markdown(f"**{r['destino']}** (resposta a {r['alvo_principal']}):")
-        st.markdown(f"> {r['resposta']}")
+        if tags_r.get("pensamento"):
+            st.info(f"💭 **Pensamento Íntimo:** _{tags_r['pensamento']}_")
+        if tags_r.get("fala"):
+            st.markdown(f"🗣️ **Fala:** *\"{tags_r['fala']}\"*")
+        if tags_r.get("acao"):
+            st.markdown(f"⚔️ **Ação:** *{tags_r['acao']}*")
+        if tags_r.get("duvida"):
+            st.markdown(f"❓ **Dúvida:** *{tags_r['duvida']}*")
+        if not (tags_r.get("fala") or tags_r.get("acao") or tags_r.get("duvida")):
+            st.markdown(f"> {r.get('conteudo_publico', '')}")
         c1, c2 = st.columns(2)
         if c1.button("✅ Aprovar", key=f"aprovar_redirect_{i}"):
             aprovar_redirect(i)

@@ -5,6 +5,7 @@ from typing import List
 
 from config import llm_historiador
 from fichas import carregar_arquivo
+from tags import extrair_tags_resposta, formatar_conteudo_publico, formatar_para_autor
 
 
 def obter_pasta_agente(agente: str) -> str:
@@ -98,6 +99,40 @@ class GerenciadorMemoriaRPG:
                 f.write(texto + "\n")
 
     @staticmethod
+    def salvar_resposta_agente(
+        agente_autor: str,
+        resposta: str,
+        agentes_presentes: List[str],
+    ):
+        """
+        Salva a resposta do agente com isolamento estrito de pensamentos:
+        - Na pasta do próprio autor: salva tudo (pensamento + fala + acao/duvida).
+        - Na pasta dos outros presentes na cena: salva APENAS o conteúdo público (fala + acao/duvida),
+          garantindo que pensamentos nunca vazem para a memória dos companheiros.
+        """
+        tags = extrair_tags_resposta(resposta)
+        conteudo_autor = formatar_para_autor(tags) or resposta
+        conteudo_publico = formatar_conteudo_publico(tags)
+
+        # 1. Registra na memória do autor (com pensamentos íntimos)
+        if agente_autor in agentes_presentes:
+            pasta_autor = obter_pasta_agente(agente_autor)
+            caminho_temp_autor = os.path.join(pasta_autor, "rodada_atual_temp.txt")
+            with open(caminho_temp_autor, "a", encoding="utf-8") as f:
+                f.write(f"{agente_autor}: {conteudo_autor}\n")
+
+        # 2. Registra na memória dos outros presentes (somente conteúdo público)
+        if conteudo_publico:
+            for outro in agentes_presentes:
+                if outro != agente_autor:
+                    pasta_outro = obter_pasta_agente(outro)
+                    caminho_temp_outro = os.path.join(
+                        pasta_outro, "rodada_atual_temp.txt"
+                    )
+                    with open(caminho_temp_outro, "a", encoding="utf-8") as f:
+                        f.write(f"{agente_autor}: {conteudo_publico}\n")
+
+    @staticmethod
     def limpar_temp_nao_envolvidos(agentes_nao_envolvidos: List[str]):
         # Remove o rodada_atual_temp.txt de agentes que não participaram da rodada.
         for agente in agentes_nao_envolvidos:
@@ -108,7 +143,7 @@ class GerenciadorMemoriaRPG:
 
     @staticmethod
     def finalizar_rodada(agentes_alvo: List[str]):
-        # Consolida a rodada temporária em um resumo individual/replicado para cada agente alvo.
+        # Consolida a rodada temporária em um resumo individual para cada agente alvo.
         for agente in agentes_alvo:
             pasta = obter_pasta_agente(agente)
             caminho_temp = os.path.join(pasta, "rodada_atual_temp.txt")
@@ -128,7 +163,25 @@ class GerenciadorMemoriaRPG:
             with open(caminho_temp, "r", encoding="utf-8") as f:
                 conteudo = f.read()
 
-            prompt = f"Resuma de forma concisa os acontecimentos desta rodada de RPG vivenciada por {agente}:\n\n{conteudo}"
+            prompt = f"""Você é o Historiador e Cronista oficial de uma mesa de RPG cooperativo.
+Sua missão é consolidar os acontecimentos da rodada recente em uma narrativa concisa, fluida e envolvente da perspectiva do personagem: {agente}.
+
+DIRETRIZES FUNDAMENTAIS DE SÍNTESE:
+1. PENSAMENTOS INTERNOS ([pensamento]...[/pensamento]):
+   - Se pertencerem a {agente}, sintetize como suas intuições, sentimentos, reflexões ou segredos íntimos.
+   - NUNCA descreva um pensamento como algo que foi dito em voz alta ou percebido por outros personagens.
+2. FALAS E AÇÕES ([fala]...[/fala], [acao]...[/acao]):
+   - Trate como os eventos reais, visíveis e audíveis que aconteceram na cena.
+3. DÚVIDAS ([duvida]...[/duvida]):
+   - Trate como hesitações ou percepções atentas do personagem, sem incluir regras ou jargões mecânicos.
+4. TEXTO LIMPO E SEM TAGS:
+   - É terminantemente PROIBIDO incluir as tags literais ([pensamento], [/pensamento], [fala], [acao], [duvida]) no resumo final.
+   - Escreva uma prosa corrida fluida (2 a 4 frases ou parágrafos concisos) em terceira pessoa focada em {agente}.
+
+REGISTRO DA RODADA DE {agente}:
+{conteudo}
+
+CRÔNICA DA RODADA:"""
             resumo = llm_historiador.invoke(prompt).content.strip()
 
             nome_arq_rodada = os.path.join(pasta, f"rodada_{num_rodada}.txt")

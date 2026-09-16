@@ -7,6 +7,13 @@ from fichas import obter_status_jogador
 from imagens import selecionar_imagem_interativa
 from memoria import obter_pasta_agente, GerenciadorMemoriaRPG
 from agentes import gerar_resposta_agente
+from tags import (
+    extrair_tags_resposta,
+    formatar_conteudo_publico,
+    tem_acao,
+    tem_duvida,
+    apenas_pensamento,
+)
 
 
 def main():
@@ -119,15 +126,25 @@ def main():
 
                 resposta = gerar_resposta_agente(
                     ag,
-                    f"O mestre disse a todos: '{comando_mestre}'. Dê sua reação breve.",
+                    f"O mestre disse a todos: '{comando_mestre}'. Dê sua reação no formato com tags [pensamento], [fala], [acao] ou [duvida].",
                     historico_em_memoria,
                     caminho_imagem=img_selecionada,
                 )
-                print(f"💬 {ag}: {resposta}")
-                log_ag = f"{ag}: {resposta}"
-                historico_em_memoria.append(log_ag)
-                if rodada_ativa:
-                    GerenciadorMemoriaRPG.salvar_log_rodada_atual(log_ag, agentes)
+                tags = extrair_tags_resposta(resposta)
+                publico = formatar_conteudo_publico(tags)
+
+                if tags.get("pensamento"):
+                    print(f"💭 [{ag} (pensamento)]: {tags['pensamento']}")
+                if publico:
+                    print(f"💬 {ag}: {publico}")
+                    log_ag = f"{ag}: {publico}"
+                    historico_em_memoria.append(log_ag)
+                    if rodada_ativa:
+                        GerenciadorMemoriaRPG.salvar_resposta_agente(
+                            ag, resposta, presentes
+                        )
+                elif tags.get("pensamento") and rodada_ativa:
+                    GerenciadorMemoriaRPG.salvar_resposta_agente(ag, resposta, [ag])
 
         else:
             alvo_principal = presentes[0]
@@ -141,33 +158,56 @@ def main():
 
             resposta_agente = gerar_resposta_agente(
                 alvo_principal,
-                f"O mestre direcionou a você: '{comando_mestre}'. Responda usando [acao] para agir ou [duvida] para consultar outro jogador.",
+                f"O mestre direcionou a você: '{comando_mestre}'. Responda usando as tags [pensamento], [fala], [acao] ou [duvida].",
                 historico_em_memoria,
                 caminho_imagem=img_selecionada,
             )
 
+            tags = extrair_tags_resposta(resposta_agente)
+            publico = formatar_conteudo_publico(tags)
+
             print(f"\n🤖 Retorno de {alvo_principal}:")
-            print(f"👉 {resposta_agente}")
+            if tags.get("pensamento"):
+                print(f"💭 [Pensamento Íntimo]: {tags['pensamento']}")
+            if tags.get("fala"):
+                print(f"🗣️ [Fala]: \"{tags['fala']}\"")
+            if tags.get("acao"):
+                print(f"⚔️ [Ação]: {tags['acao']}")
+            if tags.get("duvida"):
+                print(f"❓ [Dúvida]: {tags['duvida']}")
+            if not (tags.get("fala") or tags.get("acao") or tags.get("duvida")):
+                print(f"👉 {resposta_agente}")
+
+            if apenas_pensamento(tags):
+                print(
+                    f"\n💭 {alvo_principal} teve apenas um pensamento privado. Nenhuma ação pública a aprovar."
+                )
+                if rodada_ativa:
+                    GerenciadorMemoriaRPG.salvar_resposta_agente(
+                        alvo_principal, resposta_agente, [alvo_principal]
+                    )
+                continue
 
             confirmar = (
-                input("\n[Mestre] Deseja espelhar/aprovar essa mensagem? (s/n): ")
+                input(
+                    "\n[Mestre] Deseja espelhar/aprovar essa fala/ação pública? (s/n): "
+                )
                 .strip()
                 .lower()
             )
 
             if confirmar == "s":
-                log_acao = f"{alvo_principal}: {resposta_agente}"
+                conteudo_salvar = publico or resposta_agente
+                log_acao = f"{alvo_principal}: {conteudo_salvar}"
                 historico_em_memoria.append(log_acao)
                 if rodada_ativa:
-                    GerenciadorMemoriaRPG.salvar_log_rodada_atual(
-                        log_acao, agentes_alvo_log
+                    GerenciadorMemoriaRPG.salvar_resposta_agente(
+                        alvo_principal, resposta_agente, agentes_alvo_log
                     )
 
                 outros_presentes = [p for p in presentes if p != alvo_principal]
-                tem_duvida = "[duvida]" in resposta_agente.lower()
-                tem_acao = "[acao]" in resposta_agente.lower()
 
-                if tem_duvida and outros_presentes:
+                if tem_duvida(tags) and outros_presentes:
                     candidatos = [
                         p for p in outros_presentes if obter_status_jogador(p) == "vivo"
                     ]
@@ -202,15 +242,40 @@ def main():
                             for destino in destinos:
                                 resp_redirecionada = gerar_resposta_agente(
                                     destino,
-                                    f"{alvo_principal} perguntou diretamente a você: '{resposta_agente}'. "
-                                    f"Responda a pergunta dele(a) diretamente, sem apenas opinar sobre o assunto.",
+                                    f"{alvo_principal} perguntou diretamente a você: '{tags.get('duvida') or publico}'. "
+                                    f"Responda diretamente usando as tags [pensamento], [fala], [acao] ou [duvida].",
                                     historico_em_memoria,
                                     caminho_imagem=None,
                                 )
+                                tags_red = extrair_tags_resposta(resp_redirecionada)
+                                pub_red = formatar_conteudo_publico(tags_red)
+
                                 print(
                                     f"\n🤖 Retorno de {destino} (resposta à pergunta de {alvo_principal}):"
                                 )
-                                print(f"👉 {resp_redirecionada}")
+                                if tags_red.get("pensamento"):
+                                    print(
+                                        f"💭 [Pensamento Íntimo]: {tags_red['pensamento']}"
+                                    )
+                                if tags_red.get("fala"):
+                                    print(f"🗣️ [Fala]: \"{tags_red['fala']}\"")
+                                if tags_red.get("acao"):
+                                    print(f"⚔️ [Ação]: {tags_red['acao']}")
+                                if tags_red.get("duvida"):
+                                    print(f"❓ [Dúvida]: {tags_red['duvida']}")
+                                if not (
+                                    tags_red.get("fala")
+                                    or tags_red.get("acao")
+                                    or tags_red.get("duvida")
+                                ):
+                                    print(f"👉 {resp_redirecionada}")
+
+                                if apenas_pensamento(tags_red):
+                                    if rodada_ativa:
+                                        GerenciadorMemoriaRPG.salvar_resposta_agente(
+                                            destino, resp_redirecionada, [destino]
+                                        )
+                                    continue
 
                                 confirmar_redirect = (
                                     input(
@@ -221,18 +286,21 @@ def main():
                                 )
 
                                 if confirmar_redirect == "s":
-                                    log_redirect = f"{destino} (resposta a {alvo_principal}): {resp_redirecionada}"
+                                    conteudo_red_salvar = pub_red or resp_redirecionada
+                                    log_redirect = f"{destino} (resposta a {alvo_principal}): {conteudo_red_salvar}"
                                     historico_em_memoria.append(log_redirect)
                                     if rodada_ativa:
-                                        GerenciadorMemoriaRPG.salvar_log_rodada_atual(
-                                            log_redirect, agentes_alvo_log
+                                        GerenciadorMemoriaRPG.salvar_resposta_agente(
+                                            destino,
+                                            resp_redirecionada,
+                                            agentes_alvo_log,
                                         )
                                 else:
                                     print(
                                         f"❌ Resposta de {destino} descartada pelo Mestre. Nenhuma alteração foi salva na história."
                                     )
 
-                elif tem_acao:
+                elif tem_acao(tags):
                     print(
                         f"✅ Ação de {alvo_principal} resolvida. Nenhuma reação automática dos demais."
                     )
@@ -248,16 +316,26 @@ def main():
 
                         resp_outro = gerar_resposta_agente(
                             ou,
-                            f"O jogador {alvo_principal} acabou de dizer/fazer: '{resposta_agente}'. Você concorda, opina ou faz ressalva? Seja breve.",
+                            f"O jogador {alvo_principal} acabou de dizer/fazer: '{publico}'. Você concorda, opina ou faz ressalva? Use as tags [pensamento], [fala], [acao] ou [duvida]. Seja breve.",
                             historico_em_memoria,
                             caminho_imagem=None,
                         )
-                        print(f"💬 {ou}: {resp_outro}")
-                        log_outro = f"{ou} (opinião): {resp_outro}"
-                        historico_em_memoria.append(log_outro)
-                        if rodada_ativa:
-                            GerenciadorMemoriaRPG.salvar_log_rodada_atual(
-                                log_outro, agentes_alvo_log
+                        tags_ou = extrair_tags_resposta(resp_outro)
+                        pub_ou = formatar_conteudo_publico(tags_ou)
+
+                        if tags_ou.get("pensamento"):
+                            print(f"💭 [{ou} (pensamento)]: {tags_ou['pensamento']}")
+                        if pub_ou:
+                            print(f"💬 {ou}: {pub_ou}")
+                            log_outro = f"{ou} (opinião): {pub_ou}"
+                            historico_em_memoria.append(log_outro)
+                            if rodada_ativa:
+                                GerenciadorMemoriaRPG.salvar_resposta_agente(
+                                    ou, resp_outro, agentes_alvo_log
+                                )
+                        elif tags_ou.get("pensamento") and rodada_ativa:
+                            GerenciadorMemoriaRPG.salvar_resposta_agente(
+                                ou, resp_outro, [ou]
                             )
             else:
                 print(
