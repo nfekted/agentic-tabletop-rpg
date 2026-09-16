@@ -14,7 +14,7 @@ _CAMINHO_JOGADORES = os.path.join(_PASTA_ARQUIVOS, "jogadores.json")
 PROVEDORES = ["Gemini 3.5-flash", "GPT-luna", "Ollama local", "Omniroute local"]
 
 CONFIG_PADRAO = {
-    "provedor": "omniroute-local",
+    "provedor": "Omniroute local",
     "api_key": "",
     "base_url": "http://localhost:8000/v1",
 }

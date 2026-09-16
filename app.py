@@ -364,30 +364,30 @@ def descartar_redirect(indice):
 # BARRA LATERAL
 # ----------------------------------------------------------------------------
 with st.sidebar:
-    st.header("⚙️ Configurações da LLM")
-    cfg = carregar_configuracao()
+    # Menu suspenso/retrátil para as configurações de LLM
+    with st.expander("⚙️ Configurações da LLM", expanded=False):
+        cfg = carregar_configuracao()
+        
+        provedor_atual = cfg.get("provedor", PROVEDORES[0])
+        index_padrao = PROVEDORES.index(provedor_atual) if provedor_atual in PROVEDORES else 0
 
-    provedor_sel = st.selectbox(
-        "Provedor LLM", PROVEDORES, index=PROVEDORES.index(cfg["provedor"])
-    )
+        provedor_sel = st.selectbox("Provedor LLM", PROVEDORES, index=index_padrao)
+        
+        if provedor_sel in ["Gemini 3.5-flash", "GPT-luna"]:
+            key_input = st.text_input("API Key", value=cfg.get("api_key", ""), type="password")
+            url_input = cfg.get("base_url", "")
+        else:
+            key_input = cfg.get("api_key", "")
+            url_input = st.text_input("Endereço (Host/URL)", value=cfg.get("base_url", "http://localhost:8000/v1"))
 
-    if provedor_sel in ["Gemini 3.5-flash", "GPT-luna"]:
-        key_input = st.text_input(
-            "API Key", value=cfg.get("api_key", ""), type="password"
-        )
-        url_input = cfg.get("base_url", "")
-    else:
-        key_input = cfg.get("api_key", "")
-        url_input = st.text_input(
-            "Endereço (Host/URL)", value=cfg.get("base_url", "http://localhost:11434")
-        )
-
-    if st.button("💾 Salvar Configurações LLM", use_container_width=True):
-        salvar_configuracao(
-            {"provedor": provedor_sel, "api_key": key_input, "base_url": url_input}
-        )
-        st.session_state.mensagem_info = "✅ Configurações de LLM salvas com sucesso!"
-        st.rerun()
+        if st.button("💾 Salvar Configurações", use_container_width=True):
+            salvar_configuracao({
+                "provedor": provedor_sel,
+                "api_key": key_input,
+                "base_url": url_input
+            })
+            st.session_state.mensagem_info = "✅ Configurações de LLM salvas com sucesso!"
+            st.rerun()
 
     st.divider()
 
