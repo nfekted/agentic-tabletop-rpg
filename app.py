@@ -1,7 +1,13 @@
 # Interface visual (Streamlit) para o Mestre conduzir a mesa de RPG
 import streamlit as st
 
-from config import carregar_agentes, adicionar_agente
+from config import (
+    carregar_agentes,
+    adicionar_agente,
+    carregar_configuracao,
+    salvar_configuracao,
+    PROVEDORES,
+)
 from fichas import (
     listar_arquivos_regras,
     obter_regra_ativa,
@@ -220,9 +226,7 @@ def acao_falar_direcionado(presentes, is_privado, comando_mestre, caminho_imagem
 
     # 2. Se for apenas pensamento, encerra o turno
     if apenas_pensamento(tags):
-        st.session_state.mensagem_info = (
-            f"💭 {alvo_principal} teve um pensamento privado — não realizou ações públicas neste turno."
-        )
+        st.session_state.mensagem_info = f"💭 {alvo_principal} teve um pensamento privado — não realizou ações públicas neste turno."
         return
 
     # 3. Se houver conteúdo público (fala/ação/dúvida), envia para aprovação do Mestre
@@ -340,7 +344,9 @@ def gerar_redirects(destinos):
 
 def aprovar_redirect(indice):
     r = st.session_state.pending_redirects.pop(indice)
-    log_redirect = f"{r['destino']} (resposta a {r['alvo_principal']}): {r['conteudo_publico']}"
+    log_redirect = (
+        f"{r['destino']} (resposta a {r['alvo_principal']}): {r['conteudo_publico']}"
+    )
     st.session_state.historico.append(log_redirect)
     registrar_fala(r["destino"], r["conteudo_publico"], aprovada=True, privado=False)
     if st.session_state.rodada_ativa:
@@ -358,6 +364,33 @@ def descartar_redirect(indice):
 # BARRA LATERAL
 # ----------------------------------------------------------------------------
 with st.sidebar:
+    st.header("⚙️ Configurações da LLM")
+    cfg = carregar_configuracao()
+
+    provedor_sel = st.selectbox(
+        "Provedor LLM", PROVEDORES, index=PROVEDORES.index(cfg["provedor"])
+    )
+
+    if provedor_sel in ["Gemini 3.5-flash", "GPT-luna"]:
+        key_input = st.text_input(
+            "API Key", value=cfg.get("api_key", ""), type="password"
+        )
+        url_input = cfg.get("base_url", "")
+    else:
+        key_input = cfg.get("api_key", "")
+        url_input = st.text_input(
+            "Endereço (Host/URL)", value=cfg.get("base_url", "http://localhost:11434")
+        )
+
+    if st.button("💾 Salvar Configurações LLM", use_container_width=True):
+        salvar_configuracao(
+            {"provedor": provedor_sel, "api_key": key_input, "base_url": url_input}
+        )
+        st.session_state.mensagem_info = "✅ Configurações de LLM salvas com sucesso!"
+        st.rerun()
+
+    st.divider()
+
     st.header("⚙️ Mesa")
 
     if st.session_state.rodada_ativa:

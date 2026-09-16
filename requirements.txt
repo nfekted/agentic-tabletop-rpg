@@ -1,4 +1,6 @@
 streamlit>=1.32
 langchain-core
 langchain-google-genai
+langchain_openai
+langchain_community
 python-dotenv

@@ -3,11 +3,7 @@ from typing import Dict, Optional
 
 
 def extrair_tags_resposta(texto: str) -> Dict[str, Optional[str]]:
-    """
-    Extrai o conteúdo de [pensamento], [fala], [acao] e [duvida].
-    Suporta tags com fechamento [/tag] e possui fallback caso o modelo
-    omita o fechamento.
-    """
+    # Extrai o conteúdo de [pensamento], [fala], [acao] e [duvida].
     if not texto:
         return {"pensamento": None, "fala": None, "acao": None, "duvida": None}
 
@@ -48,10 +44,7 @@ def extrair_tags_resposta(texto: str) -> Dict[str, Optional[str]]:
 
 
 def formatar_conteudo_publico(tags: Dict[str, Optional[str]]) -> str:
-    """
-    Retorna apenas a parte pública da mensagem (o que outros personagens podem ouvir/ver).
-    O [pensamento] é estritamente omitido.
-    """
+    # Retorna apenas a parte pública da mensagem (o que outros personagens podem ouvir/ver).
     partes = []
     if tags.get("fala"):
         partes.append(f'[fala]{tags["fala"]}[/fala]')
@@ -63,9 +56,7 @@ def formatar_conteudo_publico(tags: Dict[str, Optional[str]]) -> str:
 
 
 def formatar_para_autor(tags: Dict[str, Optional[str]]) -> str:
-    """
-    Retorna o conjunto completo para o próprio autor (pensamento + fala + acao/duvida).
-    """
+    # Retorna o conjunto completo para o próprio autor (pensamento + fala + acao/duvida).
     partes = []
     if tags.get("pensamento"):
         partes.append(f'[pensamento]{tags["pensamento"]}[/pensamento]')
@@ -79,9 +70,7 @@ def formatar_para_autor(tags: Dict[str, Optional[str]]) -> str:
 
 
 def formatar_exibicao_amigavel(tags: Dict[str, Optional[str]]) -> str:
-    """
-    Formata a resposta de forma limpa para exibição no chat/interface.
-    """
+    # Formata a resposta de forma limpa para exibição no chat/interface.
     partes = []
     if tags.get("fala"):
         partes.append(f'"{tags["fala"]}"')

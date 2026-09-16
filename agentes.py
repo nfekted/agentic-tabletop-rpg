@@ -2,7 +2,7 @@ from typing import List
 
 from langchain_core.messages import SystemMessage, HumanMessage
 
-from config import llm_jogadores
+from config import obter_llm
 from fichas import carregar_ficha, carregar_regras
 from memoria import carregar_memoria_longo_prazo
 from imagens import carregar_imagem_base64, obter_mimetype_imagem
@@ -56,6 +56,9 @@ def gerar_resposta_agente(
     historico_recente: List[str],
     caminho_imagem: str = None,
 ) -> str:
+    # Instancia dinamicamente o modelo configurado
+    llm_jogadores = obter_llm(temperature=0.8)
+
     # 'historico_recente' é a lista viva da rodada em aberto (historico_em_memoria em
     # main.py/app.py), que só é resetada no "Fim da Rodada".
     contexto_visivel = "\n".join(historico_recente)

@@ -3,7 +3,7 @@
 import os
 from typing import List
 
-from config import llm_historiador
+from config import obter_llm
 from fichas import carregar_arquivo
 from tags import extrair_tags_resposta, formatar_conteudo_publico, formatar_para_autor
 
@@ -104,12 +104,6 @@ class GerenciadorMemoriaRPG:
         resposta: str,
         agentes_presentes: List[str],
     ):
-        """
-        Salva a resposta do agente com isolamento estrito de pensamentos:
-        - Na pasta do próprio autor: salva tudo (pensamento + fala + acao/duvida).
-        - Na pasta dos outros presentes na cena: salva APENAS o conteúdo público (fala + acao/duvida),
-          garantindo que pensamentos nunca vazem para a memória dos companheiros.
-        """
         tags = extrair_tags_resposta(resposta)
         conteudo_autor = formatar_para_autor(tags) or resposta
         conteudo_publico = formatar_conteudo_publico(tags)
@@ -182,6 +176,8 @@ REGISTRO DA RODADA DE {agente}:
 {conteudo}
 
 CRÔNICA DA RODADA:"""
+
+            llm_historiador = obter_llm(temperature=0.3)
             resumo = llm_historiador.invoke(prompt).content.strip()
 
             nome_arq_rodada = os.path.join(pasta, f"rodada_{num_rodada}.txt")
@@ -197,6 +193,7 @@ CRÔNICA DA RODADA:"""
 
     @staticmethod
     def compilar_cenas(agente: str):
+        llm_historiador = obter_llm(temperature=0.3)
         pasta = obter_pasta_agente(agente)
         print(f"\n🔄 10 Rodadas atingidas para {agente}! Compilando CENA...")
         conteudo_rodadas = ""
@@ -234,6 +231,7 @@ CRÔNICA DA RODADA:"""
 
     @staticmethod
     def compilar_mesa(agente: str):
+        llm_historiador = obter_llm(temperature=0.3)
         pasta = obter_pasta_agente(agente)
         print(f"\n📜 10 Cenas atingidas para {agente}! Compilando MESA permanente...")
         conteudo_cenas = ""
