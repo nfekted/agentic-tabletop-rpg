@@ -3,6 +3,8 @@
 import os
 from typing import List
 
+from langchain_core.messages import HumanMessage, SystemMessage
+
 from config import obter_llm
 from fichas import carregar_arquivo
 from tags import extrair_tags_resposta, formatar_conteudo_publico, formatar_para_autor
@@ -157,28 +159,40 @@ class GerenciadorMemoriaRPG:
             with open(caminho_temp, "r", encoding="utf-8") as f:
                 conteudo = f.read()
 
-            prompt = f"""Você é o Historiador e Cronista oficial de uma mesa de RPG cooperativo.
-Sua missão é consolidar os acontecimentos da rodada recente em uma narrativa concisa, fluida e envolvente da perspectiva do personagem: {agente}.
-
-DIRETRIZES FUNDAMENTAIS DE SÍNTESE:
-1. PENSAMENTOS INTERNOS ([pensamento]...[/pensamento]):
-   - Se pertencerem a {agente}, sintetize como suas intuições, sentimentos, reflexões ou segredos íntimos.
-   - NUNCA descreva um pensamento como algo que foi dito em voz alta ou percebido por outros personagens.
-2. FALAS E AÇÕES ([fala]...[/fala], [acao]...[/acao]):
-   - Trate como os eventos reais, visíveis e audíveis que aconteceram na cena.
-3. DÚVIDAS ([duvida]...[/duvida]):
-   - Trate como hesitações ou percepções atentas do personagem, sem incluir regras ou jargões mecânicos.
-4. TEXTO LIMPO E SEM TAGS:
-   - É terminantemente PROIBIDO incluir as tags literais ([pensamento], [/pensamento], [fala], [acao], [duvida]) no resumo final.
-   - Escreva uma prosa corrida fluida (2 a 4 frases ou parágrafos concisos) em terceira pessoa focada em {agente}.
-
-REGISTRO DA RODADA DE {agente}:
-{conteudo}
-
-CRÔNICA DA RODADA:"""
+            mensagems = []
+            
+            prompt_base = f"""
+            Você é o Historiador e Cronista oficial de uma mesa de RPG cooperativo.
+            Sua missão é consolidar os acontecimentos da rodada recente em uma narrativa concisa, fluida e envolvente\n\n
+            ## DIRETRIZES FUNDAMENTAIS DE SÍNTESE
+            1. PENSAMENTOS INTERNOS ([pensamento]...[/pensamento]):
+                - Sintetize pensamentos do personagem focado como suas intuições, sentimentos, reflexões ou segredos íntimos.".
+                - NUNCA descreva um pensamento como algo que foi dito em voz alta ou percebido por outros personagens.
+            2. FALAS E AÇÕES ([fala]...[/fala], [acao]...[/acao]):
+                - Trate como os eventos reais, visíveis e audíveis que aconteceram na cena.
+            3. DÚVIDAS ([duvida]...[/duvida]):
+                - Trate como hesitações ou percepções atentas do personagem, sem incluir regras ou jargões mecânicos.
+            4. TEXTO LIMPO E SEM TAGS:
+                - É terminantemente PROIBIDO incluir as tags literais ([pensamento], [/pensamento], [fala], [acao], [duvida]) no resumo final.
+                - Escreva uma prosa corrida fluida (2 a 4 frases ou parágrafos concisos) em terceira pessoa focada na personagem do resumo.
+            """
+        
+            mensagems.append(SystemMessage(content=prompt_base))
+            
+            prompt_dinamico = f"""
+            ## PERSONAGEM ALVO
+            Foque a perspectiva e os sentimentos exclusivamente no personagem: {agente}.
+            
+            ## REGISTRO DA RODADA DE {agente}:
+            {conteudo}
+            
+            CRÔNICA DA RODADA:
+            """
+            
+            mensagems.append(HumanMessage(content=prompt_dinamico))
 
             llm_historiador = obter_llm(temperature=0.3)
-            resumo = llm_historiador.invoke(prompt).content.strip()
+            resumo = llm_historiador.invoke(mensagems).content.strip()
 
             nome_arq_rodada = os.path.join(pasta, f"rodada_{num_rodada}.txt")
             with open(nome_arq_rodada, "w", encoding="utf-8") as f:
@@ -208,7 +222,20 @@ CRÔNICA DA RODADA:"""
                         f"\n--- {os.path.basename(arq)} ---\n" + f.read()
                     )
 
-        prompt = f"Sintetize estes resumos de rodadas da perspectiva de {agente} em uma narrativa fluida de CENA:\n{conteudo_rodadas}"
+        prompt = f"""Sintetize estes resumos de rodadas da perspectiva de {agente} em uma narrativa fluida de CENA. Regras:
+        Descarte:
+        1. Saudações.
+        2. Hesitações repetidas.
+        3. Descrições redundantes
+        4. Pensamentos que não alterem a decisão do personagem
+        Foco:
+        1. Ações concluidas
+        2. Decisões tomadas
+        3. Revelações importantes
+        4. Novos perigos
+        5. Pontos de virada.
+        
+        CENA:\n{conteudo_rodadas}"""
         resumo_cena = llm_historiador.invoke(prompt).content.strip()
 
         cenas_existentes = [
