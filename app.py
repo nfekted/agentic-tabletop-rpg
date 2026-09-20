@@ -1,5 +1,14 @@
 # Interface visual (Streamlit) para o Mestre conduzir a mesa de RPG
 import streamlit as st
+st.markdown("""
+    <style>
+        .reportview-container {
+            margin-top: -2em;
+        }
+        .stDeployButton {display:none;}
+        footer {visibility: hidden;}
+    </style>
+""", unsafe_allow_html=True)
 
 from config import carregar_agentes
 from memoria import obter_pasta_agente
