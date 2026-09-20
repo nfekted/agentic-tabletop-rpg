@@ -2,6 +2,7 @@
 
 import os
 from typing import List
+from datetime import datetime
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -136,6 +137,46 @@ class GerenciadorMemoriaRPG:
             caminho_temp = os.path.join(pasta, "rodada_atual_temp.txt")
             if os.path.exists(caminho_temp):
                 os.remove(caminho_temp)
+
+    @staticmethod
+    def cancelar_rodada(motivo: str):
+        # 1. Cria a pasta para rodadas canceladas se não existir
+        pasta_canceladas = os.path.join("arquivos", "rodadas_canceladas")
+        os.makedirs(pasta_canceladas, exist_ok=True)
+
+        # 2. Formata a data atual
+        data_formatada = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        
+        # 3. Varre as pastas dos agentes para buscar os arquivos temporários
+        pasta_arquivos = "arquivos"
+        if not os.path.exists(pasta_arquivos):
+            return
+
+        for subpasta in os.listdir(pasta_arquivos):
+            caminho_agente = os.path.join(pasta_arquivos, subpasta)
+            
+            if os.path.isdir(caminho_agente) and subpasta.startswith("memoria_"):
+                agente = subpasta.replace("memoria_", "")
+                caminho_temp = os.path.join(caminho_agente, "rodada_atual_temp.txt")
+
+                if os.path.exists(caminho_temp):
+                    # Lê o conteúdo original
+                    with open(caminho_temp, "r", encoding="utf-8") as f:
+                        conteudo_original = f.read()
+
+                    # Monta o cabeçalho no topo do arquivo
+                    cabecalho = f"Rodada cancelada em {data_formatada}, motivo: {motivo}\n\n"
+                    conteudo_final = cabecalho + conteudo_original
+
+                    # Define o novo caminho e grava o arquivo cancelado
+                    nome_arquivo_cancelado = f"rodada cancelada em {data_formatada}_{agente}.txt"
+                    caminho_destino = os.path.join(pasta_canceladas, nome_arquivo_cancelado)
+
+                    with open(caminho_destino, "w", encoding="utf-8") as f:
+                        f.write(conteudo_final)
+
+                    # Remove o temporário original
+                    os.remove(caminho_temp)
 
     @staticmethod
     def finalizar_rodada(agentes_alvo: List[str]):

@@ -36,6 +36,28 @@ def acao_iniciar_rodada():
     st.session_state.mensagem_info = "🟢 Rodada iniciada."
 
 
+def acao_cancelar_rodada(motivo: str):
+    if not st.session_state.rodada_ativa:
+        st.session_state.mensagem_info = "⚠️ Nenhuma rodada ativa para cancelar."
+        return
+
+    # Mover arquivos temporários e incluir log/motivo
+    GerenciadorMemoriaRPG.cancelar_rodada(motivo)
+
+    # Reverter estados para "sem rodada ativa" e limpar pendências
+    st.session_state.rodada_ativa = False
+    st.session_state.envolvidos_rodada_atual = set()
+    st.session_state.historico = []
+    st.session_state.ultima_fala = {}
+    st.session_state.pending_principal = None
+    st.session_state.pending_redirects = []
+    st.session_state.aguardando_redirect = None
+
+    st.session_state.mensagem_info = (
+        f"🚫 Rodada cancelada com sucesso. Motivo: {motivo}"
+    )
+
+
 def acao_finalizar_rodada():
     if not st.session_state.rodada_ativa:
         st.session_state.mensagem_info = "⚠️ Inicie a rodada antes de finalizar."

@@ -12,7 +12,32 @@ from fichas import listar_arquivos_regras, obter_regra_ativa, definir_regra_ativ
 from memoria import obter_pasta_agente
 
 from ui.estado import indice_seguro
-from ui.acoes import acao_iniciar_rodada, acao_finalizar_rodada
+from ui.acoes import acao_cancelar_rodada, acao_iniciar_rodada, acao_finalizar_rodada
+
+
+@st.dialog("Confirmar Cancelamento da Rodada")
+def modal_confirmar_cancelamento():
+    st.write(
+        "Tem certeza que deseja cancelar a rodada atual? As alterações temporárias serão desfeitas."
+    )
+    motivo = st.text_input(
+        "Motivo do cancelamento:",
+        placeholder="Ex: Erro nas ações dos jogadores / Interrupção da mesa",
+    )
+
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button(
+            "Confirmar Cancelamento", type="primary", use_container_width=True
+        ):
+            if not motivo.strip():
+                st.error("Por favor, informe um motivo.")
+            else:
+                acao_cancelar_rodada(motivo.strip())
+                st.rerun()
+    with col2:
+        if st.button("Voltar", use_container_width=True):
+            st.rerun()
 
 
 def renderizar_sidebar():
@@ -73,16 +98,21 @@ def renderizar_sidebar():
                 "Novos jogadores entram automaticamente na fila de cards abaixo — "
                 "não é preciso reiniciar o app."
             )
-            
+
         st.divider()
 
         st.header("⚙️ Mesa")
 
         if st.session_state.rodada_ativa:
             st.success("Rodada em andamento")
-            if st.button("⏹️ Finalizar Rodada", use_container_width=True):
-                acao_finalizar_rodada()
-                st.rerun()
+            col_fim, col_canc = st.columns(2)
+            with col_fim:
+                if st.button("⏹️ Finalizar", use_container_width=True):
+                    acao_finalizar_rodada()
+                    st.rerun()
+            with col_canc:
+                if st.button("🚫 Cancelar", use_container_width=True):
+                    modal_confirmar_cancelamento()
         else:
             st.info("Nenhuma rodada ativa")
             if st.button("▶️ Iniciar Rodada", use_container_width=True):

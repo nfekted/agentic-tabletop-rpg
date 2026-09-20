@@ -294,6 +294,7 @@ As cenas são salvas em `arquivos/cenas/`.
 
 - **Iniciar Rodada** — abre uma rodada de jogo; a partir daqui, tudo que
   acontece é registrado na memória temporária de cada jogador envolvido.
+- **Cancelar Rodada** - Rever a rodada iniciada, movendo todas memórias para uma pasta de logs junto a um motivo.
 - **Finalizar Rodada** — fecha a rodada atual e manda o conteúdo para o
   "historiador" resumir (ver [Sistema de memória](#sistema-de-memória-rodada--cena--mesa)).
 - **Falar com Todos (Público)** — sua mensagem e a reação de cada jogador
