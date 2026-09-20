@@ -31,6 +31,7 @@ preferir.
 - [Funcionalidades](#funcionalidades)
   - [Fichas dos personagens](#fichas-dos-personagens)
   - [Conjuntos de regras (arquivos/regras/)](#conjuntos-de-regras-arquivosregras)
+  - [Conjuntos de cenas (arquivos/cenas/)](#conjuntos-de-cenas-arquivoscenas)
   - [Ações do mestre](#ações-do-mestre)
   - [Tags de resposta: \[acao\], \[duvida\] e \[pensamento\]](#tags-de-resposta-acao-duvida-e-pensamento)
   - [Fluxo de aprovação](#fluxo-de-aprovação)
@@ -266,8 +267,7 @@ seletor abaixo do card.
 
 ### Conjuntos de regras (arquivos/regras/)
 
-O `regras_rpg.txt` único foi substituído por uma pasta `arquivos/regras/`, que pode
-conter **vários conjuntos de regras** (por exemplo `geral.txt`,
+É possível ter **vários conjuntos de regras** (por exemplo `geral.txt`,
 `combate.txt`, `exploracao.txt`) — mas só o **conjunto marcado como ativo**
 é enviado no prompt de cada jogador. Isso evita gastar tokens à toa
 mandando regras de combate durante uma cena de exploração (ou vice-versa).
@@ -281,9 +281,14 @@ Pela barra lateral você pode:
   como ativo, **criar** um conjunto novo (vazio, para você preencher) ou
   **excluir** um conjunto (não é possível excluir o único restante).
 
-Se você já usava a versão antiga com um único `regras_rpg.txt` na raiz do
-projeto, na primeira execução esse arquivo é migrado automaticamente para
-`arquivos/regras/geral.txt` e marcado como ativo — nada se perde.
+### Conjuntos de cenas (arquivos/cenas/)
+
+É possível criar cenas pré-cadastradas para reutilizar em diversos agentes ou
+agilizar um NPC, em exemplo: Lista de itens em uma loja.
+Ao lado das [Ações do mestre](#ações-do-mestre) é possível selecionar, excluir,
+ou criar uma nova cena.
+
+As cenas são salvas em `arquivos/cenas/`.
 
 ### Ações do mestre
 
