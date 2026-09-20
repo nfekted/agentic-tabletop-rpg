@@ -48,9 +48,32 @@ def renderizar_sidebar():
                         "base_url": url_input,
                     }
                 )
-                st.session_state.mensagem_info = "✅ Configurações de LLM salvas com sucesso!"
+                st.session_state.mensagem_info = (
+                    "✅ Configurações de LLM salvas com sucesso!"
+                )
                 st.rerun()
 
+        with st.expander("➕ Adicionar Jogador", expanded=False):
+            with st.form("form_novo_jogador", clear_on_submit=True):
+                novo_nome = st.text_input("Nome (sem espaços, ex: JogadorD)")
+                enviado = st.form_submit_button("Adicionar")
+                if enviado:
+                    if adicionar_agente(novo_nome):
+                        obter_pasta_agente(novo_nome.strip())
+                        st.session_state.mensagem_info = (
+                            f"✅ {novo_nome.strip()} adicionado à mesa."
+                        )
+                    else:
+                        st.session_state.mensagem_info = (
+                            "⚠️ Nome inválido ou já existente."
+                        )
+                    st.rerun()
+
+            st.caption(
+                "Novos jogadores entram automaticamente na fila de cards abaixo — "
+                "não é preciso reiniciar o app."
+            )
+            
         st.divider()
 
         st.header("⚙️ Mesa")
@@ -96,21 +119,3 @@ def renderizar_sidebar():
             st.rerun()
 
         st.divider()
-        st.subheader("➕ Adicionar Jogador")
-        with st.form("form_novo_jogador", clear_on_submit=True):
-            novo_nome = st.text_input("Nome (sem espaços, ex: JogadorD)")
-            enviado = st.form_submit_button("Adicionar")
-            if enviado:
-                if adicionar_agente(novo_nome):
-                    obter_pasta_agente(novo_nome.strip())
-                    st.session_state.mensagem_info = (
-                        f"✅ {novo_nome.strip()} adicionado à mesa."
-                    )
-                else:
-                    st.session_state.mensagem_info = "⚠️ Nome inválido ou já existente."
-                st.rerun()
-
-        st.caption(
-            "Novos jogadores entram automaticamente na fila de cards abaixo — "
-            "não é preciso reiniciar o app."
-        )
