@@ -32,6 +32,7 @@ preferir.
   - [Fichas dos personagens](#fichas-dos-personagens)
   - [Conjuntos de regras (arquivos/regras/)](#conjuntos-de-regras-arquivosregras)
   - [Conjuntos de cenas (arquivos/cenas/)](#conjuntos-de-cenas-arquivoscenas)
+  - [Conjunto de tokens](#conjunto-de-tokens)
   - [Ações do mestre](#ações-do-mestre)
   - [Tags de resposta: \[acao\], \[duvida\] e \[pensamento\]](#tags-de-resposta-acao-duvida-e-pensamento)
   - [Fluxo de aprovação](#fluxo-de-aprovação)
@@ -289,6 +290,12 @@ Ao lado das [Ações do mestre](#ações-do-mestre) é possível selecionar, exc
 ou criar uma nova cena.
 
 As cenas são salvas em `arquivos/cenas/`.
+
+### Conjunto de tokens
+
+É possível registrar anotações de inimigos, npcs, e itens. Auxilia na anotação e agilidade
+sem a necessidade de buscar em blocos de notas e outras coisas, sendo possível já deixar em
+formato de prompt, para apenas copiar e colar na mensagem ou ficha do personagem.
 
 ### Ações do mestre
 
