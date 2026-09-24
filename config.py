@@ -78,7 +78,7 @@ def obter_llm(temperature: float = 0.8):
 
 
 # --- ARMAZENAMENTO CENTRALIZADO DE JOGADORES ---
-def carregar_agentes() -> list:
+def carregar_dados_jogadores() -> list:
     if not os.path.exists(_CAMINHO_JOGADORES):
         os.makedirs(_PASTA_ARQUIVOS, exist_ok=True)
         with open(_CAMINHO_JOGADORES, "w", encoding="utf-8") as f:
@@ -88,10 +88,54 @@ def carregar_agentes() -> list:
         with open(_CAMINHO_JOGADORES, "r", encoding="utf-8") as f:
             dados = json.load(f)
             if isinstance(dados, list):
-                return [str(a).strip() for a in dados if str(a).strip()]
+                lista_normalizada = []
+                precisa_salvar = False
+                for item in dados:
+                    if isinstance(item, dict) and "nome" in item:
+                        lista_normalizada.append({
+                            "nome": str(item["nome"]).strip(),
+                            "modificadores": str(item.get("modificadores", "")).strip(),
+                        })
+                    elif isinstance(item, str) and item.strip():
+                        lista_normalizada.append({
+                            "nome": item.strip(),
+                            "modificadores": "",
+                        })
+                        precisa_salvar = True
+                if precisa_salvar:
+                    salvar_dados_jogadores(lista_normalizada)
+                return lista_normalizada
     except Exception:
         pass
     return []
+
+
+def salvar_dados_jogadores(dados: list):
+    os.makedirs(_PASTA_ARQUIVOS, exist_ok=True)
+    with open(_CAMINHO_JOGADORES, "w", encoding="utf-8") as f:
+        json.dump(dados, f, indent=2, ensure_ascii=False)
+
+
+def carregar_agentes() -> list:
+    dados = carregar_dados_jogadores()
+    return [j["nome"] for j in dados if j.get("nome")]
+
+
+def obter_modificadores_jogador(nome: str) -> str:
+    dados = carregar_dados_jogadores()
+    for j in dados:
+        if j.get("nome", "").lower() == nome.lower():
+            return j.get("modificadores", "")
+    return ""
+
+
+def salvar_modificadores_jogador(nome: str, modificadores: str):
+    dados = carregar_dados_jogadores()
+    for j in dados:
+        if j.get("nome", "").lower() == nome.lower():
+            j["modificadores"] = modificadores.strip()
+            break
+    salvar_dados_jogadores(dados)
 
 
 def adicionar_agente(nome: str) -> bool:
@@ -99,40 +143,29 @@ def adicionar_agente(nome: str) -> bool:
     if not nome or not nome.isidentifier():
         return False
     agentes_atuais = carregar_agentes()
-    if nome in agentes_atuais:
+    if nome.lower() in [a.lower() for a in agentes_atuais]:
         return False
-    nova_lista = agentes_atuais + [nome]
-    os.makedirs(_PASTA_ARQUIVOS, exist_ok=True)
-    with open(_CAMINHO_JOGADORES, "w", encoding="utf-8") as f:
-        json.dump(nova_lista, f, indent=2, ensure_ascii=False)
+
+    dados_atuais = carregar_dados_jogadores()
+    dados_atuais.append({"nome": nome, "modificadores": ""})
+    salvar_dados_jogadores(dados_atuais)
 
     pasta_memoria = os.path.join(_PASTA_ARQUIVOS, f"memoria_{nome}")
     os.makedirs(pasta_memoria, exist_ok=True)
-    pasta_fichas = os.path.join(_PASTA_ARQUIVOS, "fichas")
-    os.makedirs(pasta_fichas, exist_ok=True)
-    caminho_ficha = os.path.join(pasta_fichas, f"{nome.lower()}.txt")
 
-    if not os.path.exists(caminho_ficha):
-        caminho_template = os.path.join(pasta_fichas, "default.txt")
-        template = ""
-        if os.path.exists(caminho_template):
-            with open(caminho_template, "r", encoding="utf-8") as f:
-                template = f.read().replace("[Nome do Personagem]", nome)
-        else:
-            template = f"# FICHA DE PERSONAGEM: {nome}\n"
-        with open(caminho_ficha, "w", encoding="utf-8") as f:
-            f.write(f"status: vivo\n\n{template}")
+    # Inicializa os 6 subarquivos modulares da ficha
+    from fichas import inicializar_ficha_agente
+    inicializar_ficha_agente(nome)
     return True
 
 
 def remover_agente(nome: str) -> bool:
     nome = nome.strip()
-    agentes_atuais = carregar_agentes()
-    if nome not in agentes_atuais:
+    dados_atuais = carregar_dados_jogadores()
+    nova_lista = [j for j in dados_atuais if j.get("nome", "").lower() != nome.lower()]
+    if len(nova_lista) == len(dados_atuais):
         return False
-    nova_lista = [a for a in agentes_atuais if a != nome]
-    with open(_CAMINHO_JOGADORES, "w", encoding="utf-8") as f:
-        json.dump(nova_lista, f, indent=2, ensure_ascii=False)
+    salvar_dados_jogadores(nova_lista)
     return True
 
 

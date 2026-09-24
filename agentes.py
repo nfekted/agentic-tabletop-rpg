@@ -60,7 +60,7 @@ def buscar_regras() -> str:
 def buscar_ficha(nome: str) -> str:
     ficha = carregar_ficha(nome)
     return f"""
-    ## FICHA DO PERSONAGEM:
+    ## FICHA DO PERSONAGEM
     {ficha}
 """
 

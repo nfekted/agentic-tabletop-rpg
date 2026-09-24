@@ -3,7 +3,6 @@
 
 import os
 from config import carregar_agentes
-from fichas import obter_status_jogador
 from imagens import selecionar_imagem_interativa
 from memoria import obter_pasta_agente, GerenciadorMemoriaRPG
 from agentes import gerar_resposta_agente
@@ -120,10 +119,6 @@ def main():
         if opcao == "3":
             print("\n--- Reações dos Jogadores ---")
             for ag in presentes:
-                status = obter_status_jogador(ag)
-                if status != "vivo":
-                    continue
-
                 resposta = gerar_resposta_agente(
                     ag,
                     f"O mestre disse a todos: '{comando_mestre}'. Dê sua reação no formato com tags [pensamento], [fala], [acao] ou [duvida].",
@@ -148,13 +143,6 @@ def main():
 
         else:
             alvo_principal = presentes[0]
-
-            status_alvo = obter_status_jogador(alvo_principal)
-            if status_alvo != "vivo":
-                print(
-                    f"\n⚠️ Não é possível falar com {alvo_principal}. O personagem está: [{status_alvo.upper()}]."
-                )
-                continue
 
             resposta_agente = gerar_resposta_agente(
                 alvo_principal,
@@ -208,9 +196,7 @@ def main():
                 outros_presentes = [p for p in presentes if p != alvo_principal]
 
                 if tem_duvida(tags) and outros_presentes:
-                    candidatos = [
-                        p for p in outros_presentes if obter_status_jogador(p) == "vivo"
-                    ]
+                    candidatos = list(outros_presentes)
 
                     if not candidatos:
                         print(
@@ -311,9 +297,6 @@ def main():
                     )
 
                     for ou in outros_presentes:
-                        if obter_status_jogador(ou) != "vivo":
-                            continue
-
                         resp_outro = gerar_resposta_agente(
                             ou,
                             f"O jogador {alvo_principal} acabou de dizer/fazer: '{publico}'. Você concorda, opina ou faz ressalva? Use as tags [pensamento], [fala], [acao] ou [duvida]. Seja breve.",

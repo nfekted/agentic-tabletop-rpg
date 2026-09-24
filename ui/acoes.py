@@ -4,7 +4,6 @@
 import streamlit as st
 
 from config import carregar_agentes
-from fichas import obter_status_jogador
 from memoria import GerenciadorMemoriaRPG
 from agentes import gerar_resposta_agente
 from tags import (
@@ -90,8 +89,6 @@ def acao_falar_com_todos(presentes, comando_mestre, caminho_imagem):
         GerenciadorMemoriaRPG.salvar_log_rodada_atual(log_mestre, presentes)
 
     for ag in presentes:
-        if obter_status_jogador(ag) != "vivo":
-            continue
         resposta = gerar_resposta_agente(
             ag,
             f"O mestre disse a todos: '{comando_mestre}'. Dê sua reação no formato com tags [pensamento], [fala], [acao] ou [duvida].",
@@ -133,11 +130,6 @@ def acao_falar_direcionado(presentes, is_privado, comando_mestre, caminho_imagem
         GerenciadorMemoriaRPG.salvar_log_rodada_atual(log_mestre, agentes_alvo_log)
 
     alvo_principal = presentes[0]
-    status_alvo = obter_status_jogador(alvo_principal)
-    if status_alvo != "vivo":
-        st.session_state.mensagem_info = f"⚠️ Não é possível falar com {alvo_principal}. Status: [{status_alvo.upper()}]."
-        return
-
     resposta = gerar_resposta_agente(
         alvo_principal,
         f"O mestre direcionou a você: '{comando_mestre}'. Responda usando as tags [pensamento], [fala], [acao] ou [duvida].",
@@ -189,7 +181,7 @@ def aprovar_principal():
     outros_presentes = [x for x in p["presentes"] if x != p["alvo"]]
 
     if tem_duvida(tags) and outros_presentes:
-        candidatos = [x for x in outros_presentes if obter_status_jogador(x) == "vivo"]
+        candidatos = list(outros_presentes)
         st.session_state.aguardando_redirect = {
             "candidatos": candidatos,
             "alvo_principal": p["alvo"],
@@ -202,8 +194,6 @@ def aprovar_principal():
         )
     elif outros_presentes:
         for ou in outros_presentes:
-            if obter_status_jogador(ou) != "vivo":
-                continue
             resp_outro = gerar_resposta_agente(
                 ou,
                 f"O jogador {p['alvo']} acabou de dizer/fazer: '{publico}'. Você concorda, opina, faz ressalva "
