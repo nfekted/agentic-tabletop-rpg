@@ -223,3 +223,7 @@ arquivos/**/*
 !arquivos/regras/default.txt
 !arquivos/img/default.txt
 !arquivos/fichas/default.txt
+
+!arquivos/tokens/inimigo/default.txt
+!arquivos/tokens/npc/default.txt
+!arquivos/tokens/item/default.txt

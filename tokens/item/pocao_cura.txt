@@ -1,5 +1,0 @@
-Nome: Poção de Cura
-Tipo: Consumível / Poção
-Raridade: Comum
-Efeito: Ao beber, recupera 2d4 + 2 Pontos de Vida (PV).
-Descrição: Um líquido vermelho translúcido com brilho suave e cheiro de ervas silvestres.
