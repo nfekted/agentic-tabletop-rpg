@@ -142,7 +142,19 @@ def renderizar_sidebar():
             "✏️ Gerenciar / Criar Regras (arquivos/regras/)",
             use_container_width=True,
         ):
+            st.session_state.current_view = "mesa"
             st.session_state.editando_regras = True
+            st.session_state.editando_ficha = None
+            st.session_state.vendo_memoria = None
+            st.session_state.trocando_avatar = None
+            st.rerun()
+
+        if st.button(
+            "👾 Gerenciar Inimigos, Itens e NPCs",
+            use_container_width=True,
+        ):
+            st.session_state.current_view = "tokens"
+            st.session_state.editando_regras = False
             st.session_state.editando_ficha = None
             st.session_state.vendo_memoria = None
             st.session_state.trocando_avatar = None

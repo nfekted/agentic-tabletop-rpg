@@ -18,6 +18,9 @@ def inicializar_estado():
         "mensagem_info": None,
         "ultima_fala": {},
         "trocando_avatar": None,
+        "current_view": "mesa",
+        "token_categoria": "inimigo",
+        "token_selecionado": None,
     }
     for chave, valor in padrao.items():
         if chave not in st.session_state:

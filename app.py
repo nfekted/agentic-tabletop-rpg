@@ -23,6 +23,7 @@ from ui.memoria_panel import renderizar_painel_memoria
 from ui.acao_mestre_panel import renderizar_acao_mestre
 from ui.pending_panel import renderizar_pending_panels
 from ui.historico_panel import renderizar_historico
+from ui.tokens_panel import renderizar_painel_tokens
 
 st.set_page_config(page_title="Mesa de RPG — Painel do Mestre", layout="wide")
 
@@ -46,40 +47,44 @@ if st.session_state.mensagem_info:
     st.session_state.mensagem_info = None
 
 
-# ----------------------------------------------------------------------------
-# GERENCIAMENTO DE REGRAS
-# ----------------------------------------------------------------------------
-renderizar_painel_regras()
+if st.session_state.get("current_view") == "tokens":
+    renderizar_painel_tokens()
+else:
+    # ----------------------------------------------------------------------------
+    # GERENCIAMENTO DE REGRAS
+    # ----------------------------------------------------------------------------
+    renderizar_painel_regras()
 
 
-# ----------------------------------------------------------------------------
-# TÍTULO E CARDS DE JOGADORES
-# ----------------------------------------------------------------------------
-agentes = carregar_agentes()
-renderizar_titulo_e_cards(agentes)
+    # ----------------------------------------------------------------------------
+    # TÍTULO E CARDS DE JOGADORES
+    # ----------------------------------------------------------------------------
+    agentes = carregar_agentes()
+    renderizar_titulo_e_cards(agentes)
 
 
-# ----------------------------------------------------------------------------
-# PAINÉIS CONDICIONAIS (foto / ficha / memória)
-# ----------------------------------------------------------------------------
-renderizar_painel_avatar()
-renderizar_painel_ficha()
-renderizar_painel_memoria()
+    # ----------------------------------------------------------------------------
+    # PAINÉIS CONDICIONAIS (foto / ficha / memória)
+    # ----------------------------------------------------------------------------
+    renderizar_painel_avatar()
+    renderizar_painel_ficha()
+    renderizar_painel_memoria()
 
 
-# ----------------------------------------------------------------------------
-# PAINEL DE AÇÃO DO MESTRE
-# ----------------------------------------------------------------------------
-renderizar_acao_mestre(agentes)
+    # ----------------------------------------------------------------------------
+    # PAINEL DE AÇÃO DO MESTRE
+    # ----------------------------------------------------------------------------
+    renderizar_acao_mestre(agentes)
 
 
-# ----------------------------------------------------------------------------
-# CONFIRMAÇÕES (resposta principal / redirecionamento de dúvida / respostas redirecionadas)
-# ----------------------------------------------------------------------------
-renderizar_pending_panels()
+    # ----------------------------------------------------------------------------
+    # CONFIRMAÇÕES (resposta principal / redirecionamento de dúvida / respostas redirecionadas)
+    # ----------------------------------------------------------------------------
+    renderizar_pending_panels()
 
 
-# ----------------------------------------------------------------------------
-# HISTÓRICO DA CENA/RODADA ATUAL
-# ----------------------------------------------------------------------------
-renderizar_historico()
+    # ----------------------------------------------------------------------------
+    # HISTÓRICO DA CENA/RODADA ATUAL
+    # ----------------------------------------------------------------------------
+    renderizar_historico()
+

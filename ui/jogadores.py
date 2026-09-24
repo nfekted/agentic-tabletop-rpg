@@ -78,6 +78,7 @@ def _renderizar_card_jogador(nome):
         st.session_state.vendo_memoria = None
         st.session_state.editando_regras = False
         st.session_state.trocando_avatar = None
+        st.session_state.current_view = "mesa"
         st.rerun()
     if b2.button(
         "📜",
@@ -89,6 +90,7 @@ def _renderizar_card_jogador(nome):
         st.session_state.editando_ficha = None
         st.session_state.editando_regras = False
         st.session_state.trocando_avatar = None
+        st.session_state.current_view = "mesa"
         st.rerun()
     if b3.button(
         "🖼️",
@@ -100,6 +102,7 @@ def _renderizar_card_jogador(nome):
         st.session_state.editando_ficha = None
         st.session_state.vendo_memoria = None
         st.session_state.editando_regras = False
+        st.session_state.current_view = "mesa"
         st.rerun()
 
     novo_status = st.selectbox(

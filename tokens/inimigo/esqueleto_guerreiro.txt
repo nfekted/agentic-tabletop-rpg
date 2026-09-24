@@ -1,0 +1,8 @@
+Nome: Esqueleto Guerreiro
+Tipo: Morto-vivo
+PV: 15
+CA: 13
+Ataque: Espada Curta (+4 para acertar, dano 1d6+2 cortante)
+Vulnerabilidades: Dano de concussão
+Imunidades: Veneno, Condição Envenenado
+Descrição: Restos esqueléticos reanimados por magia profana, empunhando armamentos enferrujados.
