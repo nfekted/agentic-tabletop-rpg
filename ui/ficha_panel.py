@@ -62,6 +62,15 @@ def renderizar_painel_ficha():
                 st.caption("Nenhum status configurado.")
 
             indices_para_remover = []
+            c_n, c_at, c_mx, c_cor, c_del = st.columns([3, 2, 2, 1, 1])
+            with c_n:
+                st.caption("Nome")
+            with c_at:
+                st.caption("Atual")
+            with c_mx:
+                st.caption("Máximo")
+            with c_cor:
+                st.caption("Cor barra")
             for i, st_item in enumerate(status_lista):
                 c_n, c_at, c_mx, c_cor, c_del = st.columns([3, 2, 2, 1, 1])
                 with c_n:
@@ -159,8 +168,8 @@ def renderizar_painel_ficha():
 
     # --- AÇÕES DO PAINEL ---
     st.write("")
-    c1, c2, c3 = st.columns([1, 1, 1])
-    with c1:
+    c4, c5, c6 = st.columns([1, 1, 1])
+    with c4:
         if st.button("💾 Salvar ficha", type="primary", key=f"salvar_ficha_{nome}", use_container_width=True):
             # Coleta status atualizados
             status_final = []
@@ -194,11 +203,11 @@ def renderizar_painel_ficha():
             st.session_state.mensagem_info = f"✅ Ficha modular de {nome} salva com sucesso!"
             st.rerun()
 
-    with c2:
+    with c5:
         if st.button("👁️ Ver Ficha (Prompt Consolidado)", key=f"ver_consolidado_{nome}", use_container_width=True):
             modal_ver_ficha(nome)
 
-    with c3:
+    with c6:
         if st.button("Cancelar", key=f"cancelar_ficha_{nome}", use_container_width=True):
             if chave_status in st.session_state:
                 del st.session_state[chave_status]
