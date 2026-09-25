@@ -18,6 +18,77 @@ def modal_ver_ficha(nome: str):
         st.rerun()
 
 
+def _limpar_estados_temporarios(nome: str, chave_status: str):
+    if chave_status in st.session_state:
+        del st.session_state[chave_status]
+    chaves_para_remover = [
+        k for k in st.session_state.keys()
+        if k.startswith(f"st_nome_{nome}_")
+        or k.startswith(f"st_at_{nome}_")
+        or k.startswith(f"st_mx_{nome}_")
+        or k.startswith(f"st_cor_{nome}_")
+        or (k.startswith("txt_") and k.endswith(f"_{nome}"))
+    ]
+    for k in chaves_para_remover:
+        del st.session_state[k]
+
+
+def _executar_salvamento(nome: str, chave_status: str, sub: dict):
+    status_final = []
+    status_lista = st.session_state.get(chave_status, [])
+    for i in range(len(status_lista)):
+        n_val = st.session_state.get(f"st_nome_{nome}_{i}", status_lista[i].get("nome", "Status"))
+        at_val = st.session_state.get(f"st_at_{nome}_{i}", status_lista[i].get("valor_atual", 0))
+        mx_val = st.session_state.get(f"st_mx_{nome}_{i}", status_lista[i].get("valor_max", 10))
+        cor_val = st.session_state.get(f"st_cor_{nome}_{i}", status_lista[i].get("cor", "#4CAF50"))
+        status_final.append({
+            "nome": str(n_val).strip() or "Status",
+            "valor_atual": int(at_val),
+            "valor_max": int(mx_val),
+            "cor": str(cor_val),
+        })
+
+    novos_dados = {
+        "base": st.session_state.get(f"txt_base_{nome}", sub["base"]),
+        "status": status_final,
+        "geral": st.session_state.get(f"txt_geral_{nome}", sub["geral"]),
+        "habilidades": st.session_state.get(f"txt_hab_{nome}", sub["habilidades"]),
+        "itens": st.session_state.get(f"txt_itens_{nome}", sub["itens"]),
+        "personalidade": st.session_state.get(f"txt_pers_{nome}", sub["personalidade"]),
+    }
+    salvar_subarquivos_ficha(nome, novos_dados)
+
+    novo_modificador = st.session_state.get(f"txt_mod_{nome}", obter_modificadores_jogador(nome))
+    salvar_modificadores_jogador(nome, novo_modificador)
+
+    _limpar_estados_temporarios(nome, chave_status)
+
+    st.session_state.editando_ficha = None
+    st.session_state.mensagem_info = f"✅ Ficha modular de {nome} salva com sucesso!"
+    st.rerun()
+
+
+def _cancelar_edicao(nome: str, chave_status: str):
+    _limpar_estados_temporarios(nome, chave_status)
+    st.session_state.editando_ficha = None
+    st.rerun()
+
+
+def _renderizar_botoes_acao(nome: str, chave_status: str, sub: dict, posicao: str):
+    c1, c2, c3 = st.columns([1, 1, 1])
+    with c1:
+        if st.button("💾 Salvar ficha", type="primary", key=f"salvar_ficha_{posicao}_{nome}", use_container_width=True):
+            _executar_salvamento(nome, chave_status, sub)
+
+    with c2:
+        if st.button("👁️ Ver Ficha (Prompt Consolidado)", key=f"ver_consolidado_{posicao}_{nome}", use_container_width=True):
+            modal_ver_ficha(nome)
+
+    with c3:
+        if st.button("Cancelar", key=f"cancelar_ficha_{posicao}_{nome}", use_container_width=True):
+            _cancelar_edicao(nome, chave_status)
+
+
 def renderizar_painel_ficha():
     if not st.session_state.editando_ficha:
         return
@@ -33,12 +104,17 @@ def renderizar_painel_ficha():
 
     # Campo de Modificadores (conforme especificação do jogadores.json)
     modificadores_atuais = obter_modificadores_jogador(nome)
-    novo_modificador = st.text_input(
+    st.text_input(
         "Modificadores ativos (ex: Envenenado, Cego, +2 Força)",
         value=modificadores_atuais,
         key=f"txt_mod_{nome}",
         help="Substitui o antigo status de Vivo/Morto pelo campo modificadores",
     )
+
+    # --- AÇÕES NO TOPO ---
+    st.write("")
+    _renderizar_botoes_acao(nome, chave_status, sub, posicao="topo")
+    st.write("")
 
     # --- GRID 2 COLUNAS X 3 LINHAS ---
 
@@ -166,52 +242,7 @@ def renderizar_painel_ficha():
             label_visibility="collapsed",
         )
 
-    # --- AÇÕES DO PAINEL ---
+    # --- AÇÕES NO RODAPÉ ---
     st.write("")
-    c4, c5, c6 = st.columns([1, 1, 1])
-    with c4:
-        if st.button("💾 Salvar ficha", type="primary", key=f"salvar_ficha_{nome}", use_container_width=True):
-            # Coleta status atualizados
-            status_final = []
-            for i in range(len(st.session_state[chave_status])):
-                n_val = st.session_state.get(f"st_nome_{nome}_{i}", st.session_state[chave_status][i].get("nome", "Status"))
-                at_val = st.session_state.get(f"st_at_{nome}_{i}", st.session_state[chave_status][i].get("valor_atual", 0))
-                mx_val = st.session_state.get(f"st_mx_{nome}_{i}", st.session_state[chave_status][i].get("valor_max", 10))
-                cor_val = st.session_state.get(f"st_cor_{nome}_{i}", st.session_state[chave_status][i].get("cor", "#4CAF50"))
-                status_final.append({
-                    "nome": str(n_val).strip() or "Status",
-                    "valor_atual": int(at_val),
-                    "valor_max": int(mx_val),
-                    "cor": str(cor_val),
-                })
-
-            novos_dados = {
-                "base": base_conteudo,
-                "status": status_final,
-                "geral": geral_conteudo,
-                "habilidades": habilidades_conteudo,
-                "itens": itens_conteudo,
-                "personalidade": personalidade_conteudo,
-            }
-            salvar_subarquivos_ficha(nome, novos_dados)
-            salvar_modificadores_jogador(nome, novo_modificador)
-
-            if chave_status in st.session_state:
-                del st.session_state[chave_status]
-
-            st.session_state.editando_ficha = None
-            st.session_state.mensagem_info = f"✅ Ficha modular de {nome} salva com sucesso!"
-            st.rerun()
-
-    with c5:
-        if st.button("👁️ Ver Ficha (Prompt Consolidado)", key=f"ver_consolidado_{nome}", use_container_width=True):
-            modal_ver_ficha(nome)
-
-    with c6:
-        if st.button("Cancelar", key=f"cancelar_ficha_{nome}", use_container_width=True):
-            if chave_status in st.session_state:
-                del st.session_state[chave_status]
-            st.session_state.editando_ficha = None
-            st.rerun()
-
+    _renderizar_botoes_acao(nome, chave_status, sub, posicao="rodape")
     st.divider()
