@@ -50,7 +50,9 @@ def modal_ficha_token(token_id: str):
     icone = tok.get("tipo_icone", "👾")
     nome_exib = tok.get("nome_exibicao", "Token")
     st.subheader(f"{icone} {nome_exib}")
-    st.caption("Esta ficha é uma cópia isolada do combate atual. Modificações aqui não afetam o arquivo original.")
+    st.caption(
+        "Esta ficha é uma cópia isolada do combate atual. Modificações aqui não afetam o arquivo original."
+    )
 
     ficha_dados = tok.get("ficha_dados", {})
     conteudo_atual = ficha_dados.get("conteudo", "")
@@ -64,14 +66,23 @@ def modal_ficha_token(token_id: str):
 
     col1, col2 = st.columns([1, 1])
     with col1:
-        if st.button("💾 Salvar no Combate", type="primary", use_container_width=True, key=f"btn_salvar_tok_{token_id}"):
+        if st.button(
+            "💾 Salvar no Combate",
+            type="primary",
+            use_container_width=True,
+            key=f"btn_salvar_tok_{token_id}",
+        ):
             ficha_dados["conteudo"] = novo_conteudo
             atualizar_ficha_token(token_id, ficha_dados)
-            st.session_state.mensagem_info = f"✅ Ficha de {nome_exib} atualizada no combate!"
+            st.session_state.mensagem_info = (
+                f"✅ Ficha de {nome_exib} atualizada no combate!"
+            )
             st.rerun()
 
     with col2:
-        if st.button("Fechar", use_container_width=True, key=f"btn_fechar_tok_{token_id}"):
+        if st.button(
+            "Fechar", use_container_width=True, key=f"btn_fechar_tok_{token_id}"
+        ):
             st.rerun()
 
 
@@ -80,15 +91,16 @@ def _ao_mudar_ordem(participante_id: str, chave_session: str):
     atualizar_ordem_participante(participante_id, novo_valor)
 
 
-def _renderizar_card_personagem_compacto(p_dict: dict, turno_dados: dict, dentro_area: bool = False):
+def _renderizar_card_personagem_compacto(
+    p_dict: dict, turno_dados: dict, dentro_area: bool = False
+):
     nome = p_dict["nome"]
     p_id = p_dict["id"]
     ordem = p_dict.get("ordem")
     ordem_atual = turno_dados.get("ordem_atual")
     em_andamento = turno_dados.get("em_andamento", False)
-    eh_sua_vez = (em_andamento and ordem is not None and ordem == ordem_atual)
+    eh_sua_vez = em_andamento and ordem is not None and ordem == ordem_atual
 
-    estilo_borda = "border: 2px solid #e74c3c; background: rgba(231, 76, 60, 0.08);" if eh_sua_vez else ""
     with st.container(border=True):
         if eh_sua_vez:
             st.markdown(
@@ -160,25 +172,33 @@ def _renderizar_card_personagem_compacto(p_dict: dict, turno_dados: dict, dentro
 
         with col_act:
             st.write("")
-            if st.button("✏️", key=f"btn_ficha_compacta_{sufixo_key}", help="Editar ficha"):
+            if st.button(
+                "✏️", key=f"btn_ficha_compacta_{sufixo_key}", help="Editar ficha"
+            ):
                 st.session_state.editando_ficha = nome
                 st.session_state.current_view = "mesa"
                 st.rerun()
 
         if dentro_area:
-            if st.button("❌ Remover da Área", key=f"btn_remover_area_{sufixo_key}", use_container_width=True):
+            if st.button(
+                "❌ Remover da Área",
+                key=f"btn_remover_area_{sufixo_key}",
+                use_container_width=True,
+            ):
                 desvincular_participante(p_id)
                 st.rerun()
 
 
-def _renderizar_card_token_compacto(tok_dict: dict, turno_dados: dict, dentro_area: bool = False):
+def _renderizar_card_token_compacto(
+    tok_dict: dict, turno_dados: dict, dentro_area: bool = False
+):
     tok_id = tok_dict["id"]
     nome_exib = tok_dict.get("nome_exibicao", "Token")
     icone = tok_dict.get("tipo_icone", "👾")
     ordem = tok_dict.get("ordem")
     ordem_atual = turno_dados.get("ordem_atual")
     em_andamento = turno_dados.get("em_andamento", False)
-    eh_sua_vez = (em_andamento and ordem is not None and ordem == ordem_atual)
+    eh_sua_vez = em_andamento and ordem is not None and ordem == ordem_atual
 
     with st.container(border=True):
         if eh_sua_vez:
@@ -211,18 +231,192 @@ def _renderizar_card_token_compacto(tok_dict: dict, turno_dados: dict, dentro_ar
 
         with col_act:
             st.write("")
-            if st.button("👁️", key=f"btn_ver_tok_{sufixo_key}", help="Ver / Editar ficha do token"):
+            if st.button(
+                "👁️",
+                key=f"btn_ver_tok_{sufixo_key}",
+                help="Ver / Editar ficha do token",
+            ):
                 modal_ficha_token(tok_id)
 
         col_del1, col_del2 = st.columns(2) if dentro_area else (None, None)
         if dentro_area:
-            if st.button("❌ Remover da Área", key=f"btn_remover_area_tok_{sufixo_key}", use_container_width=True):
+            if st.button(
+                "❌ Remover da Área",
+                key=f"btn_remover_area_tok_{sufixo_key}",
+                use_container_width=True,
+            ):
                 desvincular_participante(tok_id)
                 st.rerun()
         else:
-            if st.button("🗑️ Remover da Cena", key=f"btn_del_tok_{sufixo_key}", use_container_width=True):
+            if st.button(
+                "🗑️ Remover da Cena",
+                key=f"btn_del_tok_{sufixo_key}",
+                use_container_width=True,
+            ):
                 remover_token_do_turno(tok_id)
                 st.rerun()
+
+
+# ── RENDERERS: modo inline (dentro de área) ────────────────────────────────────
+def _renderizar_inline_personagem(p_dict: dict, turno_dados: dict, area_id: str):
+    nome = p_dict["nome"]
+    p_id = p_dict["id"]
+    ordem = p_dict.get("ordem")
+    ordem_atual = turno_dados.get("ordem_atual")
+    em_andamento = turno_dados.get("em_andamento", False)
+    eh_sua_vez = em_andamento and ordem is not None and ordem == ordem_atual
+    sufixo_key = f"{p_id}_inline_{area_id}"
+
+    with st.container(border=True):
+        # 1. LINHA SUPERIOR: Informações Visuais (HTML)
+        ordem_val = int(ordem) if (ordem is not None and ordem > 0) else "—"
+        badge_html = (
+            '<span style="background:#e74c3c;color:white;font-size:9px;font-weight:700;border-radius:3px;padding:1px 4px;margin-right:4px;">🔥 VEZ</span>'
+            if eh_sua_vez
+            else ""
+        )
+
+        # Modificadores
+        mods = obter_modificadores_jogador(nome)
+        mods_html = (
+            f'<span style="font-size:10px;color:#aaa;margin-left:4px;">| {mods}</span>'
+            if mods
+            else ""
+        )
+
+        # Status dinâmicos (barras compactas)
+        status_lista = carregar_status_jogador(nome)
+        barras_html = ""
+        if status_lista:
+            partes = []
+            for item in status_lista:
+                sn = item.get("nome", "")
+                atual = item.get("valor_atual", 0)
+                maximo = item.get("valor_max", 1)
+                cor = item.get("cor", "#DC143C")
+                pct = max(0, min(100, int((atual / maximo * 100) if maximo > 0 else 0)))
+                partes.append(
+                    f'<span style="display:inline-flex;flex-direction:column;align-items:center;margin:0 2px;vertical-align:middle;">'
+                    f'<span style="font-size:9px;font-weight:600;color:{cor};white-space:nowrap;">{sn}&nbsp;{atual}/{maximo}</span>'
+                    f'<span style="display:block;width:34px;height:3px;background:rgba(128,128,128,0.3);border-radius:2px;overflow:hidden;margin-top:1px;">'
+                    f'<span style="display:block;width:{pct}%;height:100%;background:{cor};border-radius:2px;"></span>'
+                    f"</span></span>"
+                )
+            barras_html = (
+                '<span style="color:#555;margin:0 2px;font-size:10px;">|</span>'
+                + "".join(partes)
+            )
+
+        # Avatar
+        foto = caminho_avatar(nome)
+        if foto:
+            import base64 as _b64
+
+            with open(foto, "rb") as _f:
+                _data = _b64.b64encode(_f.read()).decode()
+            _ext = foto.rsplit(".", 1)[-1].lower()
+            _mime = "image/jpeg" if _ext in ("jpg", "jpeg") else f"image/{_ext}"
+            avatar_html = f'<img src="data:{_mime};base64,{_data}" style="width:22px;height:22px;border-radius:4px;object-fit:cover;vertical-align:middle;margin-right:4px;">'
+        else:
+            ini = iniciais(nome)
+            avatar_html = f'<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:4px;background:#2c3e50;color:white;font-weight:700;font-size:10px;margin-right:4px;">{ini}</span>'
+
+        # Renderiza a linha superior com as infos acumuladas
+        st.html(
+            f'<div style="display:flex;align-items:center;flex-wrap:wrap;gap:2px;margin-bottom:6px;">'
+            f"{badge_html}{avatar_html}"
+            f'<span style="font-weight:600;font-size:12px;">{nome}</span>'
+            f"{mods_html}{barras_html}"
+            f'<span style="font-size:10px;color:#888;margin-left:auto;">Ord: <b>{ordem_val}</b></span>'
+            f"</div>"
+        )
+
+        # 2. LINHA INFERIOR: Barra de Ações (Botões visíveis e espaçados)
+        col_edit, col_del = st.columns(2)
+        with col_edit:
+            if st.button(
+                "✏️ Ficha",
+                key=f"btn_edit_{sufixo_key}",
+                help="Editar ficha do personagem",
+                use_container_width=True,
+            ):
+                st.session_state.editando_ficha = nome
+                st.session_state.current_view = "mesa"
+                st.rerun()
+
+        with col_del:
+            if st.button(
+                "❌ Sair área",
+                key=f"btn_rem_{sufixo_key}",
+                help="Remover da área",
+                use_container_width=True,
+            ):
+                desvincular_participante(p_id)
+                st.rerun()
+
+
+def _renderizar_inline_token(tok_dict: dict, turno_dados: dict, area_id: str):
+    tok_id = tok_dict["id"]
+    nome_exib = tok_dict.get("nome_exibicao", "Token")
+    icone = tok_dict.get("tipo_icone", "👾")
+    categoria = tok_dict.get("categoria", "npc").upper()  # Ex: INIMIGO, NPC, ITEM
+    ordem = tok_dict.get("ordem")
+    ordem_atual = turno_dados.get("ordem_atual")
+    em_andamento = turno_dados.get("em_andamento", False)
+    eh_sua_vez = em_andamento and ordem is not None and ordem == ordem_atual
+    sufixo_key = f"{tok_id}_inline_{area_id}"
+
+    with st.container(border=True):
+        # Divisão em linha única: Dados na esquerda (peso 6) | Botões na direita (pesos 1 e 1)
+        col_info, col_vis, col_del = st.columns([6, 2, 2])
+
+        with col_info:
+            ordem_val = int(ordem) if (ordem is not None and ordem > 0) else "—"
+            badge_html = (
+                '<span style="background:#e74c3c;color:white;font-size:9px;font-weight:700;border-radius:3px;padding:1px 4px;margin-right:4px;">🔥 VEZ</span>'
+                if eh_sua_vez
+                else ""
+            )
+
+            # Badge de Categoria/Tipo de Token
+            cor_tag = (
+                "#e74c3c"
+                if categoria == "INIMIGO"
+                else ("#2ecc71" if categoria == "ITEM" else "#3498db")
+            )
+            tag_categoria_html = f'<span style="background:{cor_tag};color:white;font-size:9px;font-weight:600;border-radius:3px;padding:1px 4px;margin-left:4px;">{categoria}</span>'
+
+            st.html(
+                f'<div style="display:flex;align-items:center;flex-wrap:wrap;gap:3px;padding-top:2px;">'
+                f"{badge_html}"
+                f'<span style="font-size:16px;line-height:1;margin-right:2px;">{icone}</span>'
+                f'<span style="font-weight:600;font-size:12px;">{nome_exib}</span>'
+                f"{tag_categoria_html}"
+                f'<span style="font-size:10px;color:#888;margin-left:6px;">| Ord: <b>{ordem_val}</b></span>'
+                f"</div>"
+            )
+
+        with col_vis:
+            if st.button(
+                "👁️",
+                key=f"btn_vis_{sufixo_key}",
+                help="Ver / Editar ficha do token",
+                use_container_width=True,
+            ):
+                modal_ficha_token(tok_id)
+
+        with col_del:
+            if st.button(
+                "❌",
+                key=f"btn_rem_tok_{sufixo_key}",
+                help="Remover da área",
+                use_container_width=True,
+            ):
+                desvincular_participante(tok_id)
+                st.rerun()
+
+
+# ───────────────────────────────────────────────────────────────────────────────
 
 
 def renderizar_painel_turnos(agentes: list[str]):
@@ -237,23 +431,41 @@ def renderizar_painel_turnos(agentes: list[str]):
     # --- BARRA DE CONTROLE SUPERIOR ---
     st.title("⚔️ Gestão de Cenas e Combate — Modo por Turnos")
 
-    participante_ativo = obter_participante_por_ordem(turno_dados, ordem_atual) if ordem_atual else None
-    nome_ativo = (participante_ativo.get("nome") or participante_ativo.get("nome_exibicao")) if participante_ativo else "Nenhum"
+    participante_ativo = (
+        obter_participante_por_ordem(turno_dados, ordem_atual) if ordem_atual else None
+    )
+    nome_ativo = (
+        (participante_ativo.get("nome") or participante_ativo.get("nome_exibicao"))
+        if participante_ativo
+        else "Nenhum"
+    )
 
     col_status, col_btn_prox, col_btn_fim = st.columns([3, 2, 2])
     with col_status:
         if not em_andamento:
-            st.info("🟡 **Em Preparação**: Defina a ordem dos participantes e posicione-os nas áreas.")
+            st.info(
+                "🟡 **Em Preparação**: Defina a ordem dos participantes e posicione-os nas áreas."
+            )
         else:
-            st.success(f"🟢 **Combate Ativo** — Vez de: **{nome_ativo}** (Ordem #{ordem_atual})")
+            st.success(
+                f"🟢 **Combate Ativo** — Vez de: **{nome_ativo}** (Ordem #{ordem_atual})"
+            )
 
     empates = verificar_empates(turno_dados)
     if empates:
-        st.warning(f"⚠️ **Empate de Ordem**: A(s) ordem(ns) **{', '.join(map(str, empates))}** está(ão) repetida(s)! Defina ordens distintas.")
+        st.warning(
+            f"⚠️ **Empate de Ordem**: A(s) ordem(ns) **{', '.join(map(str, empates))}** está(ão) repetida(s)! Defina ordens distintas."
+        )
 
     with col_btn_prox:
         rotulo_prox = "🚀 Iniciar Combate" if not em_andamento else "▶️ Próxima Ação"
-        if st.button(rotulo_prox, type="primary", use_container_width=True, key="btn_proxima_acao", disabled=bool(empates)):
+        if st.button(
+            rotulo_prox,
+            type="primary",
+            use_container_width=True,
+            key="btn_proxima_acao",
+            disabled=bool(empates),
+        ):
             sucesso, msg = avancar_proxima_acao(turno_dados)
             if sucesso:
                 st.session_state.mensagem_info = msg
@@ -262,7 +474,11 @@ def renderizar_painel_turnos(agentes: list[str]):
             st.rerun()
 
     with col_btn_fim:
-        if st.button("🛑 Encerrar Modo por Turnos", use_container_width=True, key="btn_encerrar_turno"):
+        if st.button(
+            "🛑 Encerrar Modo por Turnos",
+            use_container_width=True,
+            key="btn_encerrar_turno",
+        ):
             encerrar_turno()
             st.session_state.mensagem_info = "🏁 Modo por Turnos encerrado com sucesso."
             st.rerun()
@@ -270,13 +486,17 @@ def renderizar_painel_turnos(agentes: list[str]):
     st.divider()
 
     # Mapeamento de participantes em áreas
-    ids_em_areas = set()
+    ids_em_areas: set[str] = set()
     for a in turno_dados.get("areas", []):
         for pid in a.get("participantes", []):
             ids_em_areas.add(pid)
 
-    personagens_soltos = [p for p in turno_dados.get("personagens", []) if p["id"] not in ids_em_areas]
-    tokens_soltos = [t for t in turno_dados.get("tokens", []) if t["id"] not in ids_em_areas]
+    personagens_soltos = [
+        p for p in turno_dados.get("personagens", []) if p["id"] not in ids_em_areas
+    ]
+    tokens_soltos = [
+        t for t in turno_dados.get("tokens", []) if t["id"] not in ids_em_areas
+    ]
 
     # --- LINHA SUPERIOR: Personagens | Tokens (2 colunas, até 2 cards por linha cada) ---
     col_personagens, col_tokens = st.columns(2)
@@ -295,7 +515,9 @@ def renderizar_painel_turnos(agentes: list[str]):
                 sub_cols = st.columns(len(linha_p))
                 for col, p in zip(sub_cols, linha_p):
                     with col:
-                        _renderizar_card_personagem_compacto(p, turno_dados, dentro_area=False)
+                        _renderizar_card_personagem_compacto(
+                            p, turno_dados, dentro_area=False
+                        )
 
     # 2. PAINEL DIREITO: Tokens da Cena (Sem Área)
     with col_tokens:
@@ -303,15 +525,26 @@ def renderizar_painel_turnos(agentes: list[str]):
         st.caption("Inimigos, NPCs e Itens com cópias isoladas no turno.")
 
         with st.expander("➕ Adicionar Token à Cena"):
-            cat_sel = st.selectbox("Categoria:", options=["inimigo", "npc", "item"], format_func=lambda x: CATEGORIAS.get(x, x))
+            cat_sel = st.selectbox(
+                "Categoria:",
+                options=["inimigo", "npc", "item"],
+                format_func=lambda x: CATEGORIAS.get(x, x),
+            )
             arquivos_cat = listar_tokens(cat_sel)
             if arquivos_cat:
                 arq_sel = st.selectbox("Token disponível:", arquivos_cat)
-                if st.button("Adicionar à Cena", type="primary", use_container_width=True, key="btn_add_tok_cena"):
+                if st.button(
+                    "Adicionar à Cena",
+                    type="primary",
+                    use_container_width=True,
+                    key="btn_add_tok_cena",
+                ):
                     adicionar_token_ao_turno(cat_sel, arq_sel)
                     st.rerun()
             else:
-                st.caption(f"Nenhum arquivo em tokens/{cat_sel}/. Crie tokens na aba Tokens.")
+                st.caption(
+                    f"Nenhum arquivo em tokens/{cat_sel}/. Crie tokens na aba Tokens."
+                )
 
         if not tokens_soltos:
             st.caption("Nenhum token solto na cena.")
@@ -322,7 +555,9 @@ def renderizar_painel_turnos(agentes: list[str]):
                 sub_cols = st.columns(len(linha_t))
                 for col, t in zip(sub_cols, linha_t):
                     with col:
-                        _renderizar_card_token_compacto(t, turno_dados, dentro_area=False)
+                        _renderizar_card_token_compacto(
+                            t, turno_dados, dentro_area=False
+                        )
 
     st.divider()
 
@@ -333,7 +568,9 @@ def renderizar_painel_turnos(agentes: list[str]):
     # Criar nova área
     with st.expander("➕ Adicionar Nova Área"):
         with st.form("form_nova_area", clear_on_submit=True):
-            nome_area = st.text_input("Nome da Área", placeholder="Ex: Entrada, Frente da Taverna, Salão...")
+            nome_area = st.text_input(
+                "Nome da Área", placeholder="Ex: Entrada, Frente da Taverna, Salão..."
+            )
             btn_add_area = st.form_submit_button("Criar Área")
             if btn_add_area and nome_area.strip():
                 adicionar_area(nome_area.strip())
@@ -362,41 +599,76 @@ def renderizar_painel_turnos(agentes: list[str]):
                     with cab_col1:
                         st.markdown(f"#### 📍 {area_nome} ({len(participantes_ids)})")
                     with cab_col2:
-                        if st.button("🗑️", key=f"btn_del_area_{area_id}", help="Excluir esta área"):
+                        if st.button(
+                            "🗑️",
+                            key=f"btn_del_area_{area_id}",
+                            help="Excluir esta área",
+                        ):
                             remover_area(area_id)
                             st.rerun()
 
-                    # Vínculo de participantes
+                    # Vínculo de participantes:
+                    # Mostra apenas quem NÃO está em nenhuma área (ainda "solto" na cena).
+                    # Quando vinculado a esta área, desaparece dos selects das demais.
                     disponiveis = []
                     for p in turno_dados.get("personagens", []):
-                        if p["id"] not in participantes_ids:
-                            disponiveis.append((p["id"], f"👤 {p['nome']}"))
+                        pid = p["id"]
+                        if pid not in ids_em_areas:
+                            disponiveis.append((pid, f"👤 {p['nome']}"))
                     for t in turno_dados.get("tokens", []):
-                        if t["id"] not in participantes_ids:
-                            disponiveis.append((t["id"], f"{t.get('tipo_icone', '👾')} {t.get('nome_exibicao', 'Token')}"))
+                        tid = t["id"]
+                        if tid not in ids_em_areas:
+                            disponiveis.append(
+                                (
+                                    tid,
+                                    f"{t.get('tipo_icone', '👾')} {t.get('nome_exibicao', 'Token')}",
+                                )
+                            )
 
                     if disponiveis:
+                        # Opção neutra como primeira posição
+                        opcoes_ids = [""] + [d[0] for d in disponiveis]
+                        mapa_rotulos = {"": "➕ Selecionar participante..."}
+                        for d in disponiveis:
+                            mapa_rotulos[d[0]] = d[1]
+
+                        chave_sel = f"sel_vinc_{area_id}"
+
                         col_sel_part, col_btn_vinc = st.columns([3, 2])
                         with col_sel_part:
                             sel_id = st.selectbox(
                                 "Vincular participante:",
-                                options=[d[0] for d in disponiveis],
-                                format_func=lambda x: next((d[1] for d in disponiveis if d[0] == x), x),
-                                key=f"sel_vinc_{area_id}",
+                                options=opcoes_ids,
+                                format_func=lambda x: mapa_rotulos.get(x, x),
+                                key=chave_sel,
                                 label_visibility="collapsed",
                             )
-                        with col_btn_vinc:
-                            if st.button("+ Vincular", key=f"btn_vinc_{area_id}", use_container_width=True):
-                                vincular_participante(area_id, sel_id)
-                                st.rerun()
 
+                        with col_btn_vinc:
+                            pode_vincular = bool(sel_id)
+                            if st.button(
+                                "+ Vincular",
+                                key=f"btn_vinc_{area_id}",
+                                use_container_width=True,
+                                disabled=not pode_vincular,
+                            ):
+                                if sel_id:
+                                    vincular_participante(area_id, sel_id)
+                                    # Apaga a chave no session_state para resetar o widget limpo no próximo ciclo
+                                    if chave_sel in st.session_state:
+                                        del st.session_state[chave_sel]
+                                    st.rerun()
                     st.write("")
-                    # Renderiza minicards dentro da área
+                    # Renderiza inline cards dentro da área
                     if not participantes_ids:
                         st.caption("Nenhum participante nesta área.")
                     else:
                         for pid in participantes_ids:
                             if pid in todos_personagens_dict:
-                                _renderizar_card_personagem_compacto(todos_personagens_dict[pid], turno_dados, dentro_area=True)
+                                _renderizar_inline_personagem(
+                                    todos_personagens_dict[pid], turno_dados, area_id
+                                )
                             elif pid in todos_tokens_dict:
-                                _renderizar_card_token_compacto(todos_tokens_dict[pid], turno_dados, dentro_area=True)
+                                _renderizar_inline_token(
+                                    todos_tokens_dict[pid], turno_dados, area_id
+                                )
