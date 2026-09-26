@@ -278,8 +278,8 @@ def renderizar_painel_turnos(agentes: list[str]):
     personagens_soltos = [p for p in turno_dados.get("personagens", []) if p["id"] not in ids_em_areas]
     tokens_soltos = [t for t in turno_dados.get("tokens", []) if t["id"] not in ids_em_areas]
 
-    # --- GRID DE 3 PAINÉIS (Esquerda: Personagens, Centro: Áreas, Direita: Tokens) ---
-    col_personagens, col_areas, col_tokens = st.columns([1, 1.3, 1])
+    # --- LINHA SUPERIOR: Personagens | Tokens (2 colunas, até 2 cards por linha cada) ---
+    col_personagens, col_tokens = st.columns(2)
 
     # 1. PAINEL ESQUERDO: Personagens (Sem Área)
     with col_personagens:
@@ -288,82 +288,16 @@ def renderizar_painel_turnos(agentes: list[str]):
 
         if not personagens_soltos:
             st.caption("Todos os personagens estão alocados em áreas da cena.")
+        else:
+            # Renderiza em grade de 2 cards por linha
+            for i in range(0, len(personagens_soltos), 2):
+                linha_p = personagens_soltos[i : i + 2]
+                sub_cols = st.columns(len(linha_p))
+                for col, p in zip(sub_cols, linha_p):
+                    with col:
+                        _renderizar_card_personagem_compacto(p, turno_dados, dentro_area=False)
 
-        for p in personagens_soltos:
-            _renderizar_card_personagem_compacto(p, turno_dados, dentro_area=False)
-
-    # 2. PAINEL CENTRAL: Áreas da Cena
-    with col_areas:
-        st.subheader("📍 Áreas da Cena")
-        st.caption("Posicione participantes em zonas de combate ou ambientes.")
-
-        # Criar nova área
-        with st.expander("➕ Adicionar Nova Área"):
-            with st.form("form_nova_area", clear_on_submit=True):
-                nome_area = st.text_input("Nome da Área", placeholder="Ex: Entrada, Frente da Taverna, Salão...")
-                btn_add_area = st.form_submit_button("Criar Área")
-                if btn_add_area and nome_area.strip():
-                    adicionar_area(nome_area.strip())
-                    st.rerun()
-
-        areas = turno_dados.get("areas", [])
-        if not areas:
-            st.info("Nenhuma área criada. Adicione uma área acima para organizar a cena.")
-
-        # Dicionários rápidos para lookup de participantes
-        todos_personagens_dict = {p["id"]: p for p in turno_dados.get("personagens", [])}
-        todos_tokens_dict = {t["id"]: t for t in turno_dados.get("tokens", [])}
-
-        for area in areas:
-            area_id = area["id"]
-            area_nome = area["nome"]
-            participantes_ids = area.get("participantes", [])
-
-            with st.container(border=True):
-                cab_col1, cab_col2 = st.columns([4, 1])
-                with cab_col1:
-                    st.markdown(f"#### 📍 {area_nome} ({len(participantes_ids)})")
-                with cab_col2:
-                    if st.button("🗑️", key=f"btn_del_area_{area_id}", help="Excluir esta área"):
-                        remover_area(area_id)
-                        st.rerun()
-
-                # Vínculo de participantes
-                disponiveis = []
-                for p in turno_dados.get("personagens", []):
-                    if p["id"] not in participantes_ids:
-                        disponiveis.append((p["id"], f"👤 {p['nome']}"))
-                for t in turno_dados.get("tokens", []):
-                    if t["id"] not in participantes_ids:
-                        disponiveis.append((t["id"], f"{t.get('tipo_icone', '👾')} {t.get('nome_exibicao', 'Token')}"))
-
-                if disponiveis:
-                    col_sel_part, col_btn_vinc = st.columns([3, 2])
-                    with col_sel_part:
-                        sel_id = st.selectbox(
-                            "Vincular participante:",
-                            options=[d[0] for d in disponiveis],
-                            format_func=lambda x: next((d[1] for d in disponiveis if d[0] == x), x),
-                            key=f"sel_vinc_{area_id}",
-                            label_visibility="collapsed",
-                        )
-                    with col_btn_vinc:
-                        if st.button("+ Vincular", key=f"btn_vinc_{area_id}", use_container_width=True):
-                            vincular_participante(area_id, sel_id)
-                            st.rerun()
-
-                st.write("")
-                # Renderiza minicards dentro da área
-                if not participantes_ids:
-                    st.caption("Nenhum participante nesta área.")
-                else:
-                    for pid in participantes_ids:
-                        if pid in todos_personagens_dict:
-                            _renderizar_card_personagem_compacto(todos_personagens_dict[pid], turno_dados, dentro_area=True)
-                        elif pid in todos_tokens_dict:
-                            _renderizar_card_token_compacto(todos_tokens_dict[pid], turno_dados, dentro_area=True)
-
-    # 3. PAINEL DIREITO: Tokens da Cena (Sem Área)
+    # 2. PAINEL DIREITO: Tokens da Cena (Sem Área)
     with col_tokens:
         st.subheader(f"👾 Tokens da Cena ({len(tokens_soltos)})")
         st.caption("Inimigos, NPCs e Itens com cópias isoladas no turno.")
@@ -381,6 +315,88 @@ def renderizar_painel_turnos(agentes: list[str]):
 
         if not tokens_soltos:
             st.caption("Nenhum token solto na cena.")
+        else:
+            # Renderiza em grade de 2 cards por linha
+            for i in range(0, len(tokens_soltos), 2):
+                linha_t = tokens_soltos[i : i + 2]
+                sub_cols = st.columns(len(linha_t))
+                for col, t in zip(sub_cols, linha_t):
+                    with col:
+                        _renderizar_card_token_compacto(t, turno_dados, dentro_area=False)
 
-        for t in tokens_soltos:
-            _renderizar_card_token_compacto(t, turno_dados, dentro_area=False)
+    st.divider()
+
+    # --- LINHA INFERIOR: Áreas da Cena (largura total, até 4 cards por linha) ---
+    st.subheader("📍 Áreas da Cena")
+    st.caption("Posicione participantes em zonas de combate ou ambientes.")
+
+    # Criar nova área
+    with st.expander("➕ Adicionar Nova Área"):
+        with st.form("form_nova_area", clear_on_submit=True):
+            nome_area = st.text_input("Nome da Área", placeholder="Ex: Entrada, Frente da Taverna, Salão...")
+            btn_add_area = st.form_submit_button("Criar Área")
+            if btn_add_area and nome_area.strip():
+                adicionar_area(nome_area.strip())
+                st.rerun()
+
+    areas = turno_dados.get("areas", [])
+    if not areas:
+        st.info("Nenhuma área criada. Adicione uma área acima para organizar a cena.")
+
+    # Dicionários rápidos para lookup de participantes
+    todos_personagens_dict = {p["id"]: p for p in turno_dados.get("personagens", [])}
+    todos_tokens_dict = {t["id"]: t for t in turno_dados.get("tokens", [])}
+
+    # Renderiza áreas em grade de até 4 por linha
+    for i in range(0, len(areas), 4):
+        lote_areas = areas[i : i + 4]
+        cols_areas = st.columns(len(lote_areas))
+        for col_area, area in zip(cols_areas, lote_areas):
+            with col_area:
+                area_id = area["id"]
+                area_nome = area["nome"]
+                participantes_ids = area.get("participantes", [])
+
+                with st.container(border=True):
+                    cab_col1, cab_col2 = st.columns([4, 1])
+                    with cab_col1:
+                        st.markdown(f"#### 📍 {area_nome} ({len(participantes_ids)})")
+                    with cab_col2:
+                        if st.button("🗑️", key=f"btn_del_area_{area_id}", help="Excluir esta área"):
+                            remover_area(area_id)
+                            st.rerun()
+
+                    # Vínculo de participantes
+                    disponiveis = []
+                    for p in turno_dados.get("personagens", []):
+                        if p["id"] not in participantes_ids:
+                            disponiveis.append((p["id"], f"👤 {p['nome']}"))
+                    for t in turno_dados.get("tokens", []):
+                        if t["id"] not in participantes_ids:
+                            disponiveis.append((t["id"], f"{t.get('tipo_icone', '👾')} {t.get('nome_exibicao', 'Token')}"))
+
+                    if disponiveis:
+                        col_sel_part, col_btn_vinc = st.columns([3, 2])
+                        with col_sel_part:
+                            sel_id = st.selectbox(
+                                "Vincular participante:",
+                                options=[d[0] for d in disponiveis],
+                                format_func=lambda x: next((d[1] for d in disponiveis if d[0] == x), x),
+                                key=f"sel_vinc_{area_id}",
+                                label_visibility="collapsed",
+                            )
+                        with col_btn_vinc:
+                            if st.button("+ Vincular", key=f"btn_vinc_{area_id}", use_container_width=True):
+                                vincular_participante(area_id, sel_id)
+                                st.rerun()
+
+                    st.write("")
+                    # Renderiza minicards dentro da área
+                    if not participantes_ids:
+                        st.caption("Nenhum participante nesta área.")
+                    else:
+                        for pid in participantes_ids:
+                            if pid in todos_personagens_dict:
+                                _renderizar_card_personagem_compacto(todos_personagens_dict[pid], turno_dados, dentro_area=True)
+                            elif pid in todos_tokens_dict:
+                                _renderizar_card_token_compacto(todos_tokens_dict[pid], turno_dados, dentro_area=True)
