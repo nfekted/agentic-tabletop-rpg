@@ -7,6 +7,8 @@ from imagens import caminho_avatar
 
 from ui.estado import chunked, iniciais
 from ui.ficha_panel import modal_ver_ficha
+from turno import turno_ativo, iniciar_turno
+from ui.turno_panel import renderizar_painel_turnos
 
 CSS_AVATAR = """
 <div style="
@@ -38,6 +40,10 @@ CSS_BALAO = """
 
 
 def renderizar_titulo_e_cards(agentes):
+    if turno_ativo():
+        renderizar_painel_turnos(agentes)
+        return
+
     st.title("🎲 Mesa de RPG — Painel do Mestre")
 
     if not agentes:
@@ -51,6 +57,11 @@ def renderizar_titulo_e_cards(agentes):
             with col:
                 with st.container(border=True):
                     _renderizar_card_jogador(nome)
+
+    st.write("")
+    if st.button("⚔️ Iniciar Modo por Turnos", type="secondary", use_container_width=True, key="btn_iniciar_turnos"):
+        iniciar_turno(agentes)
+        st.rerun()
 
     st.divider()
 
