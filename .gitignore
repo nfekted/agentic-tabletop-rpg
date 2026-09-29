@@ -227,3 +227,8 @@ arquivos/**/*
 !arquivos/tokens/inimigo/default.txt
 !arquivos/tokens/npc/default.txt
 !arquivos/tokens/item/default.txt
+
+# Backups de mesa
+mesas/*.zip
+mesas/*.zip.tmp
+mesas/.restore_tmp/

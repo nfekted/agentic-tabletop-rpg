@@ -12,6 +12,7 @@ from fichas import listar_arquivos_regras, obter_regra_ativa, definir_regra_ativ
 from memoria import obter_pasta_agente
 
 from ui.estado import indice_seguro
+from ui.mesas_panel import modal_salvar_restaurar_mesa
 from ui.acoes import acao_cancelar_rodada, acao_iniciar_rodada, acao_finalizar_rodada
 
 
@@ -98,6 +99,13 @@ def renderizar_sidebar():
                 "Novos jogadores entram automaticamente na fila de cards abaixo — "
                 "não é preciso reiniciar o app."
             )
+
+        if st.button(
+            "💾 Salvar / Restaurar Mesa",
+            use_container_width=True,
+            key="btn_abrir_salvar_restaurar_mesa",
+        ):
+            modal_salvar_restaurar_mesa()
 
         st.divider()
 
