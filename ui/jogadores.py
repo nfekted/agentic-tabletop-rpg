@@ -5,6 +5,7 @@ from config import obter_modificadores_jogador
 from fichas import carregar_status_jogador
 from imagens import caminho_avatar
 
+from ui.balao import renderizar_balao_fala
 from ui.estado import chunked, iniciais
 from ui.ficha_panel import modal_ver_ficha
 from turno import turno_ativo, iniciar_turno
@@ -19,25 +20,6 @@ CSS_AVATAR = """
     {iniciais}
 </div>
 """
-
-CSS_BALAO = """
-<div style="text-align:center; font-size:16px; line-height:8px; color:{borda};">{seta}</div>
-<div style="
-    position:relative;
-    background:{fundo};
-    border:{estilo_borda} 1.5px {borda};
-    border-radius:12px;
-    padding:8px 10px;
-    font-size:13px;
-    font-style:{fonte_estilo};
-    max-height:150px;
-    overflow-y:auto;
-    white-space:pre-wrap;
-    word-wrap:break-word;">
-    {texto}
-</div>
-"""
-
 
 def renderizar_titulo_e_cards(agentes):
     if turno_ativo():
@@ -153,50 +135,4 @@ def _renderizar_card_jogador(nome):
         st.session_state.current_view = "mesa"
         st.rerun()
 
-    fala = st.session_state.ultima_fala.get(nome)
-    if fala:
-        _renderizar_balao_fala(fala)
-
-
-def _renderizar_balao_fala(fala):
-    aprovada = fala["aprovada"]
-    privado = fala.get("privado", False)
-    if privado:
-        fundo, borda, estilo_borda, seta, fonte_estilo = (
-            "#ede7f6",
-            "#7e57c2",
-            "solid",
-            "💭",
-            "italic",
-        )
-    elif aprovada:
-        fundo, borda, estilo_borda, seta, fonte_estilo = (
-            "#f0f2f6",
-            "#c9c9c9",
-            "solid",
-            "▲",
-            "normal",
-        )
-    else:
-        fundo, borda, estilo_borda, seta, fonte_estilo = (
-            "#fff8e1",
-            "#d9a441",
-            "dashed",
-            "▲",
-            "normal",
-        )
-    st.markdown(
-        CSS_BALAO.format(
-            fundo=fundo,
-            borda=borda,
-            estilo_borda=estilo_borda,
-            seta=seta,
-            fonte_estilo=fonte_estilo,
-            texto=fala["texto"],
-        ),
-        unsafe_allow_html=True,
-    )
-    if privado:
-        st.caption("💭 pensamento privado — só o mestre vê")
-    elif not fala["aprovada"]:
-        st.caption("⏳ aguardando aprovação do mestre")
+    renderizar_balao_fala(nome, "jogadores")

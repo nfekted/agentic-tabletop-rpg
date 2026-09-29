@@ -22,6 +22,7 @@ from turno import (
     verificar_empates,
     vincular_participante,
 )
+from ui.balao import renderizar_balao_fala
 from ui.estado import iniciais
 
 CSS_MINI_AVATAR = """
@@ -188,6 +189,8 @@ def _renderizar_card_personagem_compacto(
                 desvincular_participante(p_id)
                 st.rerun()
 
+        renderizar_balao_fala(nome, "turno_solto", compacto=True)
+
 
 def _renderizar_card_token_compacto(
     tok_dict: dict, turno_dados: dict, dentro_area: bool = False
@@ -266,6 +269,9 @@ def _renderizar_inline_personagem(p_dict: dict, turno_dados: dict, area_id: str)
     em_andamento = turno_dados.get("em_andamento", False)
     eh_sua_vez = em_andamento and ordem is not None and ordem == ordem_atual
     sufixo_key = f"{p_id}_inline_{area_id}"
+
+    # Balão logo acima do card inline (espaço lateral limitado)
+    renderizar_balao_fala(nome, f"turno_inline_{area_id}", compacto=True, acima=True)
 
     with st.container(border=True):
         # 1. LINHA SUPERIOR: Informações Visuais (HTML)

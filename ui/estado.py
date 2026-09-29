@@ -17,6 +17,8 @@ def inicializar_estado():
         "pending_redirects": [],
         "mensagem_info": None,
         "ultima_fala": {},
+        "falas_fechadas": {},
+        "seq_fala": 0,
         "trocando_avatar": None,
         "current_view": "mesa",
         "token_categoria": "inimigo",

@@ -4,7 +4,10 @@ import streamlit as st
 
 def registrar_fala(agente: str, texto: str, aprovada: bool = True, privado: bool = False):
     # Guarda a última fala de um agente para exibir como balão junto ao seu card.
+    # "seq" identifica cada fala; permite ao botão "X" fechar só a fala atual.
+    st.session_state.seq_fala = st.session_state.get("seq_fala", 0) + 1
     st.session_state.ultima_fala[agente] = {
+        "seq": st.session_state.seq_fala,
         "texto": texto,
         "aprovada": aprovada,
         "privado": privado,
