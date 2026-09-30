@@ -14,6 +14,9 @@ preferir.
 - 🔀 Escolha do modelo: Gemini 3.5, OpenAI Luna, Ollama ou Omniroute (local)
 - 🖼️ Fotos para os jogadores e envio de imagens para contextualizar os agentes
 - 💸 Prompt dividido em partes fixas e variáveis, com cache, para economizar tokens
+- ⚔️ Modo por Turnos: gestão de cenas e combate com áreas, ordem de iniciativa e tokens
+- 🧠 Controle de contexto: barra por personagem e compressão de memória com roleplay
+- 💾 Salvar / Restaurar Mesa: backup completo da campanha em um `.zip`
 - 🖥️ Interface visual em Streamlit + versão de terminal
 
 ---
@@ -33,17 +36,20 @@ preferir.
   - [Conjuntos de regras (arquivos/regras/)](#conjuntos-de-regras-arquivosregras)
   - [Conjuntos de cenas (arquivos/cenas/)](#conjuntos-de-cenas-arquivoscenas)
   - [Conjunto de tokens](#conjunto-de-tokens)
+  - [Modo por Turnos](#modo-por-turnos)
   - [Ações do mestre](#ações-do-mestre)
   - [Tags de resposta: \[acao\], \[duvida\] e \[pensamento\]](#tags-de-resposta-acao-duvida-e-pensamento)
   - [Fluxo de aprovação](#fluxo-de-aprovação)
   - [Sistema de memória (rodada → cena → mesa)](#sistema-de-memória-rodada--cena--mesa)
   - [Por que resumir um resumo pode "perder" informação (de propósito)](#por-que-resumir-um-resumo-pode-perder-informação-de-propósito)
+  - [Controle de contexto e compressão de memória](#controle-de-contexto-e-compressão-de-memória)
   - [Balões de fala](#balões-de-fala)
   - [Fotos dos jogadores](#fotos-dos-jogadores)
   - [Imagens de contexto](#imagens-de-contexto)
   - [Escolha do modelo de IA](#escolha-do-modelo-de-ia)
   - [Cache de prompt (economia de tokens)](#cache-de-prompt-economia-de-tokens)
   - [Adicionando jogadores](#adicionando-jogadores)
+  - [Salvar / Restaurar Mesa](#salvar--restaurar-mesa)
 - [Estrutura de pastas](#estrutura-de-pastas)
 - [Solução de problemas](#solução-de-problemas)
 
@@ -189,11 +195,17 @@ fica em /arquivos/config.json, no formato:
 
 ```
 {
-  "provedor": "omniroute-local", (ou llama3, gpt-luna, gemini-3.5-flash)
-  "api_key": "", <ou key>
-  "base_url": "http://localhost:8000/v1" <ou "">
+  "provedor": "Omniroute local",   (ou "Gemini 3.5-flash", "GPT-luna", "Ollama local")
+  "api_key": "",                   (sua chave, se o provedor exigir)
+  "base_url": "http://localhost:8000/v1",   (ou "")
+  "limite_contexto_tokens": 0,     (0 = controle de contexto desligado)
+  "gatilho_compressao_pct": 85,
+  "alvo_reducao_pct": 50
 }
 ```
+Tudo isso também pode ser editado pela barra lateral, em **⚙️ Configurações da
+LLM** — não é preciso mexer no arquivo na mão. Os três últimos campos são
+explicados em [Controle de contexto](#controle-de-contexto-e-compressão-de-memória).
 ## Configurar seu modelo:
 
 ### Gemini 3.5-flash
@@ -258,13 +270,20 @@ Para encerrar qualquer um dos dois, use `Ctrl+C` no terminal.
 
 ### Fichas dos personagens
 
-Cada jogador tem um arquivo de ficha em `arquivos/fichas/{nome_do_jogador}.txt`, que
-descreve personalidade, história e características do personagem — é isso
-que molda como o agente de IA responde por ele. Pela interface, clique no
-botão ✏️ no card do jogador para editar e salvar a ficha sem precisar abrir
-nenhum arquivo manualmente. A primeira linha da ficha também guarda o
-status do personagem (`vivo`, `morto` ou `inconsciente`), controlado pelo
-seletor abaixo do card.
+Cada jogador tem uma **ficha modular** em `arquivos/fichas/`, dividida em
+seis arquivos por personagem: `{nome}_base.txt`, `{nome}_geral.txt`,
+`{nome}_habilidades.txt`, `{nome}_itens.txt`, `{nome}_personalidade.txt` e
+`{nome}_status.json`. É isso que molda como o agente de IA responde por
+ele. Pela interface, clique em ✏️ no card do jogador para editar cada
+seção sem abrir arquivo nenhum; o botão 👁️ mostra a ficha consolidada em
+modo somente leitura. Fichas antigas (um único `{nome}.txt`) são migradas
+automaticamente.
+
+- **Status dinâmicos** (vida, mana, estamina, ...): você cria quantos quiser,
+  com valor atual, máximo e cor. Aparecem como barras no card e entram no
+  prompt do agente.
+- **Modificadores**: um campo de texto livre exibido no card ("modificadores:
+  ...").
 
 ### Conjuntos de regras (arquivos/regras/)
 
@@ -293,9 +312,30 @@ As cenas são salvas em `arquivos/cenas/`.
 
 ### Conjunto de tokens
 
-É possível registrar anotações de inimigos, npcs, e itens. Auxilia na anotação e agilidade
-sem a necessidade de buscar em blocos de notas e outras coisas, sendo possível já deixar em
-formato de prompt, para apenas copiar e colar na mensagem ou ficha do personagem.
+É possível registrar anotações de inimigos, NPCs e itens em `tokens/`
+(subpastas `inimigo/`, `npc/` e `item/`), pelo botão **👾 Gerenciar Inimigos,
+Itens e NPCs** da barra lateral. Ajuda a ter tudo à mão sem buscar em
+blocos de notas, e dá para deixar já em formato de prompt, para apenas
+copiar e colar na mensagem ou na ficha do personagem. Os tokens também são
+usados no [Modo por Turnos](#modo-por-turnos).
+
+### Modo por Turnos
+
+Pelo botão **⚔️ Iniciar Modo por Turnos** (abaixo dos cards de jogadores) a
+tela vira um painel de gestão de cenas e combate. O estado fica em
+`arquivos/turno.json`.
+
+- **Personagens e Tokens** soltos aparecem em duas colunas; tokens são
+  adicionados de `tokens/` como **cópias isoladas** para o combate (editar a
+  ficha do token ali não altera o arquivo original).
+- **Áreas da Cena**: crie zonas (Entrada, Salão, ...) e vincule participantes
+  a elas. Dentro da área, cada personagem aparece em formato compacto
+  (inline), com status, barra de contexto e balão de fala logo acima.
+- **Ordem de iniciativa**: defina a ordem de cada participante; o painel
+  avisa empates e trava a ordem durante a rodada.
+- **Iniciar Combate / Próxima Ação**: destaca de quem é a vez (🔥) e avança
+  pela fila.
+- **Encerrar Modo por Turnos** volta para a tela normal.
 
 ### Ações do mestre
 
@@ -352,6 +392,10 @@ presenciou.
    "capítulo" append no `mesa.txt` — o histórico permanente daquele
    personagem. As 10 cenas usadas são apagadas depois.
 
+Esse ciclo automático continua valendo; além dele, existe a
+[compressão manual](#controle-de-contexto-e-compressão-de-memória), oferecida
+quando o prompt do personagem se aproxima do limite da LLM.
+
 Toda vez que um jogador é chamado a responder, o prompt dele é montado com
 o conteúdo de `mesa.txt` + cenas ainda não compiladas + rodadas ainda não
 compiladas — ou seja, ele "lembra" de tudo isso antes de agir.
@@ -388,13 +432,58 @@ Na prática, isso quer dizer:
   imprecisa) fica a lembrança de acontecimentos antigos — é esperado, e faz
   parte da proposta do sistema simular como uma pessoa recorda o passado.
 
+### Controle de contexto e compressão de memória
+
+Como a memória só cresce e é reenviada em todo prompt, dá para dizer ao jogo
+o tamanho da janela da sua LLM e deixá-lo avisar quando um personagem está
+perto do limite. Em **⚙️ Configurações da LLM** (cada campo tem um "?" com a
+explicação):
+
+| Campo | O que faz |
+|---|---|
+| **Contexto máx. (tokens)** | Limite da LLM (consulte a documentação do modelo). **0 desliga** o controle. |
+| **Gatilho de compressão (%)** | Quanto do contexto pode estar ocupado antes de o jogo oferecer a compressão (padrão 85%). |
+| **Tamanho alvo (% de redução)** | Quanto do `mesa.txt` será cortado ao comprimir (padrão 50%). |
+
+**Medição.** A cada resposta, o jogo grava em
+`arquivos/memoria_{nome}/metricas.json` quantos tokens o último prompt usou
+(valor real do provedor quando informado; senão, estimado por caracteres) e
+quanto cada parte pesou (prompt base, regras, memória, ficha, histórico).
+Nada disso entra no prompt.
+
+**Barra 🧠 Contexto.** Aparece nos cards (completo, compacto e inline no
+Modo por Turnos): verde abaixo de 60%, âmbar até o gatilho e vermelho depois,
+com um traço marcando o gatilho. Passe o mouse para ver o detalhamento.
+
+**Compressão.** Ao passar do gatilho, abre um diálogo em roleplay
+("*{personagem} está com muitas coisas na cabeça…*") perguntando se deseja
+comprimir. Você decide: **Não** apenas fecha (pergunta de novo no próximo
+input); **Sim** executa, na ordem:
+
+1. as rodadas pendentes viram uma cena;
+2. o `mesa.txt` atual é reduzido pelo percentual alvo (o prompt do resumo
+   recebe "o limite máximo de caracteres é N");
+3. o resumo das cenas é anexado ao `mesa.txt` reduzido.
+
+A memória antiga perde detalhe (aceitável), e a recente fica mais completa.
+Antes de reduzir, o `mesa.txt` é copiado para `mesa.bak` e restaurado se algo
+falhar. Se o peso do contexto estiver em regras/ficha/histórico e não na
+memória, o diálogo apenas avisa, sem oferecer compressão.
+
 ### Balões de fala
 
-Cada card de jogador mostra um balão com a última fala dele:
+Cada card de jogador (na tela principal e no Modo por Turnos) mostra um
+balão com a última fala dele:
 - **Cinza sólido** — fala já aprovada e registrada na história.
 - **Amarelo tracejado** — resposta gerada, ainda aguardando sua aprovação.
 - **Roxo em itálico (💭)** — um `[pensamento]` privado; só o mestre vê esse
   balão, e ele nunca é compartilhado com os outros personagens.
+
+O balão **cresce conforme o tamanho da resposta** (com rolagem para textos
+muito longos). No Modo por Turnos, cards inline mostram o balão **logo acima**
+do card. O **✖** fecha o balão só visualmente — a fala continua guardada — e
+o botão **💬 Restaurar última fala** a traz de volta. Uma fala nova reabre o
+balão sozinha.
 
 ### Fotos dos jogadores
 
@@ -417,12 +506,13 @@ jogadores passam a reagir ao que "estão vendo". Os arquivos ficam salvos em
 
 ### Escolha do modelo de IA
 
-Os modelos são definidos em `config.py`, e você pode escolher qual usar:
+Os provedores são definidos em `config.py`; o escolhido fica em
+`arquivos/config.json` e pode ser trocado pela barra lateral:
 
 | Provedor | Onde roda | O que precisa |
 |---|---|---|
-| **Gemini 3.5** (Google) | Nuvem | `GOOGLE_API_KEY` |
-| **OpenAI Luna** | Nuvem | `OPENAI_API_KEY` |
+| **Gemini 3.5** (Google) | Nuvem | API Key (pela barra lateral, ou a variável `GEMINI_API_KEY`) |
+| **OpenAI Luna** | Nuvem | API Key (pela barra lateral, ou a variável `OPENAI_API_KEY`) |
 | **Ollama** | Local (seu computador) | Ollama instalado e rodando, com o modelo já baixado |
 | **Omniroute** | Local | Servidor Omniroute rodando e acessível |
 
@@ -431,12 +521,13 @@ qualidade e a velocidade dependem do seu hardware e do modelo escolhido.
 
 ### Cache de prompt (economia de tokens)
 
-O prompt de cada jogador é **separado em blocos**: o que muda pouco (ficha,
-regras ativas, instruções gerais, memória já consolidada) fica separado do
-que muda a cada mensagem (a fala do mestre, o que acabou de acontecer na
-cena). Como a parte estável se repete a cada chamada, os provedores que
-suportam cache de prompt conseguem reaproveitá-la em vez de reprocessá-la
-inteira, o que reduz o consumo de tokens e o custo.
+O prompt de cada jogador é **separado em blocos, do mais estável ao mais
+volátil**: instruções gerais, regras ativas, memória e ficha vêm primeiro;
+o que muda a cada mensagem (histórico da rodada e a fala do mestre) vem por
+último. Provedores com cache automático de prefixo conseguem reaproveitar a
+parte estável em vez de reprocessá-la inteira, reduzindo custo e latência.
+(O projeto não marca blocos de cache explicitamente; o ganho depende do
+provedor.)
 
 Isso também é um dos motivos de existir o conjunto de regras ativo
 ([veja acima](#conjuntos-de-regras-arquivosregras)): mandar só as regras
@@ -448,34 +539,77 @@ A lista de jogadores não é fixa. Pela barra lateral, em "➕ Adicionar
 Jogador", digite um nome (sem espaços) e clique em Adicionar — o card dele
 já aparece na fila junto com os demais, sem precisar reiniciar o app.
 
+### Salvar / Restaurar Mesa
+
+O botão **💾 Salvar / Restaurar Mesa** da barra lateral abre um modal com
+duas partes:
+
+- **Salvar mesa** (direita): digite um nome e clique em Salvar. O jogo gera
+  `mesas/{nome}.zip` com `arquivos/` e `tokens/` (fichas, regras, cenas,
+  imagens, memórias, jogadores e o estado do combate).
+- **Restaurar mesa** (esquerda): escolha um `.zip` de `mesas/`, clique em
+  Restaurar e confirme. `arquivos/` e `tokens/` atuais são **substituídos**
+  pelo conteúdo do zip e a tela recarrega sozinha.
+
+Detalhes importantes:
+- O `config.json` **não entra no zip** (ele guarda a API Key). Ao restaurar,
+  a configuração atual da LLM é mantida; se mudar de máquina, reconfigure a
+  chave. Guarde-a em local seguro.
+- Rodadas em andamento (`rodada_atual_temp.txt`) não são salvas, e o estado da
+  sessão (histórico da rodada, falas, pendências de aprovação) é limpo ao
+  restaurar.
+- O zip é validado antes de qualquer alteração e a troca é feita com
+  rollback: se algo falhar, os dados atuais permanecem.
+
 ---
 
 ## Estrutura de pastas
 
 ```
 .
-├── app.py                 # Interface visual (Streamlit)
-├── main.py                # Interface de terminal (menu por texto)
-├── config.py               # Modelos de IA e configurações
-├── fichas.py                # Leitura/edição de fichas e regras
-├── imagens.py                # Upload de imagens de contexto e fotos de jogador
-├── memoria.py                 # Hierarquia de memória rodada → cena → mesa
-├── agentes.py                  # Monta o prompt e gera as respostas dos jogadores
-├── ui/                          # Partes da interface Streamlit separadas por lógica
-│   └── ...                        # (ex.: barra lateral em arquivo próprio)
+├── app.py                  # Interface visual (Streamlit)
+├── main.py                 # Interface de terminal (menu por texto)
+├── config.py               # Provedores de IA, configurações e jogadores
+├── fichas.py               # Fichas modulares e conjuntos de regras
+├── imagens.py              # Upload de imagens de contexto e fotos de jogador
+├── memoria.py              # Memória rodada → cena → mesa e compressão manual
+├── metricas.py             # Tokens/contexto do último prompt por personagem
+├── agentes.py              # Monta o prompt e gera as respostas dos jogadores
+├── tags.py                 # Extração de [fala], [acao], [duvida], [pensamento]
+├── cenas.py                # Cenas pré-cadastradas
+├── tokens_manager.py       # Inimigos, NPCs e itens (pasta tokens/)
+├── turno.py                # Regras e persistência do Modo por Turnos
+├── mesas_manager.py        # Salvar/restaurar mesa em .zip
+├── ui/                     # Partes da interface Streamlit
+│   ├── sidebar.py          # Barra lateral (LLM, rodada, regras, mesa)
+│   ├── jogadores.py        # Cards de jogadores
+│   ├── turno_panel.py      # Painel do Modo por Turnos
+│   ├── balao.py            # Balão de fala reutilizável (com ✖)
+│   ├── contexto_barra.py   # Barra 🧠 Contexto
+│   ├── compressao_panel.py # Diálogo de compressão de memória
+│   ├── mesas_panel.py      # Modal Salvar / Restaurar Mesa
+│   └── ...                 # fichas, regras, memória, avatar, tokens, ações
 ├── requirements.txt
 ├── .venv/                  # Ambiente virtual (não versionar)
 ├── .env                    # Suas chaves de API (não versionar)
+├── mesas/                  # Backups .zip gerados por "Salvar mesa"
+├── tokens/                 # Anotações de inimigos, NPCs e itens
+│   ├── inimigo/
+│   ├── npc/
+│   └── item/
 └── arquivos/               # Pasta centralizadora de dados e mídias
+    ├── config.json             # Provedor, chave, limites de contexto
     ├── jogadores.json          # Lista centralizada de jogadores da mesa
+    ├── turno.json              # Estado do Modo por Turnos (se ativo)
     ├── regras/                 # Conjuntos de regras (um arquivo por cenário)
     │   ├── .ativa               # Marca qual arquivo está em uso agora
     │   ├── geral.txt
     │   └── combate.txt
-    ├── fichas/
-    │   ├── jogadora.txt
-    │   ├── jogadorb.txt
+    ├── fichas/                 # Seis arquivos modulares por personagem
+    │   ├── jogadora_base.txt
+    │   ├── jogadora_status.json
     │   └── ...
+    ├── cenas/                  # Cenas pré-cadastradas
     ├── img/
     │   └── ...
     └── memoria_JogadorA/
@@ -483,6 +617,8 @@ já aparece na fila junto com os demais, sem precisar reiniciar o app.
         ├── rodada_1.txt
         ├── cena_1.txt
         ├── mesa.txt
+        ├── mesa.bak            # Cópia antes da última compressão
+        ├── metricas.json       # Medição de contexto (não vai no prompt)
         └── avatar.png
 ```
 
@@ -517,6 +653,20 @@ de novo (veja [Ambiente virtual](#ambiente-virtual-venv)).
 **Nenhum jogador aparece na tela**
 Confira se `arquivos/jogadores.json` tem pelo menos um nome na lista, ou
 adicione um novo jogador pela barra lateral.
+
+**A barra 🧠 Contexto não aparece**
+O controle fica desligado com **Contexto máx. = 0**. Defina o limite em
+⚙️ Configurações da LLM e faça uma chamada a um jogador: a barra só existe
+depois da primeira medição daquele personagem.
+
+**O valor da barra está marcado como "estimado"**
+O provedor não informou `usage_metadata`; o jogo estima tokens pelo número
+de caracteres (≈3 por token) e recalibra quando o provedor informa o valor
+real.
+
+**Restaurei uma mesa e a IA parou de responder**
+O `config.json` não vai no backup. Confira em ⚙️ Configurações da LLM se a
+API Key e o provedor estão preenchidos.
 
 **A ficha ou as regras aparecem vazias**
 Isso é normal se ainda não foram salvas nenhuma vez pela interface — clique
