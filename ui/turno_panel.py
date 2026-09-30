@@ -23,6 +23,7 @@ from turno import (
     vincular_participante,
 )
 from ui.balao import renderizar_balao_fala
+from ui.contexto_barra import html_barra_contexto, renderizar_barra_contexto
 from ui.estado import iniciais
 
 CSS_MINI_AVATAR = """
@@ -148,6 +149,8 @@ def _renderizar_card_personagem_compacto(
                 </div>
                 """)
             st.markdown("".join(html_barras), unsafe_allow_html=True)
+
+        renderizar_barra_contexto(nome, "compacto")
 
         # Campo de Ordem
         travado = em_andamento and (ordem is not None and ordem > 0)
@@ -312,6 +315,12 @@ def _renderizar_inline_personagem(p_dict: dict, turno_dados: dict, area_id: str)
                 '<span style="color:#555;margin:0 2px;font-size:10px;">|</span>'
                 + "".join(partes)
             )
+
+        ctx_html = html_barra_contexto(nome, "inline")
+        if ctx_html:
+            if not barras_html:
+                barras_html = '<span style="color:#555;margin:0 2px;font-size:10px;">|</span>'
+            barras_html += ctx_html
 
         # Avatar
         foto = caminho_avatar(nome)

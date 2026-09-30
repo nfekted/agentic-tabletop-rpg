@@ -17,6 +17,9 @@ CONFIG_PADRAO = {
     "provedor": "Omniroute local",
     "api_key": "",
     "base_url": "http://localhost:8000/v1",
+    "limite_contexto_tokens": 0,  # 0 = controle de contexto desligado
+    "gatilho_compressao_pct": 85,
+    "alvo_reducao_pct": 50,  # % que será cortado do mesa.txt na compressão
 }
 
 

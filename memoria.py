@@ -1,6 +1,8 @@
 # Persistência de memória por agente e a hierarquia rodada -> cena -> mesa.
 
 import os
+import re
+import shutil
 from typing import List
 from datetime import datetime
 
@@ -18,6 +20,32 @@ def obter_pasta_agente(agente: str) -> str:
     return pasta
 
 
+def _arquivos_numerados(pasta: str, prefixo: str) -> List[str]:
+    # Lista "<prefixo>_N.txt" ordenada numericamente (rodada_2 antes de rodada_10).
+    padrao = re.compile(rf"^{prefixo}_(\d+)\.txt$")
+    achados = [(int(m.group(1)), f) for f in os.listdir(pasta) if (m := padrao.match(f))]
+    return [f for _, f in sorted(achados)]
+
+
+def _ler(caminho: str) -> str:
+    with open(caminho, "r", encoding="utf-8") as f:
+        return f.read()
+
+
+def _texto_resp(resp) -> str:
+    return str(getattr(resp, "content", resp)).strip()
+
+
+def tamanho_memoria_chars(agente: str) -> int:
+    # Total de caracteres da memória de longo prazo (mesa + cenas + rodadas).
+    pasta = obter_pasta_agente(agente)
+    total = len(carregar_arquivo(os.path.join(pasta, "mesa.txt"), ""))
+    for prefixo in ("cena", "rodada"):
+        for f in _arquivos_numerados(pasta, prefixo):
+            total += len(_ler(os.path.join(pasta, f)))
+    return total
+
+
 def carregar_memoria_longo_prazo(agente: str) -> str:
     # Carrega a memória de longo prazo específica do diretório do agente.
     pasta = obter_pasta_agente(agente)
@@ -30,9 +58,7 @@ def carregar_memoria_longo_prazo(agente: str) -> str:
             memoria += "=== HISTÓRICO PERMANENTE DA MESA ===\n" + f.read() + "\n\n"
 
     # 2. Lê as cenas já concluídas
-    cenas = sorted(
-        [f for f in os.listdir(pasta) if f.startswith("cena_") and f.endswith(".txt")]
-    )
+    cenas = _arquivos_numerados(pasta, "cena")
     if cenas:
         memoria += "=== CENAS RECENTES ===\n"
         for c in cenas:
@@ -42,15 +68,7 @@ def carregar_memoria_longo_prazo(agente: str) -> str:
         memoria += "\n"
 
     # 3. Lê as rodadas salvas
-    rodadas = sorted(
-        [
-            f
-            for f in os.listdir(pasta)
-            if f.startswith("rodada_")
-            and f.endswith(".txt")
-            and f != "rodada_atual_temp.txt"
-        ]
-    )
+    rodadas = _arquivos_numerados(pasta, "rodada")
     if rodadas:
         memoria += "=== ÚLTIMAS RODADAS ===\n"
         for r in rodadas:
@@ -72,16 +90,8 @@ def obter_arquivos_memoria(agente: str) -> dict:
     caminho_temp = os.path.join(pasta, "rodada_atual_temp.txt")
     temp = carregar_arquivo(caminho_temp, "")
 
-    rodadas = sorted(
-        f
-        for f in os.listdir(pasta)
-        if f.startswith("rodada_")
-        and f.endswith(".txt")
-        and f != "rodada_atual_temp.txt"
-    )
-    cenas = sorted(
-        f for f in os.listdir(pasta) if f.startswith("cena_") and f.endswith(".txt")
-    )
+    rodadas = _arquivos_numerados(pasta, "rodada")
+    cenas = _arquivos_numerados(pasta, "cena")
 
     return {
         "rodada_atual": temp,
@@ -188,13 +198,7 @@ class GerenciadorMemoriaRPG:
             if not os.path.exists(caminho_temp):
                 continue
 
-            rodadas_existentes = [
-                f
-                for f in os.listdir(pasta)
-                if f.startswith("rodada_")
-                and f.endswith(".txt")
-                and f != "rodada_atual_temp.txt"
-            ]
+            rodadas_existentes = _arquivos_numerados(pasta, "rodada")
             num_rodada = len(rodadas_existentes) + 1
 
             with open(caminho_temp, "r", encoding="utf-8") as f:
@@ -247,21 +251,18 @@ class GerenciadorMemoriaRPG:
                 GerenciadorMemoriaRPG.compilar_cenas(agente)
 
     @staticmethod
-    def compilar_cenas(agente: str):
+    def compilar_cenas(agente: str, encadear: bool = True):
+        # Resume TODAS as rodadas existentes em uma cena. O automático chama com 10 rodadas;
+        # a compressão manual chama com as que houver (encadear=False evita o ciclo automático).
         llm_historiador = obter_llm(temperature=0.3)
         pasta = obter_pasta_agente(agente)
-        print(f"\n🔄 10 Rodadas atingidas para {agente}! Compilando CENA...")
+        rodadas = _arquivos_numerados(pasta, "rodada")
+        if not rodadas:
+            return
+        print(f"\n🔄 Compilando {len(rodadas)} rodada(s) em CENA para {agente}...")
         conteudo_rodadas = ""
-        arquivos_rodadas = [
-            os.path.join(pasta, f"rodada_{i}.txt") for i in range(1, 11)
-        ]
-
-        for arq in arquivos_rodadas:
-            if os.path.exists(arq):
-                with open(arq, "r", encoding="utf-8") as f:
-                    conteudo_rodadas += (
-                        f"\n--- {os.path.basename(arq)} ---\n" + f.read()
-                    )
+        for nome_arq in rodadas:
+            conteudo_rodadas += f"\n--- {nome_arq} ---\n" + _ler(os.path.join(pasta, nome_arq))
 
         prompt = f"""Sintetize estes resumos de rodadas da perspectiva de {agente} em uma narrativa fluida de CENA. Regras:
         Descarte:
@@ -277,53 +278,133 @@ class GerenciadorMemoriaRPG:
         5. Pontos de virada.
         
         CENA:\n{conteudo_rodadas}"""
-        resumo_cena = llm_historiador.invoke(prompt).content.strip()
+        resumo_cena = _texto_resp(llm_historiador.invoke(prompt))
 
-        cenas_existentes = [
-            f for f in os.listdir(pasta) if f.startswith("cena_") and f.endswith(".txt")
-        ]
-        num_cena = len(cenas_existentes) + 1
+        num_cena = len(_arquivos_numerados(pasta, "cena")) + 1
         nome_arq_cena = os.path.join(pasta, f"cena_{num_cena}.txt")
 
         with open(nome_arq_cena, "w", encoding="utf-8") as f:
             f.write(resumo_cena)
 
-        for arq in arquivos_rodadas:
-            if os.path.exists(arq):
-                os.remove(arq)
+        for nome_arq in rodadas:
+            os.remove(os.path.join(pasta, nome_arq))
 
         print(f"✅ {nome_arq_cena} criada com sucesso para {agente}!")
 
-        if num_cena >= 10:
+        if encadear and num_cena >= 10:
             GerenciadorMemoriaRPG.compilar_mesa(agente)
 
     @staticmethod
-    def compilar_mesa(agente: str):
+    def _resumir_cenas(agente: str):
+        # Resume TODAS as cenas existentes. Retorna (resumo, lista de caminhos consumidos).
         llm_historiador = obter_llm(temperature=0.3)
         pasta = obter_pasta_agente(agente)
-        print(f"\n📜 10 Cenas atingidas para {agente}! Compilando MESA permanente...")
+        caminhos = [os.path.join(pasta, f) for f in _arquivos_numerados(pasta, "cena")]
+        if not caminhos:
+            return "", []
         conteudo_cenas = ""
-        arquivos_cenas = [os.path.join(pasta, f"cena_{i}.txt") for i in range(1, 11)]
+        for arq in caminhos:
+            conteudo_cenas += f"\n--- {os.path.basename(arq)} ---\n" + _ler(arq)
 
-        for arq in arquivos_cenas:
-            if os.path.exists(arq):
-                with open(arq, "r", encoding="utf-8") as f:
-                    conteudo_cenas += f"\n--- {os.path.basename(arq)} ---\n" + f.read()
+        prompt = f"Faça um resumo consolidado destas cenas para o histórico de longo prazo de {agente}:\n{conteudo_cenas}"
+        return _texto_resp(llm_historiador.invoke(prompt)), caminhos
 
-        prompt = f"Faça um resumo consolidado destas 10 cenas para o histórico de longo prazo de {agente}:\n{conteudo_cenas}"
-        resumo_novo = llm_historiador.invoke(prompt).content.strip()
-
+    @staticmethod
+    def _anexar_ao_mesa(pasta: str, resumo: str):
         caminho_mesa = os.path.join(pasta, "mesa.txt")
         historico_antigo = carregar_arquivo(caminho_mesa, "")
-        texto_final = (
-            historico_antigo + f"\n\n=== CAPÍTULO COMPILADO ===\n" + resumo_novo
-        )
-
+        texto_final = historico_antigo + "\n\n=== CAPÍTULO COMPILADO ===\n" + resumo
         with open(caminho_mesa, "w", encoding="utf-8") as f:
             f.write(texto_final)
 
-        for arq in arquivos_cenas:
+    @staticmethod
+    def compilar_mesa(agente: str):
+        pasta = obter_pasta_agente(agente)
+        print(f"\n📜 Compilando CENAS no histórico permanente de {agente}...")
+        resumo_novo, caminhos = GerenciadorMemoriaRPG._resumir_cenas(agente)
+        if not caminhos:
+            return
+
+        GerenciadorMemoriaRPG._anexar_ao_mesa(pasta, resumo_novo)
+
+        for arq in caminhos:
             if os.path.exists(arq):
                 os.remove(arq)
 
         print(f"🏛️ Histórico 'mesa.txt' de {agente} atualizado!")
+
+    @staticmethod
+    def _reduzir_mesa(agente: str, mesa: str, alvo_chars: int) -> str:
+        # Pede ao agente historiador um resumo do mesa.txt com limite de caracteres.
+        llm_historiador = obter_llm(temperature=0.3)
+
+        def pedir(limite: int, aviso: str = "") -> str:
+            prompt = f"""Você é o Historiador de uma mesa de RPG cooperativo. Reduza o histórico de longo prazo do personagem {agente} abaixo.
+            Preserve nomes, decisões, revelações e consequências importantes; descarte detalhes secundários e repetições.
+            Escreva em prosa corrida, em terceira pessoa, sem tags e sem títulos.
+            O limite máximo de caracteres para esse resumo é de {limite} caracteres.{aviso}
+
+            HISTÓRICO:
+            {mesa}"""
+            return _texto_resp(llm_historiador.invoke(prompt))
+
+        resumo = pedir(int(alvo_chars * 0.9))
+        if len(resumo) > alvo_chars:
+            resumo = pedir(
+                int(alvo_chars * 0.75),
+                f"\n            ATENÇÃO: a tentativa anterior ficou com {len(resumo)} caracteres, acima do limite. Seja mais curto.",
+            )
+        return resumo
+
+    @staticmethod
+    def comprimir_memoria(agente: str):
+        # Compressão manual: rodadas -> cena, reduz o mesa.txt e anexa o resumo das cenas.
+        from config import carregar_configuracao
+        from metricas import atualizar_apos_compressao
+
+        pasta = obter_pasta_agente(agente)
+        caminho_mesa = os.path.join(pasta, "mesa.txt")
+        chars_antes = tamanho_memoria_chars(agente)
+        if chars_antes == 0:
+            return False, "Não há memória a comprimir."
+
+        reducao = int(carregar_configuracao().get("alvo_reducao_pct") or 50)
+        reducao = max(10, min(90, reducao))
+        mesa_original = carregar_arquivo(caminho_mesa, "")
+        caminho_bak = os.path.join(pasta, "mesa.bak")
+        aviso = ""
+
+        try:
+            if mesa_original:
+                shutil.copy2(caminho_mesa, caminho_bak)
+
+            # 1. Rodadas -> cena (sem disparar o ciclo automático do mesa)
+            GerenciadorMemoriaRPG.compilar_cenas(agente, encadear=False)
+
+            # 2. Reduz o mesa.txt atual
+            if mesa_original:
+                alvo = int(len(mesa_original) * (1 - reducao / 100))
+                reduzido = GerenciadorMemoriaRPG._reduzir_mesa(agente, mesa_original, alvo)
+                if not reduzido:
+                    raise ValueError("a LLM devolveu um resumo vazio")
+                if len(reduzido) >= len(mesa_original):
+                    raise ValueError("o resumo não ficou menor que o histórico original")
+                if len(reduzido) > alvo:
+                    aviso = f" (o histórico antigo ficou com {len(reduzido)} caracteres, acima do alvo de {alvo})"
+                with open(caminho_mesa, "w", encoding="utf-8") as f:
+                    f.write(reduzido)
+
+            # 3. Resume as cenas e anexa ao mesa.txt já reduzido
+            resumo_cenas, caminhos = GerenciadorMemoriaRPG._resumir_cenas(agente)
+            if caminhos:
+                GerenciadorMemoriaRPG._anexar_ao_mesa(pasta, resumo_cenas)
+                for arq in caminhos:
+                    if os.path.exists(arq):
+                        os.remove(arq)
+        except Exception as e:
+            if mesa_original and os.path.exists(caminho_bak):
+                shutil.copy2(caminho_bak, caminho_mesa)
+            return False, f"Falha ao comprimir a memória: {e}"
+
+        atualizar_apos_compressao(agente, chars_antes, tamanho_memoria_chars(agente))
+        return True, f"Memória de {agente} comprimida{aviso}."

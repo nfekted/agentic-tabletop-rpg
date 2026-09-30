@@ -66,12 +66,67 @@ def renderizar_sidebar():
                     value=cfg.get("base_url", "http://localhost:8000/v1"),
                 )
 
+            st.markdown("**🧠 Controle de contexto**")
+            limite_input = st.number_input(
+                "Contexto máx. (tokens)",
+                min_value=0,
+                step=1000,
+                value=max(0, int(cfg.get("limite_contexto_tokens", 0))),
+                key="cfg_limite_contexto",
+                help=(
+                    "Quantos tokens a LLM aceita de uma vez (regras + memória + ficha + "
+                    "conversa da rodada). Consulte a documentação do seu modelo "
+                    "(ex.: 8.000, 32.000, 128.000).\n\n"
+                    "Com **0** o controle fica desligado: a memória nunca é comprimida "
+                    "e nenhum alerta aparece."
+                ),
+            )
+            gatilho_input = st.number_input(
+                "Gatilho de compressão (%)",
+                min_value=50,
+                max_value=99,
+                step=1,
+                value=max(50, min(99, int(cfg.get("gatilho_compressao_pct", 85)))),
+                disabled=limite_input == 0,
+                key="cfg_gatilho_compressao",
+                help=(
+                    "Quanto do contexto pode estar ocupado antes de o jogo sugerir a "
+                    "compressão.\n\nEx.: 85% de 100.000 = acima de 85.000 tokens o "
+                    "personagem 'perde o foco' e você decide se comprime.\n\n"
+                    "Menor = avisa mais cedo; maior = aproveita mais, com risco de estourar."
+                ),
+            )
+            alvo_input = st.number_input(
+                "Tamanho alvo (% de redução)",
+                min_value=10,
+                max_value=90,
+                step=5,
+                value=max(10, min(90, int(cfg.get("alvo_reducao_pct", 50)))),
+                disabled=limite_input == 0,
+                key="cfg_alvo_reducao",
+                help=(
+                    "Quanto da memória de longo prazo (`mesa.txt`) será cortado ao "
+                    "comprimir.\n\nEx.: 50% = o histórico antigo fica com metade dos "
+                    "caracteres, e depois entra o resumo das cenas mais recentes.\n\n"
+                    "Quanto maior o corte, mais espaço, mas mais detalhes antigos se perdem."
+                ),
+            )
+            if limite_input > 0:
+                st.caption(
+                    f"Gatilho ≈ {int(limite_input * gatilho_input / 100):,} tokens · "
+                    f"a memória antiga será reduzida em {alvo_input}%".replace(",", ".")
+                )
+
             if st.button("💾 Salvar Configurações", use_container_width=True):
                 salvar_configuracao(
                     {
+                        **cfg,
                         "provedor": provedor_sel,
                         "api_key": key_input,
                         "base_url": url_input,
+                        "limite_contexto_tokens": int(limite_input),
+                        "gatilho_compressao_pct": int(gatilho_input),
+                        "alvo_reducao_pct": int(alvo_input),
                     }
                 )
                 st.session_state.mensagem_info = (

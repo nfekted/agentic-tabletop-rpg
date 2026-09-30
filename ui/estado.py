@@ -19,6 +19,7 @@ def inicializar_estado():
         "ultima_fala": {},
         "falas_fechadas": {},
         "seq_fala": 0,
+        "compressao_perguntada": {},
         "trocando_avatar": None,
         "current_view": "mesa",
         "token_categoria": "inimigo",

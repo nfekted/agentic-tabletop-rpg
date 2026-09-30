@@ -24,6 +24,7 @@ from ui.acao_mestre_panel import renderizar_acao_mestre
 from ui.pending_panel import renderizar_pending_panels
 from ui.historico_panel import renderizar_historico
 from ui.tokens_panel import renderizar_painel_tokens
+from ui.compressao_panel import verificar_compressoes
 
 st.set_page_config(page_title="Mesa de RPG — Painel do Mestre", layout="wide")
 
@@ -88,3 +89,8 @@ else:
     # ----------------------------------------------------------------------------
     renderizar_historico()
 
+
+# ----------------------------------------------------------------------------
+# COMPRESSÃO DE MEMÓRIA (pergunta em roleplay quando o contexto passa do gatilho)
+# ----------------------------------------------------------------------------
+verificar_compressoes(carregar_agentes())

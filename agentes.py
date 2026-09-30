@@ -2,9 +2,10 @@ from typing import List
 
 from langchain_core.messages import SystemMessage, HumanMessage
 
-from config import obter_llm
+from config import carregar_configuracao, obter_llm
 from fichas import carregar_ficha, carregar_regras
 from memoria import carregar_memoria_longo_prazo
+from metricas import registrar_chamada
 from imagens import carregar_imagem_base64, obter_mimetype_imagem
 
 
@@ -133,4 +134,11 @@ def gerar_resposta_agente(
     mensagens = montar_prompt(agente, historico_recente, instrucao, caminho_imagem)
 
     resp = llm_jogadores.invoke(mensagens)
+    registrar_chamada(
+        agente,
+        mensagens,
+        resp,
+        carregar_configuracao().get("provedor", ""),
+        bool(caminho_imagem),
+    )
     return resp.content.strip()

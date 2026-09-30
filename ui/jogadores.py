@@ -6,6 +6,7 @@ from fichas import carregar_status_jogador
 from imagens import caminho_avatar
 
 from ui.balao import renderizar_balao_fala
+from ui.contexto_barra import renderizar_barra_contexto
 from ui.estado import chunked, iniciais
 from ui.ficha_panel import modal_ver_ficha
 from turno import turno_ativo, iniciar_turno
@@ -86,6 +87,8 @@ def _renderizar_card_jogador(nome):
             </div>
             """)
         st.markdown("".join(html_barras), unsafe_allow_html=True)
+
+    renderizar_barra_contexto(nome, "completo")
 
     b1, b2, b3, b4 = st.columns(4)
     if b1.button(
