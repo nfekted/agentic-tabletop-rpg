@@ -187,7 +187,7 @@ def salvar_status_jogador(agente: str, lista_status: list):
 
 
 def migrar_ficha_legada(agente: str) -> bool:
-    """Migra uma ficha monolítica antiga (<nome>.txt) para os 6 subarquivos modulares."""
+    #Migra uma ficha monolítica antiga (<nome>.txt) para os 6 subarquivos modulares.#
     nome = agente.strip().lower()
     caminho_legado = os.path.join(PASTA_FICHAS, f"{nome}.txt")
     if not os.path.exists(caminho_legado):
@@ -297,7 +297,7 @@ def migrar_ficha_legada(agente: str) -> bool:
 
 
 def inicializar_ficha_agente(agente: str):
-    """Garante que os 6 subarquivos do agente existam. Se houver legado, migra; senão, cria com templates."""
+    #Garante que os 6 subarquivos do agente existam. Se houver legado, migra; senão, cria com templates.#
     caminhos = caminhos_subarquivos(agente)
     if os.path.exists(caminhos["base"]) and os.path.exists(caminhos["status"]):
         return
@@ -348,14 +348,6 @@ def salvar_subarquivos_ficha(agente: str, dados: dict):
 
 
 def carregar_ficha(agente: str) -> str:
-    """Compila os 6 subarquivos do agente rigorosamente na ordem especificada:
-    1. <nome>_base.txt
-    2. Formatação textual de <nome>_status.json
-    3. <nome>_geral.txt
-    4. <nome>_habilidades.txt
-    5. <nome>_itens.txt
-    6. <nome>_personalidade.txt
-    """
     sub = carregar_subarquivos_ficha(agente)
     status_formatado = formatar_status_markdown(sub["status"])
 

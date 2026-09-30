@@ -39,7 +39,7 @@ def _altura_max(texto, compacto):
 
 
 def renderizar_balao_fala(nome, contexto, compacto=False, acima=False):
-    """Renderiza a última fala de `nome`. `acima=True` põe o balão acima do card (seta para baixo)."""
+    #Renderiza a última fala de `nome`. `acima=True` põe o balão acima do card (seta para baixo).#
     fala = st.session_state.ultima_fala.get(nome)
     if not fala:
         return
