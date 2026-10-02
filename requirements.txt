@@ -1,4 +1,6 @@
-streamlit>=1.32
+fastapi>=0.110
+uvicorn[standard]>=0.29
+python-multipart
 langchain-core
 langchain-google-genai
 langchain_openai

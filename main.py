@@ -1,18 +1,19 @@
 # Ponto de entrada do sistema RPG Agent em modo TERMINAL (menu de texto).
-# Para a versão visual, rode: streamlit run app.py
+# Para a versão visual, rode: ./scripts/dev.sh (ou scripts\dev.bat no Windows)
 
 import os
-from config import carregar_agentes
-from imagens import selecionar_imagem_interativa
-from memoria import obter_pasta_agente, GerenciadorMemoriaRPG
-from agentes import gerar_resposta_agente
-from tags import (
+from rpg.config import carregar_agentes
+from rpg.imagens import selecionar_imagem_interativa
+from rpg.memoria import obter_pasta_agente, GerenciadorMemoriaRPG
+from rpg.agentes import gerar_resposta_agente
+from rpg.tags import (
     extrair_tags_resposta,
     formatar_conteudo_publico,
     tem_acao,
     tem_duvida,
     apenas_pensamento,
 )
+from rpg.paths import ARQUIVOS
 
 
 def main():
@@ -107,7 +108,7 @@ def main():
 
         if anexar == "s":
             img_selecionada = selecionar_imagem_interativa(
-                pasta_base=os.path.join("arquivos", "img")
+                pasta_base=os.path.join(ARQUIVOS, "img")
             )
 
         log_mestre = f"Mestre (para {', '.join(presentes)}): {comando_mestre}"

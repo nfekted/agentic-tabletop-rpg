@@ -2,9 +2,9 @@
 
 Sistema que simula uma mesa de RPG cooperativo com agentes de IA: você é o
 mestre, e cada jogador é conduzido por um agente com ficha, personalidade e
-memória próprias. Existe uma interface visual (Streamlit) para quem não quer
-mexer em terminal, e uma versão de terminal (`main.py`) equivalente para quem
-preferir.
+memória próprias. A mesa é uma aplicação web moderna (React) conversando com
+uma API em Python (FastAPI), para quem não quer mexer em terminal; existe
+também uma versão de terminal (`main.py`) para quem preferir.
 
 **Destaques**
 
@@ -14,15 +14,17 @@ preferir.
 - 🔀 Escolha do modelo: Gemini 3.5, OpenAI Luna, Ollama ou Omniroute (local)
 - 🖼️ Fotos para os jogadores e envio de imagens para contextualizar os agentes
 - 💸 Prompt dividido em partes fixas e variáveis, com cache, para economizar tokens
-- ⚔️ Modo por Turnos: gestão de cenas e combate com áreas, ordem de iniciativa e tokens
+- ⚔️ Modo por Turnos: gestão de cenas e combate com áreas, ordem de iniciativa (arrastar e soltar) e tokens com imagem
 - 🧠 Controle de contexto: barra por personagem e compressão de memória com roleplay
 - 💾 Salvar / Restaurar Mesa: backup completo da campanha em um `.zip`
-- 🖥️ Interface visual em Streamlit + versão de terminal
+- 🖥️ Interface web (React + Tailwind, tema escuro e responsiva) sobre uma API FastAPI + versão de terminal
 
 ---
 
 ## Índice
 
+- [Arquitetura](#arquitetura)
+  - [Tecnologias](#tecnologias)
 - [Pré-requisitos](#pré-requisitos)
 - [Instalação](#instalação)
   - [Windows](#windows)
@@ -31,6 +33,9 @@ preferir.
 - [Ambiente virtual (.venv)](#ambiente-virtual-venv)
 - [Configurando o modelo de IA e as chaves](#configurando-o-modelo-de-ia-e-as-chaves)
 - [Como rodar](#como-rodar)
+  - [Tudo de uma vez (recomendado)](#tudo-de-uma-vez-recomendado)
+  - [API e front separados](#api-e-front-separados)
+  - [Versão de produção](#versão-de-produção)
 - [Funcionalidades](#funcionalidades)
   - [Fichas dos personagens](#fichas-dos-personagens)
   - [Conjuntos de regras (arquivos/regras/)](#conjuntos-de-regras-arquivosregras)
@@ -55,57 +60,119 @@ preferir.
 
 ---
 
-## Pré-requisitos
+## Arquitetura
 
-Você precisa ter **Python 3.10 ou superior** instalado. Para verificar se já
-tem:
-
-```bash
-python --version
-# ou, em alguns sistemas:
-python3 --version
+```
+┌──────────────────────────┐   HTTP REST + SSE (/api)   ┌────────────────────────────┐
+│ frontend/  (porta 5173)  │ ◄────────────────────────► │ api/ + services/ (porta 8000)│
+│ React · Vite · Tailwind  │                            │ FastAPI                    │
+│ shadcn/ui · @dnd-kit     │                            │  └─ core Python (LangChain) │
+└──────────────────────────┘                            └─────────────┬──────────────┘
+                                                                      │ arquivos .txt/.json
+                                                         arquivos/ · tokens/ · mesas/
 ```
 
-Se aparecer algo como `Python 3.11.x`, já está pronto — pule para
-[Instalação](#instalação). Se der erro de "comando não encontrado", siga o
-passo de instalação do seu sistema abaixo.
+- **`frontend/`** — a interface. Em desenvolvimento roda no Vite e encaminha
+  tudo que começa com `/api` para a API.
+- **`api/`** — rotas HTTP finas (uma por assunto: fichas, regras, cenas, tokens,
+  memória, turno, mesas, mestre...). A documentação interativa fica em
+  <http://localhost:8000/docs>.
+- **`services/`** — regras da mesa que antes viviam na interface: o estado da
+  rodada (`sessao.py`), as ações do mestre (`mestre.py`), a oferta de compressão
+  (`compressao.py`) e a exclusão total de personagem (`personagens.py`).
+- **`rpg/` (core)** — `agentes.py`, `memoria.py`, `fichas.py`, `turno.py`,
+  `tokens_manager.py` etc., sem nenhuma dependência de interface. Os caminhos
+  das pastas de dados ficam em `rpg/paths.py` (absolutos, a partir da raiz do
+  projeto), então nada depende de qual diretório você está ao iniciar.
+- **Estado da mesa no servidor.** Histórico da rodada, falas, pendências de
+  aprovação e dúvidas ficam em `arquivos/sessao.json`: recarregar a página (ou
+  reiniciar a API) não perde a rodada em andamento.
+- **Tempo real.** A API publica eventos (SSE em `/api/eventos`) enquanto os
+  agentes respondem; o front mostra "pensando…" no card e atualiza sozinho.
+- **Uma ação de IA por vez.** Se você disparar outra ação do mestre enquanto uma
+  está em andamento, a API avisa para aguardar.
+
+### Tecnologias
+
+| Camada | O que usa |
+|---|---|
+| Front | React 19 + TypeScript, Vite, Tailwind CSS v4, shadcn/ui (componentes sobre Base UI), @dnd-kit (arrastar e soltar), TanStack Query (dados e cache), Lucide (ícones) e Sonner (avisos) |
+| API | FastAPI + uvicorn, Pydantic, python-multipart (uploads) |
+| IA | LangChain (`langchain-core`, `langchain-google-genai`, `langchain-openai`, `langchain-community`) |
+| Dados | Arquivos `.txt`/`.json` locais (`arquivos/`, `tokens/`), sem banco de dados |
+| Tempo real | SSE (Server-Sent Events) em `/api/eventos` |
+
+---
+
+## Pré-requisitos
+
+| O que | Versão | Para quê | Obs. |
+|---|---|---|---|
+| **Python** | 3.10 ou superior (testado na 3.12) | API e agentes | precisa do módulo `venv` |
+| **Node.js** | 20.19+ ou 22.12+ (testado na 24) | roda o front (Vite) | o **npm** já vem junto |
+| **Git** | qualquer | só para clonar o repositório | opcional se baixar o .zip |
+| Navegador | Chrome, Firefox, Edge ou Safari recentes | usar a mesa | |
+
+Não é preciso instalar mais nada à mão: as bibliotecas Python
+(`requirements.txt`) e as do front (`frontend/package.json`) são instaladas
+pelos comandos da [Instalação](#instalação) ou, automaticamente, pelo script
+`dev.sh` / `dev.bat`. Também não há banco de dados — tudo fica em arquivos.
+
+Para conferir o que você já tem:
+
+```bash
+python --version      # ou python3 --version — 3.10 ou superior
+node --version        # 20.19+ ou 22.12+
+npm --version
+```
+
+> ⚠️ **Cuidado com Node antigo.** O Node que vem nos repositórios de muitas
+> distros Linux (ex.: `apt install nodejs` no Ubuntu) costuma ser velho demais
+> e o front não sobe. Prefira o instalador oficial ou o `nvm`, abaixo.
 
 ### Windows
 
-1. Baixe o instalador em <https://www.python.org/downloads/windows/>.
-2. Ao instalar, **marque a caixa "Add Python to PATH"** na primeira tela do
-   instalador — isso evita ter que configurar variáveis de ambiente na mão.
-3. Confirme no PowerShell ou Prompt de Comando:
-   ```powershell
-   python --version
-   ```
+1. **Python:** baixe em <https://www.python.org/downloads/windows/>. Ao instalar,
+   **marque a caixa "Add Python to PATH"** na primeira tela do instalador.
+2. **Node.js:** baixe o instalador **LTS** em <https://nodejs.org/> (ou
+   `winget install OpenJS.NodeJS.LTS`).
+3. Abra um **novo** Prompt de Comando/PowerShell (para o PATH atualizar) e
+   confirme com `python --version` e `node --version`.
 
 ### macOS
 
-O jeito mais simples é via [Homebrew](https://brew.sh/):
+Com o [Homebrew](https://brew.sh/):
 
 ```bash
-brew install python
+brew install python node
 ```
 
-Sem Homebrew, baixe o instalador em
-<https://www.python.org/downloads/macos/>.
+Sem Homebrew, use os instaladores de <https://www.python.org/downloads/macos/>
+e <https://nodejs.org/>.
 
 ### Linux
 
-Na maioria das distros o Python já vem instalado. Se precisar instalar (ou
-atualizar), em distros baseadas em Debian/Ubuntu:
+**Python** (em Debian/Ubuntu, o `python3-venv` é necessário para criar o `.venv`):
 
 ```bash
 sudo apt update
 sudo apt install python3 python3-pip python3-venv
 ```
 
-Em Fedora:
+Em Fedora: `sudo dnf install python3 python3-pip`.
+
+**Node.js** — use o [nvm](https://github.com/nvm-sh/nvm) (siga a instalação do
+repositório dele), que não precisa de `sudo` e deixa trocar de versão. O projeto
+traz um `.nvmrc`; na raiz do projeto:
 
 ```bash
-sudo dnf install python3 python3-pip
+nvm install     # instala a versão do .nvmrc (24)
+nvm use
 ```
+
+Alternativa: o instalador/binários de <https://nodejs.org/>.
+
+> O `scripts/dev.sh` confere a versão do Node e tenta o `nvm use` sozinho.
 
 ---
 
@@ -120,10 +187,14 @@ sudo dnf install python3 python3-pip
 2. Crie e ative um ambiente virtual (recomendado — veja a seção
    [Ambiente virtual (.venv)](#ambiente-virtual-venv) logo abaixo).
 
-3. Instale as dependências:
+3. Instale as dependências do Python e do front:
    ```bash
    pip install -r requirements.txt
+   cd frontend && npm install && cd ..
    ```
+
+   (Se preferir, pule este passo: o script `scripts/dev.sh` / `scripts/dev.bat`
+   cria o `.venv` e instala o que faltar na primeira execução.)
 
 ---
 
@@ -149,7 +220,8 @@ python3 -m venv .venv       # macOS/Linux
 
 Quando estiver ativo, o terminal mostra `(.venv)` no começo da linha. Só
 então rode `pip install -r requirements.txt` e os comandos de
-[Como rodar](#como-rodar).
+[Como rodar](#como-rodar). (O script `scripts/dev.sh` já ativa o `.venv` por
+conta própria.)
 
 Para desativar: `deactivate`.
 
@@ -179,7 +251,7 @@ Apague a pasta `.venv` incompleta (`rm -rf .venv`) e crie de novo.
 Use `python3` em vez de `python` (macOS/Linux), ou reinstale o Python no
 Windows marcando "Add Python to PATH".
 
-**O ambiente ativou, mas o app diz que uma biblioteca não existe**
+**O ambiente ativou, mas a API diz que uma biblioteca não existe**
 Você provavelmente instalou as dependências fora do venv. Com o `(.venv)`
 ativo, rode `pip install -r requirements.txt` novamente.
 
@@ -203,8 +275,10 @@ fica em /arquivos/config.json, no formato:
   "alvo_reducao_pct": 50
 }
 ```
-Tudo isso também pode ser editado pela barra lateral, em **⚙️ Configurações da
-LLM** — não é preciso mexer no arquivo na mão. Os três últimos campos são
+Tudo isso também pode ser editado pelo ícone **⚙️ Configurações da LLM** da
+barra lateral — não é preciso mexer no arquivo na mão. A API Key nunca é
+devolvida pela API: a tela só mostra se ela está definida, e deixá-la em branco
+ao salvar mantém a atual. Os três últimos campos são
 explicados em [Controle de contexto](#controle-de-contexto-e-compressão-de-memória).
 ## Configurar seu modelo:
 
@@ -247,22 +321,74 @@ Acesse o repositório oficial do projeto no GitHub para o passo a passo completo
 
 ## Como rodar
 
-Com o ambiente virtual ativo (se estiver usando um):
+### Tudo de uma vez (recomendado)
 
-**Interface visual (recomendada):**
+Um único comando sobe a API (porta 8000) e o front (porta 5173) em paralelo.
+Na primeira execução ele cria o `.venv` e instala as dependências Python e do
+front que faltarem (leva alguns minutos e precisa de internet). Nas seguintes,
+sobe direto — e reinstala sozinho se, depois de um `git pull`, o
+`requirements.txt`, o `package.json` ou o `package-lock.json` estiverem mais
+novos que a última instalação (ele marca isso num arquivo `.deps-stamp` dentro
+de `.venv/` e de `frontend/node_modules/`).
+
 ```bash
-streamlit run app.py
+./scripts/dev.sh          # macOS / Linux
+scripts\dev.bat           # Windows (abre a API em uma janela separada)
 ```
-Isso abre a mesa automaticamente no navegador (geralmente em
-`http://localhost:8501`).
 
-**Modo terminal (menu por texto):**
+Não são necessários comandos adicionais: nada de ativar o `.venv` ou rodar
+`pip`/`npm install` antes, e pode ser chamado de qualquer pasta. Só precisa de
+[Python e Node instalados](#pré-requisitos).
+
+- **`dev.sh`** usa `bash` (já presente no Linux/macOS). Se aparecer
+  "permissão negada" (comum ao baixar o .zip), rode uma vez
+  `chmod +x scripts/dev.sh`.
+- **`dev.bat`** pede `python` e `node` no PATH. Rode-o pelo Prompt de Comando
+  (`scripts\dev.bat`) ou, no PowerShell, `.\scripts\dev.bat`.
+- **Não use `sudo`/administrador.** Com `sudo` o `nvm` não carrega (cai num Node
+  antigo) e os arquivos do projeto passam a ser do root.
+
+Depois abra **<http://localhost:5173>**. A documentação da API fica em
+<http://localhost:8000/docs>. No macOS/Linux, `Ctrl+C` encerra os dois; no
+Windows, feche também a janela "Mesa RPG - API".
+
+### API e front separados
+
+Útil para ver os logs de cada parte. Em dois terminais, a partir da raiz do
+projeto (é de lá que o uvicorn encontra o pacote `api`):
+
+```bash
+# Terminal 1 — API (com o .venv ativo)
+uvicorn api.main:app --reload --port 8000
+
+# Terminal 2 — front
+cd frontend
+npm run dev
+```
+
+O front encaminha as chamadas `/api` para `http://localhost:8000` (configurado
+em `frontend/vite.config.ts`).
+
+### Versão de produção
+
+Compile o front uma vez; a própria API passa a servi-lo, sem precisar do Vite:
+
+```bash
+cd frontend && npm run build && cd ..
+uvicorn api.main:app --port 8000      # abra http://localhost:8000
+```
+
+### Modo terminal (menu por texto)
+
 ```bash
 python main.py      # Windows
 python3 main.py     # macOS/Linux
 ```
 
-Para encerrar qualquer um dos dois, use `Ctrl+C` no terminal.
+O modo terminal é independente da API e usa os mesmos arquivos de `arquivos/`.
+
+> ⚠️ A API não tem login: ela foi feita para uso local por uma pessoa (o
+> mestre). Não a exponha na internet.
 
 ---
 
@@ -270,18 +396,67 @@ Para encerrar qualquer um dos dois, use `Ctrl+C` no terminal.
 
 ### Fichas dos personagens
 
-Cada jogador tem uma **ficha modular** em `arquivos/fichas/`, dividida em
-seis arquivos por personagem: `{nome}_base.txt`, `{nome}_geral.txt`,
-`{nome}_habilidades.txt`, `{nome}_itens.txt`, `{nome}_personalidade.txt` e
-`{nome}_status.json`. É isso que molda como o agente de IA responde por
-ele. Pela interface, clique em ✏️ no card do jogador para editar cada
-seção sem abrir arquivo nenhum; o botão 👁️ mostra a ficha consolidada em
-modo somente leitura. Fichas antigas (um único `{nome}.txt`) são migradas
-automaticamente.
+Cada jogador tem uma **ficha estruturada** em `arquivos/fichas/`, com um
+arquivo `.json` por seção: `{nome}_base.json`, `{nome}_status.json`,
+`{nome}_atributos.json`, `{nome}_pericias.json`, `{nome}_habilidades.json`,
+`{nome}_itens.json` e `{nome}_personalidade.json`. É isso que molda como o
+agente de IA responde por ele. Pela interface, clique em ✏️ no card do jogador
+para editar a ficha em abas, sem abrir arquivo nenhum; o botão 👁️ mostra a
+ficha consolidada, exatamente como ela é enviada à IA. Quando um jogador é
+criado, cada arquivo que faltar nasce a partir de um modelo.
 
-- **Status dinâmicos** (vida, mana, estamina, ...): você cria quantos quiser,
-  com valor atual, máximo e cor. Aparecem como barras no card e entram no
-  prompt do agente.
+| Aba | O que tem |
+|---|---|
+| **Base** | Nome, Classe, Passado/Origem (3 campos de texto) |
+| **Status** | Vida, mana, estamina... quantos quiser, com valor atual, máximo e cor (viram barras no card) |
+| **Atributos e perícias** | Duas listas de *nome + valor* (ex.: Força — 3; Espada — Treinado) |
+| **Habilidades** | Três blocos — Habilidades, Poderes e Passivas — com *nome, custo e descrição* |
+| **Itens** | **Equipamento** e **Mochila**, com *nome, mãos, peso, alcance, dano, % crítico, mult. crítico e descrição*, mais o **Tamanho da mochila**. Arraste os itens entre os dois painéis (ou use o botão de mover) |
+| **Personalidade** | Tratamento/Personalidade, Medos/Gatilhos, Segredos pessoais |
+
+Regras do editor:
+- Em qualquer lista, **só é salvo o item que tiver nome**; linhas sem nome são
+  descartadas.
+- Campo vazio **não vai para o prompt** (economiza tokens), e seção vazia não
+  aparece.
+- **Mochila:** o contador mostra o peso livre (`Tamanho da mochila` menos o
+  peso de tudo que o personagem carrega, equipamento + mochila). O tamanho
+  padrão é 5 e você ajusta quando quiser; passar do limite só avisa.
+- Itens 100% iguais na mochila são **agrupados no prompt** (`2x Medalhão`); use o
+  botão *duplicar* para repetir um item.
+
+**Como a ficha chega à IA.** As seções entram sempre nesta ordem: Base →
+Status → Atributos → Perícias → Habilidades (habilidades → poderes →
+passivas) → Itens (equipamentos → mochila) → Personalidade. Exemplo:
+
+```
+## INFORMAÇÕES BÁSICAS
+- **Nome:** Leandro
+
+## ATRIBUTOS
+- Força: 3
+
+## PERÍCIAS
+- Espadas: +2 Treinado
+
+## HABILIDADES
+- Camuflar: Usa 2MP, Transforma durante a cena, uma ação em furtiva
+
+## EQUIPAMENTOS
+- **Adaga:** peso: 1, mãos: 1, Curto, 1~4 dano, 5% crit x1, pequena adaga
+
+## MOCHILA
+- **2x Medalhão:** peso: 1, mãos: 1, usar restaura vida
+
+Mochila: 2/5 livres
+```
+
+(`2/5 livres` = 2 de peso livre numa mochila de tamanho 5.)
+
+> Fichas no formato antigo (`.txt`) não são mais lidas: o jogador recebe uma
+> ficha nova a partir do modelo. Se tiver alguma antiga que valha guardar,
+> copie o conteúdo para o novo editor.
+
 - **Modificadores**: um campo de texto livre exibido no card ("modificadores:
   ...").
 
@@ -292,11 +467,11 @@ automaticamente.
 é enviado no prompt de cada jogador. Isso evita gastar tokens à toa
 mandando regras de combate durante uma cena de exploração (ou vice-versa).
 
-Pela barra lateral você pode:
-- **Trocar rapidamente** o conjunto ativo num seletor direto, sem abrir
+Pela interface você pode:
+- **Trocar rapidamente** o conjunto ativo no seletor 📜 do cabeçalho, sem abrir
   nenhum painel — ideal para alternar entre "exploração" e "combate" no
   meio de uma cena.
-- Clicar em **"✏️ Gerenciar / Criar Regras"** para abrir o painel completo,
+- Clicar no ícone **📜 Regras** da barra lateral para abrir o painel completo,
   onde dá para editar o conteúdo de um conjunto existente, marcar outro
   como ativo, **criar** um conjunto novo (vazio, para você preencher) ou
   **excluir** um conjunto (não é possível excluir o único restante).
@@ -305,40 +480,45 @@ Pela barra lateral você pode:
 
 É possível criar cenas pré-cadastradas para reutilizar em diversos agentes ou
 agilizar um NPC, em exemplo: Lista de itens em uma loja.
-Ao lado das [Ações do mestre](#ações-do-mestre) é possível selecionar, excluir,
-ou criar uma nova cena.
+Pelo botão **Cenas** da [Ação do mestre](#ações-do-mestre) é possível usar uma
+cena no campo de mensagem, excluí-la ou salvar a mensagem atual como nova cena.
 
 As cenas são salvas em `arquivos/cenas/`.
 
 ### Conjunto de tokens
 
 É possível registrar anotações de inimigos, NPCs e itens em `tokens/`
-(subpastas `inimigo/`, `npc/` e `item/`), pelo botão **👾 Gerenciar Inimigos,
-Itens e NPCs** da barra lateral. Ajuda a ter tudo à mão sem buscar em
+(subpastas `inimigo/`, `npc/` e `item/`), pelo ícone **💀 Inimigos, NPCs e itens**
+da barra lateral (uma aba por categoria). Cada token pode ter uma **imagem**
+opcional, guardada ao lado do `.txt` com o mesmo nome (`goblin.txt` +
+`goblin.png`) e usada no Modo por Turnos. Ajuda a ter tudo à mão sem buscar em
 blocos de notas, e dá para deixar já em formato de prompt, para apenas
 copiar e colar na mensagem ou na ficha do personagem. Os tokens também são
 usados no [Modo por Turnos](#modo-por-turnos).
 
 ### Modo por Turnos
 
-Pelo botão **⚔️ Iniciar Modo por Turnos** (abaixo dos cards de jogadores) a
-tela vira um painel de gestão de cenas e combate. O estado fica em
-`arquivos/turno.json`.
+No ícone **⚔️ Modo por turnos** da barra lateral, clique em **Iniciar modo por
+turnos** para abrir o painel de gestão de cenas e combate. O estado fica em
+`arquivos/turno.json` (o ícone ganha um ponto enquanto o modo está ativo).
 
-- **Personagens e Tokens** soltos aparecem em duas colunas; tokens são
-  adicionados de `tokens/` como **cópias isoladas** para o combate (editar a
-  ficha do token ali não altera o arquivo original).
-- **Áreas da Cena**: crie zonas (Entrada, Salão, ...) e vincule participantes
-  a elas. Dentro da área, cada personagem aparece em formato compacto
-  (inline), com status, barra de contexto e balão de fala logo acima.
-- **Ordem de iniciativa**: defina a ordem de cada participante; o painel
-  avisa empates e trava a ordem durante a rodada.
-- **Iniciar Combate / Próxima Ação**: destaca de quem é a vez (🔥) e avança
+- **Personagens e Tokens** começam "soltos"; tokens são adicionados de
+  `tokens/` como **cópias isoladas** para o combate (editar a ficha do token
+  ali não altera o arquivo original).
+- **Áreas da Cena**: crie zonas (Entrada, Salão, ...) e **arraste** os
+  participantes para dentro delas (ou de volta para "Soltos"). Cada
+  participante aparece em formato compacto, com status, barra de contexto e
+  balão de fala.
+- **Ordem de iniciativa**: clique nos participantes "sem ordem" para colocá-los
+  na fila e **arraste** para reordenar. O painel avisa empates e trava a
+  ordem durante o combate.
+- **Iniciar combate / Próxima ação**: destaca de quem é a vez (🔥) e avança
   pela fila.
-- **Encerrar Modo por Turnos** volta para a tela normal.
+- **Encerrar modo** volta à Mesa normal.
 
 ### Ações do mestre
 
+- Os botões de rodada ficam no cabeçalho da página.
 - **Iniciar Rodada** — abre uma rodada de jogo; a partir daqui, tudo que
   acontece é registrado na memória temporária de cada jogador envolvido.
 - **Cancelar Rodada** - Rever a rodada iniciada, movendo todas memórias para uma pasta de logs junto a um motivo.
@@ -507,12 +687,12 @@ jogadores passam a reagir ao que "estão vendo". Os arquivos ficam salvos em
 ### Escolha do modelo de IA
 
 Os provedores são definidos em `config.py`; o escolhido fica em
-`arquivos/config.json` e pode ser trocado pela barra lateral:
+`arquivos/config.json` e pode ser trocado em **⚙️ Configurações da LLM**:
 
 | Provedor | Onde roda | O que precisa |
 |---|---|---|
-| **Gemini 3.5** (Google) | Nuvem | API Key (pela barra lateral, ou a variável `GEMINI_API_KEY`) |
-| **OpenAI Luna** | Nuvem | API Key (pela barra lateral, ou a variável `OPENAI_API_KEY`) |
+| **Gemini 3.5** (Google) | Nuvem | API Key (pelas Configurações, ou a variável `GEMINI_API_KEY`) |
+| **OpenAI Luna** | Nuvem | API Key (pelas Configurações, ou a variável `OPENAI_API_KEY`) |
 | **Ollama** | Local (seu computador) | Ollama instalado e rodando, com o modelo já baixado |
 | **Omniroute** | Local | Servidor Omniroute rodando e acessível |
 
@@ -535,13 +715,15 @@ relevantes deixa o prompt menor e mais estável.
 
 ### Adicionando jogadores
 
-A lista de jogadores não é fixa. Pela barra lateral, em "➕ Adicionar
-Jogador", digite um nome (sem espaços) e clique em Adicionar — o card dele
-já aparece na fila junto com os demais, sem precisar reiniciar o app.
+A lista de jogadores não é fixa. Na Mesa, clique no card **Adicionar jogador**,
+digite um nome (sem espaços) e confirme — o card aparece na hora, sem reiniciar
+nada. A lixeira 🗑️ do card **exclui o personagem por completo**: ficha,
+memória (rodadas, cenas e mesa), foto e presença no modo por turnos. Não dá
+para desfazer, então salve a mesa antes se tiver dúvida.
 
 ### Salvar / Restaurar Mesa
 
-O botão **💾 Salvar / Restaurar Mesa** da barra lateral abre um modal com
+O ícone **💾 Salvar / restaurar mesa** da barra lateral abre um modal com
 duas partes:
 
 - **Salvar mesa** (direita): digite um nome e clique em Salvar. O jogo gera
@@ -556,8 +738,8 @@ Detalhes importantes:
   a configuração atual da LLM é mantida; se mudar de máquina, reconfigure a
   chave. Guarde-a em local seguro.
 - Rodadas em andamento (`rodada_atual_temp.txt`) não são salvas, e o estado da
-  sessão (histórico da rodada, falas, pendências de aprovação) é limpo ao
-  restaurar.
+  sessão (`sessao.json`: histórico da rodada, falas, pendências de aprovação)
+  também fica de fora e é limpo ao restaurar.
 - O zip é validado antes de qualquer alteração e a troca é feita com
   rollback: se algo falhar, os dados atuais permanecem.
 
@@ -567,47 +749,57 @@ Detalhes importantes:
 
 ```
 .
-├── app.py                  # Interface visual (Streamlit)
+├── api/                    # API FastAPI
+│   ├── main.py             # App, CORS e serviço do front compilado
+│   ├── deps.py             # Validação de nomes e travas
+│   └── routers/            # Uma rota por assunto (fichas, regras, turno, mestre...)
+├── services/               # Regras da mesa (antes viviam na interface)
+│   ├── sessao.py           # Estado da rodada, persistido em arquivos/sessao.json
+│   ├── mestre.py           # Ações do mestre, aprovações e dúvidas
+│   ├── compressao.py       # Quando oferecer a compressão de memória
+│   ├── personagens.py      # Exclusão total de um personagem
+│   └── eventos.py          # Eventos em tempo real (SSE)
+├── frontend/               # Interface React (Vite + Tailwind + shadcn/ui + @dnd-kit)
+│   └── src/features/       # mesa, fichas, turno, tokens, sistema (config, regras, mesas)
+├── scripts/
+│   ├── dev.sh              # Sobe API + front (macOS/Linux)
+│   └── dev.bat             # Sobe API + front (Windows)
 ├── main.py                 # Interface de terminal (menu por texto)
-├── config.py               # Provedores de IA, configurações e jogadores
-├── fichas.py               # Fichas modulares e conjuntos de regras
-├── imagens.py              # Upload de imagens de contexto e fotos de jogador
-├── memoria.py              # Memória rodada → cena → mesa e compressão manual
-├── metricas.py             # Tokens/contexto do último prompt por personagem
-├── agentes.py              # Monta o prompt e gera as respostas dos jogadores
-├── tags.py                 # Extração de [fala], [acao], [duvida], [pensamento]
-├── cenas.py                # Cenas pré-cadastradas
-├── tokens_manager.py       # Inimigos, NPCs e itens (pasta tokens/)
-├── turno.py                # Regras e persistência do Modo por Turnos
-├── mesas_manager.py        # Salvar/restaurar mesa em .zip
-├── ui/                     # Partes da interface Streamlit
-│   ├── sidebar.py          # Barra lateral (LLM, rodada, regras, mesa)
-│   ├── jogadores.py        # Cards de jogadores
-│   ├── turno_panel.py      # Painel do Modo por Turnos
-│   ├── balao.py            # Balão de fala reutilizável (com ✖)
-│   ├── contexto_barra.py   # Barra 🧠 Contexto
-│   ├── compressao_panel.py # Diálogo de compressão de memória
-│   ├── mesas_panel.py      # Modal Salvar / Restaurar Mesa
-│   └── ...                 # fichas, regras, memória, avatar, tokens, ações
+├── rpg/                    # Core: lógica e persistência, sem dependência de interface
+│   ├── paths.py            # Caminhos absolutos de arquivos/, tokens/ e mesas/
+│   ├── config.py           # Provedores de IA, configurações e jogadores
+│   ├── fichas.py           # Fichas modulares e conjuntos de regras
+│   ├── imagens.py          # Upload de imagens de contexto e fotos de jogador
+│   ├── memoria.py          # Memória rodada → cena → mesa e compressão manual
+│   ├── metricas.py         # Tokens/contexto do último prompt por personagem
+│   ├── agentes.py          # Monta o prompt e gera as respostas dos jogadores
+│   ├── tags.py             # Extração de [fala], [acao], [duvida], [pensamento]
+│   ├── cenas.py            # Cenas pré-cadastradas
+│   ├── tokens_manager.py   # Inimigos, NPCs e itens, com imagem (pasta tokens/)
+│   ├── turno.py            # Regras e persistência do Modo por Turnos
+│   └── mesas_manager.py    # Salvar/restaurar mesa em .zip
 ├── requirements.txt
 ├── .venv/                  # Ambiente virtual (não versionar)
 ├── .env                    # Suas chaves de API (não versionar)
 ├── mesas/                  # Backups .zip gerados por "Salvar mesa"
 ├── tokens/                 # Anotações de inimigos, NPCs e itens
-│   ├── inimigo/
+│   ├── inimigo/            # *.txt (+ imagem opcional com o mesmo nome)
 │   ├── npc/
 │   └── item/
 └── arquivos/               # Pasta centralizadora de dados e mídias
     ├── config.json             # Provedor, chave, limites de contexto
     ├── jogadores.json          # Lista centralizada de jogadores da mesa
     ├── turno.json              # Estado do Modo por Turnos (se ativo)
+    ├── sessao.json             # Rodada em andamento: histórico, falas, pendências
     ├── regras/                 # Conjuntos de regras (um arquivo por cenário)
     │   ├── .ativa               # Marca qual arquivo está em uso agora
     │   ├── geral.txt
     │   └── combate.txt
-    ├── fichas/                 # Seis arquivos modulares por personagem
-    │   ├── jogadora_base.txt
+    ├── fichas/                 # Sete arquivos .json por personagem
+    │   ├── jogadora_base.json
     │   ├── jogadora_status.json
+    │   ├── jogadora_atributos.json / _pericias.json / _habilidades.json
+    │   ├── jogadora_itens.json / _personalidade.json
     │   └── ...
     ├── cenas/                  # Cenas pré-cadastradas
     ├── img/
@@ -628,10 +820,10 @@ Detalhes importantes:
 
 **`ValidationError: API key required for Gemini Developer API`**
 O `config.json` não foi encontrado ou a variável está com nome/formato errado.
-Confira se o arquivo se chama exatamente `config.json`, está na mesma pasta 
-, e contém `api_key` e o provedor. Depois, reinicie o
-Streamlit por completo (`Ctrl+C` e rode `streamlit run app.py` de novo) 
-Confirme o cadastro pelas configurações do painel.
+Confira se o arquivo se chama exatamente `config.json`, está em `arquivos/`
+e contém `api_key` e o provedor. Depois, reinicie a API por completo (`Ctrl+C`
+e rode `./scripts/dev.sh` de novo). Confirme o cadastro em **⚙️ Configurações
+da LLM**.
 
 **Erro de chave inválida ou ausente com OpenAI**
 Mesma lógica para o gemini.
@@ -645,14 +837,14 @@ Ollama, se o modelo já foi baixado (`ollama pull <modelo>`).
 O modelo escolhido pode não suportar imagens. Troque para um modelo com
 visão ou descreva a cena em texto.
 
-**`ModuleNotFoundError` ao rodar o app**
+**`ModuleNotFoundError` ao rodar a API**
 Provavelmente o ambiente virtual não está ativo, ou as dependências foram
 instaladas fora dele. Ative o `.venv` e rode `pip install -r requirements.txt`
 de novo (veja [Ambiente virtual](#ambiente-virtual-venv)).
 
 **Nenhum jogador aparece na tela**
 Confira se `arquivos/jogadores.json` tem pelo menos um nome na lista, ou
-adicione um novo jogador pela barra lateral.
+adicione um novo jogador pelo card **Adicionar jogador** na Mesa.
 
 **A barra 🧠 Contexto não aparece**
 O controle fica desligado com **Contexto máx. = 0**. Defina o limite em
@@ -670,11 +862,54 @@ API Key e o provedor estão preenchidos.
 
 **A ficha ou as regras aparecem vazias**
 Isso é normal se ainda não foram salvas nenhuma vez pela interface — clique
-em ✏️ Ficha (para a ficha) ou em "✏️ Gerenciar / Criar Regras" na barra
-lateral (para as regras), escreva o conteúdo e salve.
+em ✏️ no card (para a ficha) ou no ícone 📜 Regras da barra lateral (para as
+regras), escreva o conteúdo e salve.
 
 **Criei um novo conjunto de regras e ele não afeta as respostas dos jogadores**
 Criar um arquivo em `arquivos/regras/` não o torna automaticamente ativo. Depois de
 escrever o conteúdo, clique em "⭐ Usar agora" (no painel) ou selecione-o no
-seletor rápido da barra lateral — só o conjunto marcado como ativo é
+seletor 📜 do cabeçalho — só o conjunto marcado como ativo é
 enviado no prompt dos jogadores.
+
+**A página abre, mas mostra "Não foi possível falar com a API"**
+A API não está rodando (ou está em outra porta). Suba-a com
+`./scripts/dev.sh` ou `uvicorn api.main:app --port 8000` a partir da raiz do
+projeto, e confira <http://localhost:8000/docs>.
+
+**`Address already in use` / porta 8000 ou 5173 ocupada**
+Há outra instância rodando. Encerre-a, ou suba a API em outra porta
+(`uvicorn api.main:app --port 8001`) e ajuste o `target` do proxy em
+`frontend/vite.config.ts`.
+
+**"Outra ação está em andamento. Aguarde terminar."**
+A API executa uma ação de IA por vez (falar, aprovar, finalizar rodada,
+comprimir memória). Espere a atual terminar — os cards mostram "pensando…".
+
+**`npm install` / `npm run dev` falha com "Cannot find native binding"**
+Bug conhecido do npm com dependências opcionais. Apague `frontend/node_modules`
+e `frontend/package-lock.json` e rode `npm install` de novo. Confirme também a
+versão do Node (`node --version` → 20.19+ ou 22.12+).
+
+**Recarreguei a página no meio de uma rodada**
+Nada se perde: o estado da rodada fica no servidor (`arquivos/sessao.json`).
+Se quiser descartar uma rodada travada, use **Cancelar** no cabeçalho.
+
+**`SyntaxError: ... 'node:util' does not provide an export named 'styleText'`**
+O front está rodando num Node antigo (o Vite precisa de 20.19+ ou 22.12+). Isso
+acontece quando o `node` do sistema (ex.: `/usr/bin/node` v18) vem antes do que
+você escolheu no nvm. Confira com `which -a node` e `node --version` **no mesmo
+terminal** em que rodou o comando, e use `nvm use` na raiz do projeto.
+
+**Usei `sudo` e agora dá "Permissão negada" ou erro de Node**
+Rode sempre sem `sudo`. Se já rodou, devolva a posse dos arquivos:
+`sudo chown -R $USER:$USER .` (a partir da raiz do projeto) e suba de novo.
+
+**`./scripts/dev.sh: Permissão negada`**
+O arquivo perdeu o bit de execução. Rode `chmod +x scripts/dev.sh`.
+
+**`ensurepip is not available` ao criar o `.venv` (Linux)**
+Falta o módulo de venv: `sudo apt install python3-venv`, apague a pasta `.venv`
+incompleta (`rm -rf .venv`) e rode o script de novo.
+
+**`SyntaxError` / erro de sintaxe ao subir a API**
+O Python é antigo demais (precisa de 3.10+). Confira com `python3 --version`.
