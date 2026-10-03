@@ -8,6 +8,9 @@ import {
 } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { AcaoMestre } from '@/features/mesa/AcaoMestre'
+import { Historico } from '@/features/mesa/Historico'
+import { Pendencias } from '@/features/mesa/Pendencias'
 import { StatusEditor } from '@/features/fichas/StatusEditor'
 import { useJogadores, useSessao, useTokens, useTurno } from '@/hooks/queries'
 import { useMutation } from '@tanstack/react-query'
@@ -145,6 +148,12 @@ export function TurnoView() {
               ? api.put(`/turno/areas/${areaId}/participantes`, { participante_id: pid })
               : api.del(`/turno/participantes/${pid}/area`))}
         />
+      </div>
+
+      <Pendencias />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <AcaoMestre />
+        <Historico />
       </div>
 
       {token && (
