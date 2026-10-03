@@ -13,6 +13,9 @@ export const useFicha = (nome: string) =>
   useQuery({ queryKey: ['ficha', nome], queryFn: () => api.get<Ficha>(`/fichas/${nome}`), gcTime: 0 })
 export const usePadraoFicha = () =>
   useQuery({ queryKey: ['padrao-ficha'], queryFn: () => api.get<PadraoFicha>('/padrao-ficha') })
+// MODO-TESTE (remover este hook)
+export const useModoTeste = () =>
+  useQuery({ queryKey: ['modo-teste'], queryFn: () => api.get<{ ativo: boolean }>('/modo-teste') })
 export const useMemoria = (nome: string) =>
   useQuery({ queryKey: ['memoria', nome], queryFn: () => api.get<Memoria>(`/memoria/${nome}`), gcTime: 0 })
 export const useCenas = () => useQuery({ queryKey: ['cenas'], queryFn: () => api.get<string[]>('/cenas') })

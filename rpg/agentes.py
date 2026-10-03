@@ -7,6 +7,7 @@ from rpg.fichas import carregar_ficha, carregar_regras
 from rpg.memoria import carregar_memoria_longo_prazo
 from rpg.metricas import registrar_chamada
 from rpg.imagens import carregar_imagem_base64, obter_mimetype_imagem
+from rpg import modo_teste  # MODO-TESTE (remover este import)
 
 
 def default_prompt() -> str:
@@ -126,6 +127,10 @@ def gerar_resposta_agente(
     historico_recente: List[str],
     caminho_imagem: str = None,
 ) -> str:
+    # MODO-TESTE (remover estas 2 linhas)
+    if modo_teste.ativo():
+        return modo_teste.resposta_simulada(agente)
+
     # Instancia dinamicamente o modelo configurado
     llm_jogadores = obter_llm(temperature=0.8)
 

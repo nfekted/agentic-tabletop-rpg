@@ -49,6 +49,12 @@ def salvar_pensamento_privado(agente: str, resposta: str):
     registrar_fala(agente, resposta, aprovada=True, privado=True)
 
 
+def _fala_do_mestre(tags: dict, publico: str) -> str:
+    # Texto do balão (só o mestre vê): o pensamento do personagem vem antes da parte pública.
+    pensamento = tags.get("pensamento")
+    return f"[pensamento]{pensamento}[/pensamento]\n{publico}" if pensamento else publico
+
+
 def _pensamento_de(agente: str, tags: dict):
     if tags.get("pensamento"):
         salvar_pensamento_privado(agente, f"[pensamento]{tags['pensamento']}[/pensamento]")
@@ -137,7 +143,7 @@ def falar_com_todos(comando: str, caminho_imagem=None) -> str | None:
 
         if publico:
             s["historico"].append(f"{ag}: {publico}")
-            registrar_fala(ag, publico, aprovada=True, privado=False)
+            registrar_fala(ag, _fala_do_mestre(tags, publico), aprovada=True, privado=False)
             if s["rodada_ativa"]:
                 GerenciadorMemoriaRPG.salvar_resposta_agente(ag, resposta, presentes)
         elif not tags.get("pensamento"):
@@ -189,7 +195,7 @@ def falar_direcionado(presentes: list[str], is_privado: bool, comando: str, cami
         "presentes": presentes,
         "agentes_alvo_log": agentes_alvo_log,
     }
-    registrar_fala(alvo, conteudo, aprovada=False, privado=False)
+    registrar_fala(alvo, _fala_do_mestre(tags, conteudo), aprovada=False, privado=False)
     salvar()
     return None
 
@@ -204,7 +210,7 @@ def aprovar_principal() -> str | None:
     mensagem = None
 
     s["historico"].append(f"{p['alvo']}: {publico}")
-    registrar_fala(p["alvo"], publico, aprovada=True, privado=False)
+    registrar_fala(p["alvo"], _fala_do_mestre(tags, publico), aprovada=True, privado=False)
     if s["rodada_ativa"]:
         GerenciadorMemoriaRPG.salvar_resposta_agente(
             p["alvo"], p["resposta_completa"], p["agentes_alvo_log"]
@@ -238,7 +244,7 @@ def aprovar_principal() -> str | None:
 
             if publico_outro:
                 s["historico"].append(f"{ou} (opinião): {publico_outro}")
-                registrar_fala(ou, publico_outro, aprovada=True, privado=False)
+                registrar_fala(ou, _fala_do_mestre(tags_outro, publico_outro), aprovada=True, privado=False)
                 if s["rodada_ativa"]:
                     GerenciadorMemoriaRPG.salvar_resposta_agente(
                         ou, resp_outro, p["agentes_alvo_log"]
@@ -301,7 +307,7 @@ def gerar_redirects(destinos: list[str]) -> str | None:
                 "agentes_alvo_log": ar["agentes_alvo_log"],
             }
         )
-        registrar_fala(destino, conteudo, aprovada=False, privado=False)
+        registrar_fala(destino, _fala_do_mestre(tags, conteudo), aprovada=False, privado=False)
 
     s["pending_redirects"] = pendentes
     s["aguardando_redirect"] = None
@@ -325,7 +331,7 @@ def aprovar_redirect(redirect_id: str):
     s["historico"].append(
         f"{r['destino']} (resposta a {r['alvo_principal']}): {r['conteudo_publico']}"
     )
-    registrar_fala(r["destino"], r["conteudo_publico"], aprovada=True, privado=False)
+    registrar_fala(r["destino"], _fala_do_mestre(r.get("tags") or {}, r["conteudo_publico"]), aprovada=True, privado=False)
     if s["rodada_ativa"]:
         GerenciadorMemoriaRPG.salvar_resposta_agente(
             r["destino"], r["resposta_completa"], r["agentes_alvo_log"]

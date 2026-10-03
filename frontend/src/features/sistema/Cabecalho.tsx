@@ -6,6 +6,7 @@ import { useAcao, useAcaoMestre, useRegras, useSessao } from '@/hooks/queries'
 import { api } from '@/lib/api'
 import type { AcaoResposta } from '@/lib/types'
 import { useUi } from '@/lib/ui-context'
+import { ModoTeste } from './ModoTeste' // MODO-TESTE
 
 export function Cabecalho() {
   const { abrir } = useUi()
@@ -30,6 +31,7 @@ export function Cabecalho() {
             </SelectContent>
           </Select>
         )}
+        <ModoTeste /> {/* MODO-TESTE */}
         {!ativa ? (
           <Button size="sm" disabled={iniciar.isPending} onClick={() => iniciar.mutate()}><Play /> Iniciar rodada</Button>
         ) : (
