@@ -113,10 +113,7 @@ CAMPOS_PERSONALIDADE = (
 BLOCOS_HABILIDADES = (("habilidades", "HABILIDADES"), ("poderes", "PODERES"), ("passivas", "PASSIVAS"))
 TAMANHO_MOCHILA_PADRAO = 5
 
-TEMPLATE_STATUS = [
-    {"nome": "Vida Atual", "valor_atual": 1, "valor_max": 10, "cor": "#DC143C"},
-    {"nome": "Mana Atual", "valor_atual": 1, "valor_max": 10, "cor": "#6495ED"},
-]
+CAMINHO_PADRAO = os.path.join(PASTA_BASE, "padrao_ficha.json")
 
 
 # --- Normalização (ao carregar e ao salvar) ---
@@ -231,6 +228,60 @@ def _normalizar_itens(dados) -> dict:
     }
 
 
+# --- Padrão de status e atributos: definido uma vez, vale para todos os personagens ---
+# {"status": [{"nome", "cor"}], "atributos": [{"nome"}]}; o personagem guarda só os valores.
+
+def _normalizar_padrao(dados) -> dict:
+    dados = dados if isinstance(dados, dict) else {}
+    status = [
+        {"nome": i["nome"], "cor": i["cor"]}
+        for i in _normalizar_status(dados.get("status"))
+    ]
+    atributos = [{"nome": i["nome"]} for i in _normalizar_pares(dados.get("atributos"))]
+    return {"status": status, "atributos": atributos}
+
+
+def padrao_configurado() -> bool:
+    return os.path.exists(CAMINHO_PADRAO)
+
+
+def carregar_padrao() -> dict:
+    try:
+        with open(CAMINHO_PADRAO, "r", encoding="utf-8") as f:
+            dados = json.load(f)
+    except (OSError, ValueError):
+        dados = {}
+    return _normalizar_padrao(dados)
+
+
+def salvar_padrao(dados: dict):
+    primeira_vez = not padrao_configurado()
+    salvar_arquivo(CAMINHO_PADRAO, json.dumps(_normalizar_padrao(dados), indent=2, ensure_ascii=False))
+    if primeira_vez and os.path.isdir(PASTA_FICHAS):
+        # Valores de fichas antigas (formato livre) são descartados: todos recomeçam do padrão.
+        for arq in os.listdir(PASTA_FICHAS):
+            if arq.endswith(("_status.json", "_atributos.json")):
+                os.remove(os.path.join(PASTA_FICHAS, arq))
+
+
+def _aplicar_padrao_status(salvos: list) -> list:
+    por_nome = {s["nome"]: s for s in salvos}
+    return [
+        {
+            "nome": p["nome"],
+            "cor": p["cor"],
+            "valor_atual": por_nome.get(p["nome"], {}).get("valor_atual", 0),
+            "valor_max": por_nome.get(p["nome"], {}).get("valor_max", 0),
+        }
+        for p in carregar_padrao()["status"]
+    ]
+
+
+def _aplicar_padrao_atributos(salvos: list) -> list:
+    por_nome = {a["nome"]: a["valor"] for a in salvos}
+    return [{"nome": p["nome"], "valor": por_nome.get(p["nome"], "")} for p in carregar_padrao()["atributos"]]
+
+
 # --- Formatação em markdown para o prompt (seção vazia devolve "" e não entra) ---
 
 def _bloco(titulo: str, linhas: list) -> str:
@@ -338,7 +389,7 @@ def formatar_personalidade_markdown(personalidade: dict) -> str:
 
 _SECOES = {
     "base": (lambda ag: {"nome": ag, "classe": "", "passado_origem": ""}, _normalizar_base, formatar_base_markdown),
-    "status": (lambda ag: TEMPLATE_STATUS, _normalizar_status, formatar_status_markdown),
+    "status": (lambda ag: [], _normalizar_status, formatar_status_markdown),
     "atributos": (lambda ag: [], _normalizar_pares, formatar_atributos_markdown),
     "pericias": (lambda ag: [], _normalizar_pares, formatar_pericias_markdown),
     "habilidades": (lambda ag: {}, _normalizar_habilidades, formatar_habilidades_markdown),
@@ -361,7 +412,12 @@ def carregar_secao(agente: str, secao: str):
             dados = json.load(f)
     except (OSError, ValueError):
         dados = modelo(agente)
-    return normalizar(dados)
+    dados = normalizar(dados)
+    if secao == "status":
+        return _aplicar_padrao_status(dados)
+    if secao == "atributos":
+        return _aplicar_padrao_atributos(dados)
+    return dados
 
 
 def salvar_secao(agente: str, secao: str, dados):

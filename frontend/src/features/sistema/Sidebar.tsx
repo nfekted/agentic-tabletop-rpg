@@ -1,4 +1,4 @@
-import { Dices, Save, ScrollText, Settings, Skull, Swords } from 'lucide-react'
+import { Dices, ListChecks, Save, ScrollText, Settings, Skull, Swords } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useTurno } from '@/hooks/queries'
 import { useUi, type View } from '@/lib/ui-context'
@@ -48,6 +48,7 @@ export function Sidebar() {
       {nav('tokens', Skull, 'Inimigos, NPCs e itens')}
       <div className="hidden flex-1 md:block" />
       <Item icone={ScrollText} rotulo="Regras" onClick={() => abrir({ tipo: 'regras' })} />
+      <Item icone={ListChecks} rotulo="Padrão de status e atributos" onClick={() => abrir({ tipo: 'padrao-ficha' })} />
       <Item icone={Save} rotulo="Salvar / restaurar mesa" onClick={() => abrir({ tipo: 'mesas' })} />
       <Item icone={Settings} rotulo="Configurações da LLM" onClick={() => abrir({ tipo: 'config' })} />
     </nav>

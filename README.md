@@ -16,6 +16,7 @@ também uma versão de terminal (`main.py`) para quem preferir.
 - 💸 Prompt dividido em partes fixas e variáveis, com cache, para economizar tokens
 - ⚔️ Modo por Turnos: gestão de cenas e combate com áreas, ordem de iniciativa (arrastar e soltar) e tokens com imagem
 - 🧠 Controle de contexto: barra por personagem e compressão de memória com roleplay
+- 📋 Padrão de status e atributos: definido uma vez, vale para todos os personagens
 - 💾 Salvar / Restaurar Mesa: backup completo da campanha em um `.zip`
 - 🖥️ Interface web (React + Tailwind, tema escuro e responsiva) sobre uma API FastAPI + versão de terminal
 
@@ -38,6 +39,7 @@ também uma versão de terminal (`main.py`) para quem preferir.
   - [Versão de produção](#versão-de-produção)
 - [Funcionalidades](#funcionalidades)
   - [Fichas dos personagens](#fichas-dos-personagens)
+  - [Padrão de status e atributos](#padrão-de-status-e-atributos)
   - [Conjuntos de regras (arquivos/regras/)](#conjuntos-de-regras-arquivosregras)
   - [Conjuntos de cenas (arquivos/cenas/)](#conjuntos-de-cenas-arquivoscenas)
   - [Conjunto de tokens](#conjunto-de-tokens)
@@ -408,14 +410,14 @@ criado, cada arquivo que faltar nasce a partir de um modelo.
 | Aba | O que tem |
 |---|---|
 | **Base** | Nome, Classe, Passado/Origem (3 campos de texto) |
-| **Status** | Vida, mana, estamina... quantos quiser, com valor atual, máximo e cor (viram barras no card) |
-| **Atributos e perícias** | Duas listas de *nome + valor* (ex.: Força — 3; Espada — Treinado) |
+| **Status** | Os status do [padrão global](#padrão-de-status-e-atributos) (vida, mana...), só com *atual* e *máximo* para preencher (viram barras no card) |
+| **Atributos e perícias** | Atributos vêm do padrão global (só o valor é preenchido); perícias são uma lista livre de *nome + valor* (ex.: Espada — Treinado) |
 | **Habilidades** | Três blocos — Habilidades, Poderes e Passivas — com *nome, custo e descrição* |
 | **Itens** | **Equipamento** e **Mochila**, com *nome, mãos, peso, alcance, dano, % crítico, mult. crítico e descrição*, mais o **Tamanho da mochila**. Arraste os itens entre os dois painéis (ou use o botão de mover) |
 | **Personalidade** | Tratamento/Personalidade, Medos/Gatilhos, Segredos pessoais |
 
 Regras do editor:
-- Em qualquer lista, **só é salvo o item que tiver nome**; linhas sem nome são
+- Nas listas livres (perícias, habilidades, itens), **só é salvo o item que tiver nome**; linhas sem nome são
   descartadas.
 - Campo vazio **não vai para o prompt** (economiza tokens), e seção vazia não
   aparece.
@@ -459,6 +461,29 @@ Mochila: 2/5 livres
 
 - **Modificadores**: um campo de texto livre exibido no card ("modificadores:
   ...").
+
+### Padrão de status e atributos
+
+Status e atributos são iguais para todos os personagens, então são definidos
+uma única vez no ícone **📋 Padrão de status e atributos** da barra lateral:
+
+- **Status**: nome e cor (ex.: Vida vermelha, Mana azul). Todos os personagens
+  recebem esses status com os campos *atual* e *máximo* para preencher.
+- **Atributos**: só o nome (ex.: Força, Inteligência). Cada personagem só
+  preenche o valor.
+
+Se você abrir a ficha de um personagem antes de existir um padrão, as abas
+Status e Atributos mostram um aviso com o botão **Configurar padrão**, que abre
+essa tela.
+
+Detalhes:
+- O padrão fica em `arquivos/padrao_ficha.json`; as fichas guardam só os valores.
+- Os valores são ligados ao padrão **pelo nome**: renomear ou remover um item no
+  padrão apaga o valor dele nas fichas.
+- Na **primeira vez** que o padrão é salvo, status e atributos já preenchidos
+  nas fichas são descartados (todos recomeçam do padrão).
+- Os status dos tokens do Modo por Turnos continuam livres, editados à mão em
+  cada token.
 
 ### Conjuntos de regras (arquivos/regras/)
 
@@ -789,6 +814,7 @@ Detalhes importantes:
 └── arquivos/               # Pasta centralizadora de dados e mídias
     ├── config.json             # Provedor, chave, limites de contexto
     ├── jogadores.json          # Lista centralizada de jogadores da mesa
+    ├── padrao_ficha.json       # Padrão de status e atributos (nome e cor)
     ├── turno.json              # Estado do Modo por Turnos (se ativo)
     ├── sessao.json             # Rodada em andamento: histórico, falas, pendências
     ├── regras/                 # Conjuntos de regras (um arquivo por cenário)

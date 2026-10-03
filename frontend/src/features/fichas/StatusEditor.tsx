@@ -2,6 +2,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { Status } from '@/lib/types'
+import { NumInput } from './ValoresPadrao'
 
 // Editor de status dinâmicos (vida, mana...): usado na ficha dos jogadores e na dos tokens do combate.
 export function StatusEditor({ status, onChange }: { status: Status[]; onChange: (s: Status[]) => void }) {
@@ -12,8 +13,8 @@ export function StatusEditor({ status, onChange }: { status: Status[]; onChange:
       {status.map((s, i) => (
         <div key={i} className="grid grid-cols-[1fr_4.5rem_4.5rem_2.5rem_2rem] items-center gap-2">
           <Input value={s.nome} onChange={(e) => set(i, { nome: e.target.value })} placeholder="Nome" aria-label="Nome do status" />
-          <Input type="number" value={s.valor_atual} onChange={(e) => set(i, { valor_atual: Number(e.target.value) })} aria-label="Valor atual" />
-          <Input type="number" value={s.valor_max} onChange={(e) => set(i, { valor_max: Number(e.target.value) })} aria-label="Valor máximo" />
+          <NumInput valor={s.valor_atual} onChange={(n) => set(i, { valor_atual: n })} rotulo="Valor atual" />
+          <NumInput valor={s.valor_max} onChange={(n) => set(i, { valor_max: n })} rotulo="Valor máximo" />
           <input
             type="color" value={s.cor} onChange={(e) => set(i, { cor: e.target.value })}
             className="h-8 w-full cursor-pointer rounded-md border bg-transparent" aria-label="Cor"

@@ -1,5 +1,11 @@
 export type Status = { nome: string; valor_atual: number; valor_max: number; cor: string }
 
+export type PadraoFicha = {
+  configurado: boolean
+  status: { nome: string; cor: string }[]
+  atributos: { nome: string }[]
+}
+
 export type Contexto = {
   usado: number
   limite: number

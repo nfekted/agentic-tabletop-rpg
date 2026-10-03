@@ -3,7 +3,10 @@ from pydantic import BaseModel
 
 from api.deps import agente_valido
 from rpg.config import obter_modificadores_jogador, salvar_modificadores_jogador
-from rpg.fichas import carregar_ficha, carregar_subarquivos_ficha, salvar_subarquivos_ficha
+from rpg.fichas import (
+    carregar_ficha, carregar_padrao, carregar_subarquivos_ficha, padrao_configurado,
+    salvar_padrao, salvar_subarquivos_ficha,
+)
 
 router = APIRouter(tags=["fichas"])
 
@@ -61,6 +64,20 @@ class Personalidade(BaseModel):
     segredos_pessoais: str = ""
 
 
+class PadraoStatus(BaseModel):
+    nome: str
+    cor: str = "#DC143C"
+
+
+class PadraoAtributo(BaseModel):
+    nome: str
+
+
+class PadraoIn(BaseModel):
+    status: list[PadraoStatus] = []
+    atributos: list[PadraoAtributo] = []
+
+
 class FichaIn(BaseModel):
     modificadores: str = ""
     base: Base
@@ -74,6 +91,21 @@ class FichaIn(BaseModel):
 
 def _ficha(nome: str) -> dict:
     return {**carregar_subarquivos_ficha(nome), "modificadores": obter_modificadores_jogador(nome)}
+
+
+def _padrao() -> dict:
+    return {**carregar_padrao(), "configurado": padrao_configurado()}
+
+
+@router.get("/padrao-ficha")
+def obter_padrao():
+    return _padrao()
+
+
+@router.put("/padrao-ficha")
+def salvar_padrao_ficha(body: PadraoIn):
+    salvar_padrao(body.model_dump())
+    return _padrao()
 
 
 @router.get("/fichas/{nome}")

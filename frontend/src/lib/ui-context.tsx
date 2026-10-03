@@ -9,6 +9,7 @@ export type Modal =
   | { tipo: 'excluir-jogador'; nome: string }
   | { tipo: 'novo-jogador' }
   | { tipo: 'regras' }
+  | { tipo: 'padrao-ficha' }
   | { tipo: 'config' }
   | { tipo: 'mesas' }
   | { tipo: 'cancelar-rodada' }
