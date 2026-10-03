@@ -12,7 +12,6 @@ from rpg.config import obter_llm
 from rpg.fichas import carregar_arquivo
 from rpg.tags import extrair_tags_resposta, formatar_conteudo_publico, formatar_para_autor
 from rpg.paths import ARQUIVOS
-from rpg import modo_teste  # MODO-TESTE (remover este import)
 
 
 def obter_pasta_agente(agente: str) -> str:
@@ -219,8 +218,10 @@ class GerenciadorMemoriaRPG:
                 - Trate como os eventos reais, visíveis e audíveis que aconteceram na cena.
             3. DÚVIDAS ([duvida]...[/duvida]):
                 - Trate como hesitações ou percepções atentas do personagem, sem incluir regras ou jargões mecânicos.
-            4. TEXTO LIMPO E SEM TAGS:
-                - É terminantemente PROIBIDO incluir as tags literais ([pensamento], [/pensamento], [fala], [acao], [duvida]) no resumo final.
+            4. CHAMADAS ([chamar]Nome: mensagem[/chamar]):
+                - Trate como uma fala em voz alta do personagem chamando o jogador citado para a cena.
+            5. TEXTO LIMPO E SEM TAGS:
+                - É terminantemente PROIBIDO incluir as tags literais ([pensamento], [/pensamento], [fala], [acao], [duvida], [chamar]) no resumo final.
                 - Escreva uma prosa corrida fluida (2 a 4 frases ou parágrafos concisos) em terceira pessoa focada na personagem do resumo.
             """
         
@@ -238,10 +239,8 @@ class GerenciadorMemoriaRPG:
             
             mensagems.append(HumanMessage(content=prompt_dinamico))
 
-            # MODO-TESTE (restaurar as 2 linhas originais:
-            #   llm_historiador = obter_llm(temperature=0.3)
-            #   resumo = llm_historiador.invoke(mensagems).content.strip() )
-            resumo = modo_teste.ou_bruto(conteudo, lambda: obter_llm(temperature=0.3).invoke(mensagems).content.strip())
+            llm_historiador = obter_llm(temperature=0.3)
+            resumo = llm_historiador.invoke(mensagems).content.strip()
 
             nome_arq_rodada = os.path.join(pasta, f"rodada_{num_rodada}.txt")
             with open(nome_arq_rodada, "w", encoding="utf-8") as f:
@@ -258,7 +257,8 @@ class GerenciadorMemoriaRPG:
     def compilar_cenas(agente: str, encadear: bool = True):
         # Resume TODAS as rodadas existentes em uma cena. O automático chama com 10 rodadas;
         # a compressão manual chama com as que houver (encadear=False evita o ciclo automático).
-        pasta = obter_pasta_agente(agente)  # MODO-TESTE (restaurar acima desta linha: llm_historiador = obter_llm(temperature=0.3))
+        llm_historiador = obter_llm(temperature=0.3)
+        pasta = obter_pasta_agente(agente)
         rodadas = _arquivos_numerados(pasta, "rodada")
         if not rodadas:
             return
@@ -281,8 +281,7 @@ class GerenciadorMemoriaRPG:
         5. Pontos de virada.
         
         CENA:\n{conteudo_rodadas}"""
-        # MODO-TESTE (restaurar: resumo_cena = _texto_resp(llm_historiador.invoke(prompt)) )
-        resumo_cena = modo_teste.ou_bruto(conteudo_rodadas, lambda: _texto_resp(obter_llm(temperature=0.3).invoke(prompt)))
+        resumo_cena = _texto_resp(llm_historiador.invoke(prompt))
 
         num_cena = len(_arquivos_numerados(pasta, "cena")) + 1
         nome_arq_cena = os.path.join(pasta, f"cena_{num_cena}.txt")
@@ -301,7 +300,8 @@ class GerenciadorMemoriaRPG:
     @staticmethod
     def _resumir_cenas(agente: str):
         # Resume TODAS as cenas existentes. Retorna (resumo, lista de caminhos consumidos).
-        pasta = obter_pasta_agente(agente)  # MODO-TESTE (restaurar acima desta linha: llm_historiador = obter_llm(temperature=0.3))
+        llm_historiador = obter_llm(temperature=0.3)
+        pasta = obter_pasta_agente(agente)
         caminhos = [os.path.join(pasta, f) for f in _arquivos_numerados(pasta, "cena")]
         if not caminhos:
             return "", []
@@ -310,8 +310,7 @@ class GerenciadorMemoriaRPG:
             conteudo_cenas += f"\n--- {os.path.basename(arq)} ---\n" + _ler(arq)
 
         prompt = f"Faça um resumo consolidado destas cenas para o histórico de longo prazo de {agente}:\n{conteudo_cenas}"
-        # MODO-TESTE (restaurar: return _texto_resp(llm_historiador.invoke(prompt)), caminhos )
-        return modo_teste.ou_bruto(conteudo_cenas, lambda: _texto_resp(obter_llm(temperature=0.3).invoke(prompt))), caminhos
+        return _texto_resp(llm_historiador.invoke(prompt)), caminhos
 
     @staticmethod
     def _anexar_ao_mesa(pasta: str, resumo: str):
@@ -340,7 +339,8 @@ class GerenciadorMemoriaRPG:
     @staticmethod
     def _reduzir_mesa(agente: str, mesa: str, alvo_chars: int) -> str:
         # Pede ao agente historiador um resumo do mesa.txt com limite de caracteres.
-        # MODO-TESTE (restaurar nesta linha: llm_historiador = obter_llm(temperature=0.3))
+        llm_historiador = obter_llm(temperature=0.3)
+
         def pedir(limite: int, aviso: str = "") -> str:
             prompt = f"""Você é o Historiador de uma mesa de RPG cooperativo. Reduza o histórico de longo prazo do personagem {agente} abaixo.
             Preserve nomes, decisões, revelações e consequências importantes; descarte detalhes secundários e repetições.
@@ -349,8 +349,7 @@ class GerenciadorMemoriaRPG:
 
             HISTÓRICO:
             {mesa}"""
-            # MODO-TESTE (restaurar: return _texto_resp(llm_historiador.invoke(prompt)) )
-            return modo_teste.ou_bruto(mesa[:limite], lambda: _texto_resp(obter_llm(temperature=0.3).invoke(prompt)))
+            return _texto_resp(llm_historiador.invoke(prompt))
 
         resumo = pedir(int(alvo_chars * 0.9))
         if len(resumo) > alvo_chars:

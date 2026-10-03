@@ -18,9 +18,7 @@ _PADRAO = {
     "historico": [],
     "rodada_ativa": False,
     "envolvidos": [],
-    "pending_principal": None,
-    "aguardando_redirect": None,
-    "pending_redirects": [],
+    "pending_chamadas": [],
     "ultima_fala": {},
     "seq_fala": 0,
     "compressao_perguntada": {},
@@ -41,6 +39,8 @@ def obter() -> dict:
         try:
             with open(_CAMINHO, "r", encoding="utf-8") as f:
                 _estado.update(json.load(f))
+            for antiga in ("pending_principal", "aguardando_redirect", "pending_redirects"):
+                _estado.pop(antiga, None)  # fluxo de aprovação anterior
         except Exception:
             pass
     return _estado

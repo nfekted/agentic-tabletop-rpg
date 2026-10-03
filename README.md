@@ -3,14 +3,13 @@
 Sistema que simula uma mesa de RPG cooperativo com agentes de IA: você é o
 mestre, e cada jogador é conduzido por um agente com ficha, personalidade e
 memória próprias. A mesa é uma aplicação web moderna (React) conversando com
-uma API em Python (FastAPI), para quem não quer mexer em terminal; existe
-também uma versão de terminal (`main.py`) para quem preferir.
+uma API em Python (FastAPI), para quem não quer mexer em terminal.
 
 **Destaques**
 
 - 🎭 Agentes com ficha, regras e memória individualizadas por personagem
 - 🧠 Memória em três níveis (rodada → cena → mesa) que simula o esquecimento humano
-- 💬 Respostas com intenção: `[fala]`, `[acao]`, `[duvida]` e `[pensamento]`
+- 💬 Respostas com intenção: `[fala]`, `[acao]`, `[duvida]`, `[chamar]` e `[pensamento]`
 - 🔀 Escolha do modelo: Gemini 3.5, OpenAI Luna, Ollama ou Omniroute (local)
 - 🖼️ Fotos para os jogadores e envio de imagens para contextualizar os agentes
 - 💸 Prompt dividido em partes fixas e variáveis, com cache, para economizar tokens
@@ -18,7 +17,7 @@ também uma versão de terminal (`main.py`) para quem preferir.
 - 🧠 Controle de contexto: barra por personagem e compressão de memória com roleplay
 - 📋 Padrão de status e atributos: definido uma vez, vale para todos os personagens
 - 💾 Salvar / Restaurar Mesa: backup completo da campanha em um `.zip`
-- 🖥️ Interface web (React + Tailwind, tema escuro e responsiva) sobre uma API FastAPI + versão de terminal
+- 🖥️ Interface web (React + Tailwind, tema escuro e responsiva) sobre uma API FastAPI
 
 ---
 
@@ -45,7 +44,7 @@ também uma versão de terminal (`main.py`) para quem preferir.
   - [Conjunto de tokens](#conjunto-de-tokens)
   - [Modo por Turnos](#modo-por-turnos)
   - [Ações do mestre](#ações-do-mestre)
-  - [Tags de resposta: \[acao\], \[duvida\] e \[pensamento\]](#tags-de-resposta-acao-duvida-e-pensamento)
+  - [Tags de resposta](#tags-de-resposta-fala-acao-duvida-chamar-e-pensamento)
   - [Fluxo de aprovação](#fluxo-de-aprovação)
   - [Sistema de memória (rodada → cena → mesa)](#sistema-de-memória-rodada--cena--mesa)
   - [Por que resumir um resumo pode "perder" informação (de propósito)](#por-que-resumir-um-resumo-pode-perder-informação-de-propósito)
@@ -86,8 +85,8 @@ também uma versão de terminal (`main.py`) para quem preferir.
   `tokens_manager.py` etc., sem nenhuma dependência de interface. Os caminhos
   das pastas de dados ficam em `rpg/paths.py` (absolutos, a partir da raiz do
   projeto), então nada depende de qual diretório você está ao iniciar.
-- **Estado da mesa no servidor.** Histórico da rodada, falas, pendências de
-  aprovação e dúvidas ficam em `arquivos/sessao.json`: recarregar a página (ou
+- **Estado da mesa no servidor.** Histórico da rodada, falas e chamadas
+  pendentes ficam em `arquivos/sessao.json`: recarregar a página (ou
   reiniciar a API) não perde a rodada em andamento.
 - **Tempo real.** A API publica eventos (SSE em `/api/eventos`) enquanto os
   agentes respondem; o front mostra "pensando…" no card e atualiza sozinho.
@@ -380,15 +379,6 @@ cd frontend && npm run build && cd ..
 uvicorn api.main:app --port 8000      # abra http://localhost:8000
 ```
 
-### Modo terminal (menu por texto)
-
-```bash
-python main.py      # Windows
-python3 main.py     # macOS/Linux
-```
-
-O modo terminal é independente da API e usa os mesmos arquivos de `arquivos/`.
-
 > ⚠️ A API não tem login: ela foi feita para uso local por uma pessoa (o
 > mestre). Não a exponha na internet.
 
@@ -459,6 +449,10 @@ Mochila: 2/5 livres
 > ficha nova a partir do modelo. Se tiver alguma antiga que valha guardar,
 > copie o conteúdo para o novo editor.
 
+- **Ajuste rápido de status**: nos cards (Mesa e Modo por Turnos), os botões
+  **−** e **+** nas pontas da barra de cada status diminuem ou aumentam o valor
+  atual de 1 em 1, sem abrir a ficha. O valor nunca fica abaixo de 0 nem acima
+  do máximo, e é gravado direto no `.json` do personagem.
 - **Modificadores**: um campo de texto livre exibido no card ("modificadores:
   ...").
 
@@ -533,13 +527,17 @@ turnos** para abrir o painel de gestão de cenas e combate. O estado fica em
 - **Áreas da Cena**: crie zonas (Entrada, Salão, ...) e **arraste** os
   participantes para dentro delas (ou de volta para "Soltos"). Cada
   participante aparece em formato compacto, com status, barra de contexto e
-  balão de fala.
+  balão de fala. Os botões **−** e **+** nas pontas das barras de status
+  ajustam o valor atual de 1 em 1 (entre 0 e o máximo), inclusive nos tokens.
 - **Ordem de iniciativa**: clique nos participantes "sem ordem" para colocá-los
   na fila e **arraste** para reordenar. O painel avisa empates e trava a
   ordem durante o combate.
 - **Iniciar combate / Próxima ação**: destaca de quem é a vez (🔥) e avança
   pela fila.
 - **Encerrar modo** volta à Mesa normal.
+- **Ação do mestre, pendências e histórico** ficam sempre visíveis abaixo do
+  painel, para você falar com os jogadores e aprovar chamadas durante a
+  movimentação de cenas e o combate.
 
 ### Ações do mestre
 
@@ -549,17 +547,23 @@ turnos** para abrir o painel de gestão de cenas e combate. O estado fica em
 - **Cancelar Rodada** - Rever a rodada iniciada, movendo todas memórias para uma pasta de logs junto a um motivo.
 - **Finalizar Rodada** — fecha a rodada atual e manda o conteúdo para o
   "historiador" resumir (ver [Sistema de memória](#sistema-de-memória-rodada--cena--mesa)).
-- **Falar com Todos (Público)** — sua mensagem e a reação de cada jogador
-  vivo ficam visíveis para todos, sem necessidade de aprovação individual.
-- **Falar com Jogador(es) Específico(s) [Cena Pública]** — você se dirige a
-  um ou mais jogadores; a resposta do primeiro selecionado passa por
-  aprovação antes de ser considerada "dita" na cena.
-- **Cena Privada** — igual à anterior, mas o registro na memória de longo
-  prazo fica restrito só a quem está na cena, em vez de ir para todos os
-  jogadores da mesa. É assim que segredos ficam guardados entre os
-  personagens.
+- **Falar com Todos (Público)** — a narração do mestre é gravada na memória de
+  todos e **todos os jogadores respondem**. Nada passa por aprovação.
+- **Falar com Jogador Específico [Cena Pública]** — como "o mestre olha para um
+  jogador e pergunta o que ele faz": a mesa toda ouve (a narração e o que o
+  jogador disser ou fizer vão para a memória de todos), mas **só o jogador
+  escolhido responde**. Selecione um único jogador.
+- **Cena Privada** — um jogador ou um grupo vive uma parte da cena que os demais
+  não presenciam. **Todos os selecionados respondem**, em sequência, e o
+  registro fica só na memória deles. É assim que segredos ficam guardados
+  entre os personagens.
 
-### Tags de resposta: [fala], [acao], [duvida] e [pensamento]
+O **Histórico da cena atual** tem altura limitada: passando dela, vira uma
+barra de rolagem. As respostas são aplicadas na hora, sem aprovação. A única interceptação do
+mestre acontece quando um personagem quer **acionar outro jogador** (veja
+[Fluxo de aprovação](#fluxo-de-aprovação)).
+
+### Tags de resposta: [fala], [acao], [duvida], [chamar] e [pensamento]
 
 O modelo é instruído a começar a resposta com uma dessas tags quando for o
 caso:
@@ -567,17 +571,28 @@ caso:
 | Tag | O que significa | O que acontece depois |
 |---|---|---|
 | `[acao]` | O personagem está realizando uma ação | A ação é considerada resolvida; ninguém reage automaticamente |
-| `[duvida]` | O personagem quer perguntar algo a outro jogador presente | Você escolhe para quem redirecionar a pergunta; a resposta de quem foi escolhido também passa por aprovação |
+| `[duvida]` | O personagem faz uma pergunta **ao mestre** | Aparece no balão e no histórico; você responde com uma nova fala dirigida a ele |
+| `[chamar]` | O personagem chama outro jogador: `[chamar]Nome: mensagem[/chamar]` | A fala dele é registrada e você decide se o chamado é acionado (veja abaixo) |
 | `[pensamento]` | Um pensamento interno que o personagem **não diz em voz alta** | Nunca é mostrado a outros jogadores nem entra no histórico compartilhado da cena — fica só na memória privada daquele personagem |
-| *(nenhuma tag)* ou `[fala]` | Fala/reação social comum | Os demais jogadores presentes reagem automaticamente com uma opinião breve |
+| *(nenhuma tag)* ou `[fala]` | Fala/reação social comum | Registrada na memória de quem presencia a cena |
+
+`[duvida]` não combina com `[acao]` nem `[chamar]`. O nome em `[chamar]` precisa
+ser o de um jogador da mesa (a IA recebe a lista no prompt); nome inválido vira
+uma fala comum e ninguém é acionado.
 
 ### Fluxo de aprovação
 
-Sempre que um jogador responde a uma fala direcionada a ele (não no "Falar
-com Todos"), a resposta aparece com dois botões: **✅ Aprovar/Espelhar** e
-**❌ Descartar**. Só depois de aprovada ela entra de fato na história e na
-memória — isso te dá controle para pedir uma nova resposta ou simplesmente
-recusar algo que não fez sentido, antes que vire "fato" na campanha.
+A resposta de um personagem entra na história e na memória na hora. Só quando
+ela contém um `[chamar]` aparece o card **📣 Chamadas aguardando você**, com:
+
+- **Acionar {jogador}**: o chamado entra na cena (se for Cena Privada, passa a
+  lembrar dela a partir da chamada) e responde.
+- **Não acionar**: a fala de quem chamou continua registrada normalmente, mas o
+  chamado não é incluído nem respondido. Você pode então narrar o que
+  impediu a ação, com uma nova fala.
+
+A resposta do chamado pode, por sua vez, chamar outro jogador e passar pela
+mesma aprovação.
 
 ### Sistema de memória (rodada → cena → mesa)
 
@@ -678,11 +693,13 @@ memória, o diálogo apenas avisa, sem oferecer compressão.
 ### Balões de fala
 
 Cada card de jogador (na tela principal e no Modo por Turnos) mostra um
-balão com a última fala dele:
-- **Cinza sólido** — fala já aprovada e registrada na história.
-- **Amarelo tracejado** — resposta gerada, ainda aguardando sua aprovação.
-- **Roxo em itálico (💭)** — um `[pensamento]` privado; só o mestre vê esse
-  balão, e ele nunca é compartilhado com os outros personagens.
+balão com a última fala dele, que só o mestre vê por inteiro:
+- **Cinza sólido** — fala registrada na história.
+- **💭 Pensamento** — quando o personagem pensa algo, o `[pensamento]` aparece
+  no balão antes da fala, com ícone de cérebro e texto em itálico acinzentado.
+  Só você vê; ele nunca é compartilhado com os outros personagens.
+- **Roxo tracejado** — quando a resposta foi **só** pensamento, sem fala
+  pública.
 
 O balão **cresce conforme o tamanho da resposta** (com rolagem para textos
 muito longos). No Modo por Turnos, cards inline mostram o balão **logo acima**
@@ -763,7 +780,7 @@ Detalhes importantes:
   a configuração atual da LLM é mantida; se mudar de máquina, reconfigure a
   chave. Guarde-a em local seguro.
 - Rodadas em andamento (`rodada_atual_temp.txt`) não são salvas, e o estado da
-  sessão (`sessao.json`: histórico da rodada, falas, pendências de aprovação)
+  sessão (`sessao.json`: histórico da rodada, falas, chamadas pendentes)
   também fica de fora e é limpo ao restaurar.
 - O zip é validado antes de qualquer alteração e a troca é feita com
   rollback: se algo falhar, os dados atuais permanecem.
@@ -789,7 +806,6 @@ Detalhes importantes:
 ├── scripts/
 │   ├── dev.sh              # Sobe API + front (macOS/Linux)
 │   └── dev.bat             # Sobe API + front (Windows)
-├── main.py                 # Interface de terminal (menu por texto)
 ├── rpg/                    # Core: lógica e persistência, sem dependência de interface
 │   ├── paths.py            # Caminhos absolutos de arquivos/, tokens/ e mesas/
 │   ├── config.py           # Provedores de IA, configurações e jogadores
@@ -798,7 +814,7 @@ Detalhes importantes:
 │   ├── memoria.py          # Memória rodada → cena → mesa e compressão manual
 │   ├── metricas.py         # Tokens/contexto do último prompt por personagem
 │   ├── agentes.py          # Monta o prompt e gera as respostas dos jogadores
-│   ├── tags.py             # Extração de [fala], [acao], [duvida], [pensamento]
+│   ├── tags.py             # Extração de [fala], [acao], [duvida], [chamar], [pensamento]
 │   ├── cenas.py            # Cenas pré-cadastradas
 │   ├── tokens_manager.py   # Inimigos, NPCs e itens, com imagem (pasta tokens/)
 │   ├── turno.py            # Regras e persistência do Modo por Turnos
@@ -816,7 +832,7 @@ Detalhes importantes:
     ├── jogadores.json          # Lista centralizada de jogadores da mesa
     ├── padrao_ficha.json       # Padrão de status e atributos (nome e cor)
     ├── turno.json              # Estado do Modo por Turnos (se ativo)
-    ├── sessao.json             # Rodada em andamento: histórico, falas, pendências
+    ├── sessao.json             # Rodada em andamento: histórico, falas, chamadas pendentes
     ├── regras/                 # Conjuntos de regras (um arquivo por cenário)
     │   ├── .ativa               # Marca qual arquivo está em uso agora
     │   ├── geral.txt

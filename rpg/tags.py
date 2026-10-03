@@ -1,17 +1,19 @@
 import re
+import unicodedata
 from typing import Dict, Optional
 
 
 def extrair_tags_resposta(texto: str) -> Dict[str, Optional[str]]:
-    # Extrai o conteúdo de [pensamento], [fala], [acao] e [duvida].
+    # Extrai o conteúdo de [pensamento], [fala], [acao], [duvida] e [chamar].
     if not texto:
-        return {"pensamento": None, "fala": None, "acao": None, "duvida": None}
+        return {"pensamento": None, "fala": None, "acao": None, "duvida": None, "chamar": None}
 
     padroes = {
         "pensamento": r"\[pensamento\](.*?)\[/pensamento\]",
         "fala": r"\[fala\](.*?)\[/fala\]",
         "acao": r"\[acao\](.*?)\[/acao\]",
         "duvida": r"\[duvida\](.*?)\[/duvida\]",
+        "chamar": r"\[chamar\](.*?)\[/chamar\]",
     }
 
     resultado: Dict[str, Optional[str]] = {}
@@ -26,7 +28,7 @@ def extrair_tags_resposta(texto: str) -> Dict[str, Optional[str]]:
     # Fallback: Se nenhuma tag fechada foi capturada, busca padrão [tag] até próxima tag ou fim
     if not any(resultado.values()):
         partes = re.findall(
-            r"\[(pensamento|fala|acao|duvida)\](.*?)(?=\[(?:pensamento|fala|acao|duvida|/)|$)",
+            r"\[(pensamento|fala|acao|duvida|chamar)\](.*?)(?=\[(?:pensamento|fala|acao|duvida|chamar|/)|$)",
             texto,
             re.DOTALL | re.IGNORECASE,
         )
@@ -52,6 +54,8 @@ def formatar_conteudo_publico(tags: Dict[str, Optional[str]]) -> str:
         partes.append(f'[acao]{tags["acao"]}[/acao]')
     if tags.get("duvida"):
         partes.append(f'[duvida]{tags["duvida"]}[/duvida]')
+    if tags.get("chamar"):
+        partes.append(f'[chamar]{tags["chamar"]}[/chamar]')
     return " ".join(partes).strip()
 
 
@@ -66,35 +70,29 @@ def formatar_para_autor(tags: Dict[str, Optional[str]]) -> str:
         partes.append(f'[acao]{tags["acao"]}[/acao]')
     if tags.get("duvida"):
         partes.append(f'[duvida]{tags["duvida"]}[/duvida]')
+    if tags.get("chamar"):
+        partes.append(f'[chamar]{tags["chamar"]}[/chamar]')
     return " ".join(partes).strip()
 
 
-def formatar_exibicao_amigavel(tags: Dict[str, Optional[str]]) -> str:
-    # Formata a resposta de forma limpa para exibição no chat/interface.
-    partes = []
-    if tags.get("fala"):
-        partes.append(f'"{tags["fala"]}"')
-    if tags.get("acao"):
-        partes.append(f'*{tags["acao"]}*')
-    if tags.get("duvida"):
-        partes.append(f'*(Dúvida ao Mestre: {tags["duvida"]})*')
-    return " ".join(partes).strip()
+def _normalizar_nome(nome: str) -> str:
+    sem_acento = unicodedata.normalize("NFD", nome)
+    return "".join(c for c in sem_acento if not unicodedata.combining(c)).casefold().strip()
 
 
-def tem_acao(tags: Dict[str, Optional[str]]) -> bool:
-    return bool(tags.get("acao"))
-
-
-def tem_duvida(tags: Dict[str, Optional[str]]) -> bool:
-    return bool(tags.get("duvida"))
-
-
-def tem_pensamento(tags: Dict[str, Optional[str]]) -> bool:
-    return bool(tags.get("pensamento"))
+def separar_chamada(texto: str, nomes: list) -> Optional[tuple]:
+    # "NomeExato: mensagem" -> (nome canônico, mensagem). Nome fora da lista ou sem mensagem: None.
+    m = re.match(r"\s*([^:]+?)\s*:\s*(.+)", texto or "", re.DOTALL)
+    if not m:
+        return None
+    alvo = _normalizar_nome(m.group(1))
+    for nome in nomes:
+        if _normalizar_nome(nome) == alvo:
+            return nome, m.group(2).strip()
+    return None
 
 
 def apenas_pensamento(tags: Dict[str, Optional[str]]) -> bool:
     return bool(tags.get("pensamento")) and not (
-        tags.get("fala") or tags.get("acao") or tags.get("duvida")
+        tags.get("fala") or tags.get("acao") or tags.get("duvida") or tags.get("chamar")
     )
-

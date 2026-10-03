@@ -18,10 +18,6 @@ class MotivoIn(BaseModel):
     motivo: str
 
 
-class DestinosIn(BaseModel):
-    destinos: list[str]
-
-
 def _resp(mensagem: str | None = None) -> dict:
     return {"mensagem": mensagem, "sessao": obter()}
 
@@ -93,40 +89,13 @@ def falar_direcionado(
                 os.remove(caminho)
 
 
-@router.post("/pendencias/principal/aprovar")
-def aprovar_principal():
+@router.post("/pendencias/chamada/{chamada_id}/aprovar")
+def aprovar_chamada(chamada_id: str):
     with trava_mestre():
-        return _resp(mestre.aprovar_principal())
+        return _resp(mestre.aprovar_chamada(chamada_id))
 
 
-@router.post("/pendencias/principal/descartar")
-def descartar_principal():
+@router.post("/pendencias/chamada/{chamada_id}/descartar")
+def descartar_chamada(chamada_id: str):
     with trava_mestre():
-        return _resp(mestre.descartar_principal())
-
-
-@router.post("/pendencias/redirect/gerar")
-def gerar_redirects(body: DestinosIn):
-    with trava_mestre():
-        return _resp(mestre.gerar_redirects(body.destinos))
-
-
-@router.post("/pendencias/redirect/ignorar")
-def ignorar_redirect():
-    with trava_mestre():
-        mestre.ignorar_redirect()
-        return _resp()
-
-
-@router.post("/pendencias/redirect/{redirect_id}/aprovar")
-def aprovar_redirect(redirect_id: str):
-    with trava_mestre():
-        mestre.aprovar_redirect(redirect_id)
-        return _resp()
-
-
-@router.post("/pendencias/redirect/{redirect_id}/descartar")
-def descartar_redirect(redirect_id: str):
-    with trava_mestre():
-        mestre.descartar_redirect(redirect_id)
-        return _resp()
+        return _resp(mestre.descartar_chamada(chamada_id))

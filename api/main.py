@@ -18,7 +18,6 @@ from services import eventos  # noqa: E402
 from services.sessao import ErroNegocio  # noqa: E402
 from api.routers import (  # noqa: E402
     config, jogadores, fichas, regras, cenas, tokens, memoria, turno, mesas, mestre, sessao,
-    modo_teste,  # MODO-TESTE
 )
 
 
@@ -43,7 +42,7 @@ async def erro_negocio(_: Request, exc: ErroNegocio):
     return JSONResponse(status_code=400, content={"detail": str(exc)})
 
 
-for r in (config, jogadores, fichas, regras, cenas, tokens, memoria, turno, mesas, mestre, sessao, modo_teste):  # MODO-TESTE (remover modo_teste daqui)
+for r in (config, jogadores, fichas, regras, cenas, tokens, memoria, turno, mesas, mestre, sessao):
     app.include_router(r.router, prefix="/api")
 
 # Produção: se o front foi compilado (npm run build), a API também o serve.

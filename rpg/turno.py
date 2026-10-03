@@ -276,6 +276,24 @@ def atualizar_ficha_token(token_id: str, nova_ficha_dados: dict) -> bool:
     return False
 
 
+def ajustar_status_token(token_id: str, nome_status: str, delta: int) -> bool:
+    # Soma o delta ao valor atual do status do token, entre 0 e o máximo.
+    dados = carregar_turno()
+    if not dados:
+        return False
+
+    for t in dados["tokens"]:
+        if t["id"] != token_id:
+            continue
+        for s in t["ficha_dados"].get("status", []):
+            if s.get("nome") == nome_status:
+                maximo = int(s.get("valor_max") or 0)
+                s["valor_atual"] = max(0, min(maximo, int(s.get("valor_atual") or 0) + delta))
+                salvar_turno(dados)
+                return True
+    return False
+
+
 # --- GESTÃO DE ORDENS E FLUXO ---
 
 def atualizar_ordem_participante(participante_id: str, ordem: int | None) -> bool:

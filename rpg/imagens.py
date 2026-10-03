@@ -4,80 +4,8 @@ import tempfile
 import uuid
 
 from rpg.memoria import obter_pasta_agente
-from rpg.paths import ARQUIVOS
 
 _EXTENSOES_AVATAR = (".png", ".jpg", ".jpeg", ".webp")
-
-
-def selecionar_imagem_interativa(
-    pasta_base: str = os.path.join(ARQUIVOS, "img"),
-) -> str:
-    # Navegação por pastas via terminal (usada apenas pelo main.py em modo CLI).
-    if not os.path.exists(pasta_base):
-        print(f"⚠️ A pasta '{pasta_base}' não existe no diretório atual.")
-        return None
-
-    pasta_atual = pasta_base
-
-    while True:
-        itens = os.listdir(pasta_atual)
-        subpastas = [d for d in itens if os.path.isdir(os.path.join(pasta_atual, d))]
-        imagens = [
-            f
-            for f in itens
-            if os.path.isfile(os.path.join(pasta_atual, f))
-            and f.lower().endswith((".png", ".jpg", ".jpeg", ".webp"))
-        ]
-
-        opcoes = []
-        print(f"\n📂 Diretório atual: [{pasta_atual}]")
-
-        if pasta_atual != pasta_base:
-            opcoes.append(("VOLTAR", ".."))
-            print("  0. 🔙 [Voltar pasta]")
-
-        idx = 1
-        for sp in subpastas:
-            opcoes.append(("PASTA", sp))
-            print(f"  {idx}. 📁 {sp}/")
-            idx += 1
-
-        for img in imagens:
-            opcoes.append(("ARQUIVO", img))
-            print(f"  {idx}. 🖼️ {img}")
-            idx += 1
-
-        if not subpastas and not imagens:
-            print("  (Nenhum arquivo ou subpasta encontrado aqui)")
-
-        escolha = input("\nEscolha o número do item (ou Enter para cancelar): ").strip()
-
-        if not escolha:
-            return None
-
-        if not escolha.isdigit():
-            print("❌ Por favor, digite um número válido.")
-            continue
-
-        num = int(escolha)
-
-        if pasta_atual != pasta_base and num == 0:
-            pasta_atual = os.path.dirname(pasta_atual)
-            continue
-
-        offset = 1 if pasta_atual != pasta_base else 0
-
-        if 0 <= num - 1 < len(opcoes):
-            tipo, nome = opcoes[num - 1]
-            caminho_escolhido = os.path.join(pasta_atual, nome)
-
-            if tipo == "PASTA":
-                pasta_atual = caminho_escolhido
-            elif tipo == "ARQUIVO":
-                print(f"✅ Imagem selecionada: {caminho_escolhido}")
-                return caminho_escolhido
-        else:
-            print("❌ Opção fora do limite!")
 
 
 def salvar_imagem_upload(nome_arquivo: str, conteudo: bytes) -> str:

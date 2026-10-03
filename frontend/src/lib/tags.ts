@@ -1,7 +1,7 @@
-// Separa o texto das respostas dos agentes ([fala], [acao], [duvida], [pensamento]) em segmentos.
-export type Segmento = { tipo: 'fala' | 'acao' | 'duvida' | 'pensamento'; texto: string }
+// Separa o texto das respostas dos agentes ([fala], [acao], [duvida], [pensamento], [chamar]) em segmentos.
+export type Segmento = { tipo: 'fala' | 'acao' | 'duvida' | 'pensamento' | 'chamar'; texto: string }
 
-const RE = /\[(pensamento|fala|acao|duvida)\](.*?)(?:\[\/\1\]|(?=\[(?:pensamento|fala|acao|duvida)\])|$)/gis
+const RE = /\[(pensamento|fala|acao|duvida|chamar)\](.*?)(?:\[\/\1\]|(?=\[(?:pensamento|fala|acao|duvida)\])|$)/gis
 
 export function parseTags(texto: string): Segmento[] {
   const segs: Segmento[] = []

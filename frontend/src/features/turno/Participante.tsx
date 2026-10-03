@@ -57,7 +57,7 @@ export function CardParticipante({
         {onFicha && <Button variant="ghost" size="icon-sm" onClick={onFicha} aria-label="Ficha do token"><ScrollText /></Button>}
         {onRemover && <Button variant="ghost" size="icon-sm" onClick={onRemover} aria-label="Remover do combate" className="hover:text-destructive"><Trash2 /></Button>}
       </div>
-      <StatusBars status={status} compacto />
+      <StatusBars status={status} compacto urlAjuste={p.tipo === 'personagem' ? `/fichas/${p.nome}/status/ajustar` : `/turno/tokens/${p.id}/status/ajustar`} />
       {p.tipo === 'personagem' && <ContextoBarra ctx={p.jogador?.contexto ?? null} compacto />}
     </div>
   )

@@ -1,4 +1,4 @@
-# Ações do mestre (iniciar/cancelar/finalizar rodada, falar, aprovar, redirecionar dúvidas).
+# Ações do mestre (iniciar/cancelar/finalizar rodada, falar, aprovar ou não o acionamento de outro jogador).
 # O estado da mesa vem de services.sessao; as rotas em api/routers/mestre.py só chamam estas funções.
 import uuid
 
@@ -8,9 +8,9 @@ from rpg.agentes import gerar_resposta_agente
 from rpg.tags import (
     extrair_tags_resposta,
     formatar_conteudo_publico,
-    tem_acao,
-    tem_duvida,
     apenas_pensamento,
+    formatar_para_autor,
+    separar_chamada,
 )
 
 from services import eventos
@@ -72,9 +72,7 @@ def iniciar_rodada() -> str:
 
 
 def _limpar_pendencias(s: dict):
-    s["pending_principal"] = None
-    s["pending_redirects"] = []
-    s["aguardando_redirect"] = None
+    s["pending_chamadas"] = []
 
 
 def cancelar_rodada(motivo: str) -> str:
@@ -116,6 +114,60 @@ def finalizar_rodada() -> str:
     return "⏹️ Rodada finalizada e memória consolidada."
 
 
+_TAGS = "[pensamento], [fala], [acao], [duvida] ou [chamar]"
+
+
+def _preparar_resposta(agente: str, resposta: str):
+    # Chamada inválida (nome desconhecido, o próprio autor ou sem mensagem) vira fala comum.
+    tags = extrair_tags_resposta(resposta)
+    chamada = None
+    if tags.get("chamar"):
+        nomes = [n for n in carregar_agentes() if n != agente]
+        chamada = separar_chamada(tags["chamar"], nomes)
+        if not chamada:
+            tags["fala"] = " ".join(filter(None, [tags.get("fala"), tags["chamar"]]))
+            tags["chamar"] = None
+            resposta = formatar_para_autor(tags)
+    return resposta, tags, chamada
+
+
+def _processar_resposta(agente: str, resposta: str, presentes: list[str], rotulo: str = "") -> str | None:
+    # Aplica a resposta na hora (histórico, balão e memória de quem presencia). Só o efeito de
+    # chamar outro jogador fica pendente da aprovação do mestre.
+    s = obter()
+    resposta, tags, chamada = _preparar_resposta(agente, resposta)
+    publico = formatar_conteudo_publico(tags)
+
+    _pensamento_de(agente, tags)
+
+    autor = f"{agente} ({rotulo})" if rotulo else agente
+    if publico:
+        s["historico"].append(f"{autor}: {publico}")
+        registrar_fala(agente, _fala_do_mestre(tags, publico), aprovada=True, privado=False)
+        if s["rodada_ativa"]:
+            GerenciadorMemoriaRPG.salvar_resposta_agente(agente, resposta, presentes)
+    elif not tags.get("pensamento"):
+        log_ag = f"{autor}: {resposta}"
+        s["historico"].append(log_ag)
+        registrar_fala(agente, resposta, aprovada=True, privado=False)
+        if s["rodada_ativa"]:
+            GerenciadorMemoriaRPG.salvar_log_rodada_atual(log_ag, presentes)
+
+    if chamada:
+        s["pending_chamadas"].append({
+            "id": uuid.uuid4().hex[:8],
+            "origem": agente,
+            "destino": chamada[0],
+            "mensagem": chamada[1],
+            "conteudo_publico": publico,
+            "presentes": list(presentes),
+        })
+    salvar()
+    if apenas_pensamento(tags):
+        return f"💭 {agente} teve um pensamento privado — não realizou ações públicas neste turno."
+    return None
+
+
 def falar_com_todos(comando: str, caminho_imagem=None) -> str | None:
     s = obter()
     presentes = carregar_agentes()
@@ -133,33 +185,21 @@ def falar_com_todos(comando: str, caminho_imagem=None) -> str | None:
     for ag in presentes:
         resposta = _gerar(
             ag,
-            f"O mestre disse a todos: '{comando}'. Dê sua reação no formato com tags [pensamento], [fala], [acao] ou [duvida].",
+            f"O mestre disse a todos: '{comando}'. Dê sua reação no formato com tags {_TAGS}.",
             caminho_imagem,
         )
-        tags = extrair_tags_resposta(resposta)
-        publico = formatar_conteudo_publico(tags)
-
-        _pensamento_de(ag, tags)
-
-        if publico:
-            s["historico"].append(f"{ag}: {publico}")
-            registrar_fala(ag, _fala_do_mestre(tags, publico), aprovada=True, privado=False)
-            if s["rodada_ativa"]:
-                GerenciadorMemoriaRPG.salvar_resposta_agente(ag, resposta, presentes)
-        elif not tags.get("pensamento"):
-            log_ag = f"{ag}: {resposta}"
-            s["historico"].append(log_ag)
-            registrar_fala(ag, resposta, aprovada=True, privado=False)
-            if s["rodada_ativa"]:
-                GerenciadorMemoriaRPG.salvar_log_rodada_atual(log_ag, presentes)
-        salvar()
+        _processar_resposta(ag, resposta, presentes)
     return None
 
 
 def falar_direcionado(presentes: list[str], is_privado: bool, comando: str, caminho_imagem=None) -> str | None:
+    # Pública: a mesa toda ouve (memória de todos) e só o alvo responde.
+    # Privada: só os selecionados ouvem e todos eles respondem, em sequência.
     s = obter()
     if not presentes:
         raise ErroNegocio("Selecione ao menos um jogador.")
+    if not is_privado and len(presentes) > 1:
+        raise ErroNegocio("Selecione apenas um jogador (ou use Cena privada para um grupo).")
 
     agentes_alvo_log = presentes if is_privado else carregar_agentes()
     for p in agentes_alvo_log:
@@ -171,175 +211,49 @@ def falar_direcionado(presentes: list[str], is_privado: bool, comando: str, cami
         GerenciadorMemoriaRPG.salvar_log_rodada_atual(log_mestre, agentes_alvo_log)
     salvar()
 
-    alvo = presentes[0]
+    mensagens = []
+    for alvo in presentes:
+        resposta = _gerar(
+            alvo,
+            f"O mestre direcionou a você: '{comando}'. Responda usando as tags {_TAGS}.",
+            caminho_imagem,
+        )
+        msg = _processar_resposta(alvo, resposta, agentes_alvo_log)
+        if msg:
+            mensagens.append(msg)
+    return "\n".join(mensagens) or None
+
+
+def _tirar_chamada(chamada_id: str) -> dict:
+    s = obter()
+    for i, c in enumerate(s["pending_chamadas"]):
+        if c["id"] == chamada_id:
+            return s["pending_chamadas"].pop(i)
+    raise ErroNegocio("Chamada pendente não encontrada.")
+
+
+def aprovar_chamada(chamada_id: str) -> str | None:
+    # Aciona o jogador chamado: entra na cena (se ainda não estava) e responde.
+    s = obter()
+    c = _tirar_chamada(chamada_id)
+    origem, destino = c["origem"], c["destino"]
+    presentes = list(c["presentes"])
+    if destino not in presentes:
+        presentes.append(destino)
+        if s["rodada_ativa"] and c["conteudo_publico"]:
+            GerenciadorMemoriaRPG.salvar_log_rodada_atual(f"{origem}: {c['conteudo_publico']}", [destino])
+    _envolver(destino)
+    salvar()
+
     resposta = _gerar(
-        alvo,
-        f"O mestre direcionou a você: '{comando}'. Responda usando as tags [pensamento], [fala], [acao] ou [duvida].",
-        caminho_imagem,
+        destino,
+        f"{origem} chamou você: '{c['mensagem']}'. Responda usando as tags {_TAGS}.",
     )
-    tags = extrair_tags_resposta(resposta)
-    publico = formatar_conteudo_publico(tags)
+    return _processar_resposta(destino, resposta, presentes, f"chamado por {origem}")
 
-    _pensamento_de(alvo, tags)
 
-    if apenas_pensamento(tags):
-        salvar()
-        return f"💭 {alvo} teve um pensamento privado — não realizou ações públicas neste turno."
-
-    conteudo = publico or resposta
-    s["pending_principal"] = {
-        "alvo": alvo,
-        "resposta_completa": resposta,
-        "conteudo_publico": conteudo,
-        "tags": tags,
-        "presentes": presentes,
-        "agentes_alvo_log": agentes_alvo_log,
-    }
-    registrar_fala(alvo, _fala_do_mestre(tags, conteudo), aprovada=False, privado=False)
+def descartar_chamada(chamada_id: str) -> str:
+    # Não aciona ninguém; a fala/ação de quem chamou continua registrada.
+    c = _tirar_chamada(chamada_id)
     salvar()
-    return None
-
-
-def aprovar_principal() -> str | None:
-    s = obter()
-    p = s["pending_principal"]
-    if not p:
-        raise ErroNegocio("Não há resposta pendente.")
-    tags = p.get("tags") or extrair_tags_resposta(p["resposta_completa"])
-    publico = p["conteudo_publico"]
-    mensagem = None
-
-    s["historico"].append(f"{p['alvo']}: {publico}")
-    registrar_fala(p["alvo"], _fala_do_mestre(tags, publico), aprovada=True, privado=False)
-    if s["rodada_ativa"]:
-        GerenciadorMemoriaRPG.salvar_resposta_agente(
-            p["alvo"], p["resposta_completa"], p["agentes_alvo_log"]
-        )
-
-    outros = [x for x in p["presentes"] if x != p["alvo"]]
-    # A pendência sai antes das chamadas longas: evita aprovar duas vezes.
-    s["pending_principal"] = None
-    salvar()
-
-    if tem_duvida(tags) and outros:
-        s["aguardando_redirect"] = {
-            "candidatos": list(outros),
-            "alvo_principal": p["alvo"],
-            "resposta_pergunta": tags.get("duvida") or publico,
-            "agentes_alvo_log": p["agentes_alvo_log"],
-        }
-    elif tem_acao(tags):
-        mensagem = f"✅ Ação de {p['alvo']} resolvida. Nenhuma reação automática dos demais."
-    elif outros:
-        for ou in outros:
-            resp_outro = _gerar(
-                ou,
-                f"O jogador {p['alvo']} acabou de dizer/fazer: '{publico}'. Você concorda, opina, faz ressalva "
-                f"ou apenas pensa a respeito? Use as tags [pensamento], [fala], [acao] ou [duvida]. Seja breve.",
-            )
-            tags_outro = extrair_tags_resposta(resp_outro)
-            publico_outro = formatar_conteudo_publico(tags_outro)
-
-            _pensamento_de(ou, tags_outro)
-
-            if publico_outro:
-                s["historico"].append(f"{ou} (opinião): {publico_outro}")
-                registrar_fala(ou, _fala_do_mestre(tags_outro, publico_outro), aprovada=True, privado=False)
-                if s["rodada_ativa"]:
-                    GerenciadorMemoriaRPG.salvar_resposta_agente(
-                        ou, resp_outro, p["agentes_alvo_log"]
-                    )
-            salvar()
-    salvar()
-    return mensagem
-
-
-def descartar_principal() -> str:
-    s = obter()
-    p = s["pending_principal"]
-    if not p:
-        raise ErroNegocio("Não há resposta pendente.")
-    limpar_fala(p["alvo"])
-    s["pending_principal"] = None
-    salvar()
-    return "❌ Mensagem descartada. Nada foi salvo na história."
-
-
-def ignorar_redirect():
-    s = obter()
-    s["aguardando_redirect"] = None
-    salvar()
-
-
-def gerar_redirects(destinos: list[str]) -> str | None:
-    s = obter()
-    ar = s["aguardando_redirect"]
-    if not ar:
-        raise ErroNegocio("Não há dúvida aguardando redirecionamento.")
-    invalidos = [d for d in destinos if d not in ar["candidatos"]]
-    if invalidos or not destinos:
-        raise ErroNegocio("Destinos inválidos para esta dúvida.")
-
-    pendentes = []
-    for destino in destinos:
-        resp = _gerar(
-            destino,
-            f"{ar['alvo_principal']} perguntou diretamente a você: '{ar['resposta_pergunta']}'. "
-            f"Responda diretamente usando as tags [pensamento], [fala], [acao] ou [duvida].",
-        )
-        tags = extrair_tags_resposta(resp)
-        publico = formatar_conteudo_publico(tags)
-
-        _pensamento_de(destino, tags)
-
-        if apenas_pensamento(tags):
-            continue
-
-        conteudo = publico or resp
-        pendentes.append(
-            {
-                "id": uuid.uuid4().hex[:8],
-                "destino": destino,
-                "resposta_completa": resp,
-                "conteudo_publico": conteudo,
-                "tags": tags,
-                "alvo_principal": ar["alvo_principal"],
-                "agentes_alvo_log": ar["agentes_alvo_log"],
-            }
-        )
-        registrar_fala(destino, _fala_do_mestre(tags, conteudo), aprovada=False, privado=False)
-
-    s["pending_redirects"] = pendentes
-    s["aguardando_redirect"] = None
-    salvar()
-    if not pendentes:
-        return "💭 A resposta foi um pensamento privado — não há nada para aprovar/espelhar."
-    return None
-
-
-def _tirar_redirect(redirect_id: str) -> dict:
-    s = obter()
-    for i, r in enumerate(s["pending_redirects"]):
-        if r["id"] == redirect_id:
-            return s["pending_redirects"].pop(i)
-    raise ErroNegocio("Resposta pendente não encontrada.")
-
-
-def aprovar_redirect(redirect_id: str):
-    r = _tirar_redirect(redirect_id)
-    s = obter()
-    s["historico"].append(
-        f"{r['destino']} (resposta a {r['alvo_principal']}): {r['conteudo_publico']}"
-    )
-    registrar_fala(r["destino"], _fala_do_mestre(r.get("tags") or {}, r["conteudo_publico"]), aprovada=True, privado=False)
-    if s["rodada_ativa"]:
-        GerenciadorMemoriaRPG.salvar_resposta_agente(
-            r["destino"], r["resposta_completa"], r["agentes_alvo_log"]
-        )
-    salvar()
-
-
-def descartar_redirect(redirect_id: str):
-    r = _tirar_redirect(redirect_id)
-    limpar_fala(r["destino"])
-    salvar()
+    return f"Chamada não acionada: {c['destino']} não foi chamado. A fala de {c['origem']} continua registrada."

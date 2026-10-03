@@ -16,6 +16,7 @@ export function TaggedText({ texto, className, plano }: { texto: string; classNa
             </em>
           )
         if (s.tipo === 'acao') return <em key={i} className="block text-amber-200/90">⚔️ {s.texto}</em>
+        if (s.tipo === 'chamar') return <span key={i} className="block text-emerald-300">📣 {s.texto}</span>
         if (s.tipo === 'duvida') return <span key={i} className="block text-sky-300">❓ {s.texto}</span>
         return <span key={i} className="block">“{s.texto}”</span>
       })}

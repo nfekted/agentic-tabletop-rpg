@@ -36,39 +36,20 @@ export type Tags = {
 
 export type Fala = { seq: number; texto: string; aprovada: boolean; privado: boolean }
 
-export type PendingPrincipal = {
-  alvo: string
-  resposta_completa: string
-  conteudo_publico: string
-  tags: Tags
-  presentes: string[]
-  agentes_alvo_log: string[]
-}
-
-export type AguardandoRedirect = {
-  candidatos: string[]
-  alvo_principal: string
-  resposta_pergunta: string
-  agentes_alvo_log: string[]
-}
-
-export type PendingRedirect = {
+export type PendingChamada = {
   id: string
+  origem: string
   destino: string
-  resposta_completa: string
+  mensagem: string
   conteudo_publico: string
-  tags: Tags
-  alvo_principal: string
-  agentes_alvo_log: string[]
+  presentes: string[]
 }
 
 export type Sessao = {
   historico: string[]
   rodada_ativa: boolean
   envolvidos: string[]
-  pending_principal: PendingPrincipal | null
-  aguardando_redirect: AguardandoRedirect | null
-  pending_redirects: PendingRedirect[]
+  pending_chamadas: PendingChamada[]
   ultima_fala: Record<string, Fala>
   seq_fala: number
 }

@@ -1,11 +1,11 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from api.deps import agente_valido
 from rpg.config import obter_modificadores_jogador, salvar_modificadores_jogador
 from rpg.fichas import (
-    carregar_ficha, carregar_padrao, carregar_subarquivos_ficha, padrao_configurado,
-    salvar_padrao, salvar_subarquivos_ficha,
+    carregar_ficha, carregar_padrao, carregar_status_jogador, carregar_subarquivos_ficha,
+    padrao_configurado, salvar_padrao, salvar_status_jogador, salvar_subarquivos_ficha,
 )
 
 router = APIRouter(tags=["fichas"])
@@ -78,6 +78,11 @@ class PadraoIn(BaseModel):
     atributos: list[PadraoAtributo] = []
 
 
+class AjusteStatus(BaseModel):
+    nome: str
+    delta: int
+
+
 class FichaIn(BaseModel):
     modificadores: str = ""
     base: Base
@@ -120,6 +125,19 @@ def salvar(nome: str, body: FichaIn):
     salvar_subarquivos_ficha(nome, dados)
     salvar_modificadores_jogador(nome, body.modificadores)
     return _ficha(nome)
+
+
+@router.post("/fichas/{nome}/status/ajustar")
+def ajustar_status(nome: str, body: AjusteStatus):
+    # Soma o delta ao valor atual do status, entre 0 e o máximo.
+    nome = agente_valido(nome)
+    status = carregar_status_jogador(nome)
+    alvo = next((s for s in status if s["nome"] == body.nome), None)
+    if not alvo:
+        raise HTTPException(404, "Status não encontrado.")
+    alvo["valor_atual"] = max(0, min(alvo["valor_max"], alvo["valor_atual"] + body.delta))
+    salvar_status_jogador(nome, status)
+    return status
 
 
 @router.get("/fichas/{nome}/consolidada")
