@@ -1,4 +1,9 @@
+<<<<<<< HEAD
 # Ações do mestre: rodada, falas e aprovação de chamadas (estado em services.sessao)
+=======
+# Ações do mestre (iniciar/cancelar/finalizar rodada, falar, aprovar ou não o acionamento de outro jogador).
+# O estado da mesa vem de services.sessao; as rotas em api/routers/mestre.py só chamam estas funções.
+>>>>>>> 8f67636c9239712b2781561160167cbc4bbe1a84
 import uuid
 
 from rpg.config import carregar_agentes
@@ -48,7 +53,11 @@ def salvar_pensamento_privado(agente: str, resposta: str):
 
 
 def _fala_do_mestre(tags: dict, publico: str) -> str:
+<<<<<<< HEAD
     # texto do balão (só o mestre vê): o pensamento vem antes da parte pública
+=======
+    # Texto do balão (só o mestre vê): o pensamento do personagem vem antes da parte pública.
+>>>>>>> 8f67636c9239712b2781561160167cbc4bbe1a84
     pensamento = tags.get("pensamento")
     return f"[pensamento]{pensamento}[/pensamento]\n{publico}" if pensamento else publico
 
@@ -130,7 +139,12 @@ def _preparar_resposta(agente: str, resposta: str):
 
 
 def _processar_resposta(agente: str, resposta: str, presentes: list[str], rotulo: str = "") -> str | None:
+<<<<<<< HEAD
     # aplica na hora; só o efeito de chamar outro jogador espera a aprovação do mestre
+=======
+    # Aplica a resposta na hora (histórico, balão e memória de quem presencia). Só o efeito de
+    # chamar outro jogador fica pendente da aprovação do mestre.
+>>>>>>> 8f67636c9239712b2781561160167cbc4bbe1a84
     s = obter()
     resposta, tags, chamada = _preparar_resposta(agente, resposta)
     publico = formatar_conteudo_publico(tags)
@@ -190,12 +204,13 @@ def falar_com_todos(comando: str, caminho_imagem=None) -> str | None:
 
 
 def falar_direcionado(presentes: list[str], is_privado: bool, comando: str, caminho_imagem=None) -> str | None:
+<<<<<<< HEAD
     # pública: todos ouvem e só o alvo responde; privada: só os selecionados ouvem e respondem
-    s = obter()
-    if not presentes:
-        raise ErroNegocio("Selecione ao menos um jogador.")
-    if not is_privado and len(presentes) > 1:
-        raise ErroNegocio("Selecione apenas um jogador (ou use Cena privada para um grupo).")
+=======
+    # Pública: a mesa toda ouve (memória de todos) e só o alvo responde.
+    # Privada: só os selecionados ouvem e todos eles respondem, em sequência.
+>>>>>>> 8f67636c9239712b2781561160167cbc4bbe1a84
+gador (ou use Cena privada para um grupo).")
 
     agentes_alvo_log = presentes if is_privado else carregar_agentes()
     for p in agentes_alvo_log:

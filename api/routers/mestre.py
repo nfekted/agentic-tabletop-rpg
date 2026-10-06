@@ -89,12 +89,10 @@ def falar_direcionado(
     with trava_mestre(), _imagem_temporaria(imagem) as caminho:
         return _resp(mestre.falar_direcionado(presentes, privado, comando, caminho))
 
-
 @router.post("/pendencias/chamada/{chamada_id}/aprovar")
 def aprovar_chamada(chamada_id: str):
     with trava_mestre():
         return _resp(mestre.aprovar_chamada(chamada_id))
-
 
 @router.post("/pendencias/chamada/{chamada_id}/descartar")
 def descartar_chamada(chamada_id: str):
