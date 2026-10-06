@@ -2,23 +2,23 @@ import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { Status } from '@/lib/types'
+import { NumInput } from './ValoresPadrao'
+import { patchAt, removeAt } from '@/lib/utils'
+import { InputCor } from '@/components/InputCor'
 
 // Editor de status dinâmicos (vida, mana...): usado na ficha dos jogadores e na dos tokens do combate.
 export function StatusEditor({ status, onChange }: { status: Status[]; onChange: (s: Status[]) => void }) {
   const set = (i: number, patch: Partial<Status>) =>
-    onChange(status.map((s, k) => (k === i ? { ...s, ...patch } : s)))
+    onChange(patchAt(status, i, patch))
   return (
     <div className="space-y-2">
       {status.map((s, i) => (
         <div key={i} className="grid grid-cols-[1fr_4.5rem_4.5rem_2.5rem_2rem] items-center gap-2">
           <Input value={s.nome} onChange={(e) => set(i, { nome: e.target.value })} placeholder="Nome" aria-label="Nome do status" />
-          <Input type="number" value={s.valor_atual} onChange={(e) => set(i, { valor_atual: Number(e.target.value) })} aria-label="Valor atual" />
-          <Input type="number" value={s.valor_max} onChange={(e) => set(i, { valor_max: Number(e.target.value) })} aria-label="Valor máximo" />
-          <input
-            type="color" value={s.cor} onChange={(e) => set(i, { cor: e.target.value })}
-            className="h-8 w-full cursor-pointer rounded-md border bg-transparent" aria-label="Cor"
-          />
-          <Button variant="ghost" size="icon-sm" onClick={() => onChange(status.filter((_, k) => k !== i))} aria-label="Remover status">
+          <NumInput valor={s.valor_atual} onChange={(n) => set(i, { valor_atual: n })} rotulo="Valor atual" />
+          <NumInput valor={s.valor_max} onChange={(n) => set(i, { valor_max: n })} rotulo="Valor máximo" />
+          <InputCor value={s.cor} onChange={(cor) => set(i, { cor })} />
+          <Button variant="ghost" size="icon-sm" onClick={() => onChange(removeAt(status, i))} aria-label="Remover status">
             <Trash2 />
           </Button>
         </div>

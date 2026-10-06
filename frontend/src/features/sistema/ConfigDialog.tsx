@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { DialogAberto } from '@/components/DialogAberto'
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -9,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAcao, useConfig } from '@/hooks/queries'
 import { api } from '@/lib/api'
 import type { Config } from '@/lib/types'
+import { Carregando } from '@/components/Carregando'
 
 function Campo({ id, rotulo, dica, children }: { id: string; rotulo: string; dica?: string; children: React.ReactNode }) {
   return (
@@ -80,14 +82,14 @@ function Form({ inicial, onFechar }: { inicial: Config; onFechar: () => void }) 
 export function ConfigDialog({ onFechar }: { onFechar: () => void }) {
   const { data } = useConfig()
   return (
-    <Dialog open onOpenChange={(o) => !o && onFechar()}>
+    <DialogAberto onFechar={onFechar}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>⚙️ Configurações da LLM</DialogTitle>
           <DialogDescription>Provedor de modelo e controle de contexto.</DialogDescription>
         </DialogHeader>
-        {data ? <Form inicial={data} onFechar={onFechar} /> : <p className="text-sm text-muted-foreground">Carregando…</p>}
+        {data ? <Form inicial={data} onFechar={onFechar} /> : <Carregando />}
       </DialogContent>
-    </Dialog>
+    </DialogAberto>
   )
 }

@@ -8,9 +8,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { useAcao, useTokens } from '@/hooks/queries'
 import { api, tokenImagemUrl } from '@/lib/api'
 import type { TokenCategoria } from '@/lib/types'
-import { cn } from '@/lib/utils'
+import { Carregando } from '@/components/Carregando'
+import { IMAGENS_ACEITAS, cn, semTxt } from '@/lib/utils'
 
-export function TokenThumb({ categoria, arquivo, tem, className }: { categoria: string; arquivo: string; tem: boolean; className?: string }) {
+function TokenThumb({ categoria, arquivo, tem, className }: { categoria: string; arquivo: string; tem: boolean; className?: string }) {
   return tem ? (
     <img src={tokenImagemUrl(categoria, arquivo)} alt="" className={cn('size-10 shrink-0 rounded-lg object-cover ring-1 ring-border', className)} />
   ) : (
@@ -40,8 +41,8 @@ function Editor({ categoria, arquivo, temImagem }: { categoria: string; arquivo:
           ? <img src={tokenImagemUrl(categoria, arquivo, bust)} alt="" className="size-20 rounded-xl object-cover ring-1 ring-border" />
           : <div className="flex size-20 items-center justify-center rounded-xl bg-muted text-muted-foreground"><Skull /></div>}
         <div className="space-y-1.5">
-          <p className="font-medium">{arquivo.replace(/\.txt$/, '')}</p>
-          <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" hidden
+          <p className="font-medium">{semTxt(arquivo)}</p>
+          <input ref={input} type="file" accept={IMAGENS_ACEITAS} hidden
             onChange={(e) => { const f = e.target.files?.[0]; if (f) enviarImg.mutate(f); e.target.value = '' }} />
           <div className="flex gap-1.5">
             <Button size="sm" variant="outline" onClick={() => input.current?.click()}><ImagePlus /> Imagem</Button>
@@ -73,7 +74,7 @@ function Categoria({ id, cat }: { id: string; cat: TokenCategoria }) {
             <button key={a.arquivo} onClick={() => setSel(a.arquivo)}
               className={cn('flex w-full items-center gap-2 rounded-lg border p-1.5 text-left text-sm hover:bg-muted', atual?.arquivo === a.arquivo && 'border-primary bg-muted')}>
               <TokenThumb categoria={id} arquivo={a.arquivo} tem={a.tem_imagem} className="size-8" />
-              <span className="truncate">{a.arquivo.replace(/\.txt$/, '')}</span>
+              <span className="truncate">{semTxt(a.arquivo)}</span>
             </button>
           ))}
         </div>
@@ -93,7 +94,7 @@ function Categoria({ id, cat }: { id: string; cat: TokenCategoria }) {
 
 export function TokensView() {
   const { data } = useTokens()
-  if (!data) return <p className="text-sm text-muted-foreground">Carregando…</p>
+  if (!data) return <Carregando />
   const ids = Object.keys(data)
   return (
     <div className="space-y-4">

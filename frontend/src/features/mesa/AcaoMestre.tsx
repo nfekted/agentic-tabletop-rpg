@@ -6,14 +6,14 @@ import { useAcaoMestre, useJogadores } from '@/hooks/queries'
 import { usePensando } from '@/hooks/eventos'
 import { api } from '@/lib/api'
 import type { AcaoResposta } from '@/lib/types'
-import { cn } from '@/lib/utils'
 import { CenasDialog } from './CenasDialog'
+import { IMAGENS_ACEITAS, cn } from '@/lib/utils'
 
 type Modo = 'todos' | 'especificos' | 'privada'
 const MODOS: { id: Modo; rotulo: string; dica: string }[] = [
-  { id: 'todos', rotulo: 'Todos (público)', dica: 'Todos reagem, sem aprovação.' },
-  { id: 'especificos', rotulo: 'Jogadores específicos', dica: 'A resposta do 1º selecionado passa por aprovação.' },
-  { id: 'privada', rotulo: 'Cena privada', dica: 'Só quem está na cena lembra do que foi dito.' },
+  { id: 'todos', rotulo: 'Todos (público)', dica: 'A mesa toda ouve e todos respondem.' },
+  { id: 'especificos', rotulo: 'Jogadores específicos', dica: 'A mesa toda ouve, mas só o jogador escolhido responde.' },
+  { id: 'privada', rotulo: 'Cena privada', dica: 'Só os selecionados ouvem, lembram e respondem.' },
 ]
 
 async function enviar(modo: Modo, texto: string, alvos: string[], imagem: File | null) {
@@ -39,11 +39,14 @@ export function AcaoMestre() {
   const envio = useAcaoMestre(() => enviar(modo, texto.trim(), alvos, imagem))
   const podeEnviar = texto.trim() && (modo === 'todos' || alvos.length > 0) && !envio.isPending
 
-  const alternar = (n: string) => setAlvos((a) => (a.includes(n) ? a.filter((x) => x !== n) : [...a, n]))
-  const enviarAgora = () =>
-    envio.mutate(undefined, {
-      onSuccess: () => { setTexto(''); setImagem(null); if (inputImg.current) inputImg.current.value = '' },
-    })
+  // Jogadores específicos: um único alvo. Cena privada: um grupo.
+  const alternar = (n: string) =>
+    setAlvos((a) => (a.includes(n) ? a.filter((x) => x !== n) : modo === 'especificos' ? [n] : [...a, n]))
+  const limparImagem = () => {
+    setImagem(null)
+    if (inputImg.current) inputImg.current.value = ''
+  }
+  const enviarAgora = () => envio.mutate(undefined, { onSuccess: () => { setTexto(''); limparImagem() } })
 
   return (
     <section className="space-y-3 rounded-2xl border bg-card p-4">
@@ -56,7 +59,7 @@ export function AcaoMestre() {
             role="radio"
             aria-checked={modo === m.id}
             title={m.dica}
-            onClick={() => setModo(m.id)}
+            onClick={() => { setModo(m.id); if (m.id === 'especificos') setAlvos((a) => a.slice(0, 1)) }}
             className={cn(
               'rounded-full border px-3 py-1 text-sm transition-colors',
               modo === m.id ? 'border-primary bg-primary/15 text-primary' : 'hover:bg-muted',
@@ -103,7 +106,7 @@ export function AcaoMestre() {
         <input
           ref={inputImg}
           type="file"
-          accept="image/png,image/jpeg,image/webp"
+          accept={IMAGENS_ACEITAS}
           hidden
           onChange={(e) => setImagem(e.target.files?.[0] ?? null)}
         />
@@ -113,7 +116,7 @@ export function AcaoMestre() {
         {imagem && (
           <span className="flex items-center gap-1 rounded-lg bg-muted px-2 py-1 text-xs">
             {imagem.name}
-            <button onClick={() => { setImagem(null); if (inputImg.current) inputImg.current.value = '' }} aria-label="Remover imagem">
+            <button onClick={limparImagem} aria-label="Remover imagem">
               <X className="size-3" />
             </button>
           </span>

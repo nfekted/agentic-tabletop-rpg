@@ -1,10 +1,10 @@
-# Métricas de contexto por personagem (tokens do último prompt, calibração chars/token)
-# gravadas em arquivos/memoria_<agente>/metricas.json
+# Métricas de contexto por personagem, gravadas em arquivos/memoria_<agente>/metricas.json
 import json
 import os
 from datetime import datetime
 
 from rpg.config import carregar_configuracao
+from rpg.fichas import salvar_json
 from rpg.paths import ARQUIVOS
 
 CHARS_POR_TOKEN_PADRAO = 3.0
@@ -25,10 +25,7 @@ def carregar_metricas(agente: str) -> dict:
 
 
 def _salvar_metricas(agente: str, dados: dict):
-    caminho = caminho_metricas(agente)
-    os.makedirs(os.path.dirname(caminho), exist_ok=True)
-    with open(caminho, "w", encoding="utf-8") as f:
-        json.dump(dados, f, indent=2, ensure_ascii=False)
+    salvar_json(caminho_metricas(agente), dados)
 
 
 def _texto_da_mensagem(msg) -> str:

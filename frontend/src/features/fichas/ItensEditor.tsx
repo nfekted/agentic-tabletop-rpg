@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { Item, Itens } from '@/lib/types'
-import { cn } from '@/lib/utils'
+import { cn, patchAt, removeAt } from '@/lib/utils'
 
 type Zona = 'equipamento' | 'mochila'
 
@@ -91,7 +91,7 @@ export function ItensEditor({ valor, onChange }: { valor: Itens; onChange: (i: I
   const setLista = (z: Zona, l: Item[]) => onChange({ ...valor, [z]: l })
   const mover = (de: Zona, i: number) => {
     const para: Zona = de === 'equipamento' ? 'mochila' : 'equipamento'
-    onChange({ ...valor, [de]: valor[de].filter((_, k) => k !== i), [para]: [...valor[para], valor[de][i]] })
+    onChange({ ...valor, [de]: removeAt(valor[de], i), [para]: [...valor[para], valor[de][i]] })
   }
   const aoSoltar = (e: DragEndEvent) => {
     setArrastando(null)
@@ -131,10 +131,10 @@ export function ItensEditor({ valor, onChange }: { valor: Itens; onChange: (i: I
               }>
               {valor[z.id].map((item, i) => (
                 <Cartao key={i} item={item} zona={z.id} indice={i} destinoMover={z.mover}
-                  onChange={(patch) => setLista(z.id, valor[z.id].map((x, k) => (k === i ? { ...x, ...patch } : x)))}
+                  onChange={(patch) => setLista(z.id, patchAt(valor[z.id], i, patch))}
                   onMover={() => mover(z.id, i)}
                   onDuplicar={() => setLista(z.id, [...valor[z.id].slice(0, i + 1), { ...item }, ...valor[z.id].slice(i + 1)])}
-                  onRemover={() => setLista(z.id, valor[z.id].filter((_, k) => k !== i))} />
+                  onRemover={() => setLista(z.id, removeAt(valor[z.id], i))} />
               ))}
             </Painel>
           ))}

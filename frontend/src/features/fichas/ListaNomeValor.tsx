@@ -2,6 +2,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { ParNomeValor } from '@/lib/types'
+import { patchAt, removeAt } from '@/lib/utils'
 
 // Lista de pares nome/valor (Atributos e Perícias). Linhas sem nome não são salvas.
 export function ListaNomeValor({
@@ -15,7 +16,7 @@ export function ListaNomeValor({
   exemploValor: string
 }) {
   const set = (i: number, patch: Partial<ParNomeValor>) =>
-    onChange(itens.map((p, k) => (k === i ? { ...p, ...patch } : p)))
+    onChange(patchAt(itens, i, patch))
   const semNome = itens.some((p) => !p.nome.trim())
   return (
     <section className="space-y-2 rounded-xl border p-3">
@@ -27,7 +28,7 @@ export function ListaNomeValor({
             onChange={(e) => set(i, { nome: e.target.value })} />
           <Input value={p.valor} placeholder={`Ex.: ${exemploValor}`} aria-label="Valor"
             onChange={(e) => set(i, { valor: e.target.value })} />
-          <Button variant="ghost" size="icon-sm" aria-label="Remover" onClick={() => onChange(itens.filter((_, k) => k !== i))}>
+          <Button variant="ghost" size="icon-sm" aria-label="Remover" onClick={() => onChange(removeAt(itens, i))}>
             <Trash2 />
           </Button>
         </div>

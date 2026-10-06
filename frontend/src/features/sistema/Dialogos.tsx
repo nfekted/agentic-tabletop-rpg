@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { DialogAberto } from '@/components/DialogAberto'
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { useAcao, useAcaoMestre } from '@/hooks/queries'
@@ -13,7 +14,7 @@ export function NovoJogadorDialog({ onFechar }: { onFechar: () => void }) {
   const criar = useAcao(() => api.post('/jogadores', { nome }), [['jogadores'], ['turno']], `${nome} entrou na mesa.`)
   const enviar = () => nome.trim() && criar.mutate(undefined, { onSuccess: onFechar })
   return (
-    <Dialog open onOpenChange={(o) => !o && onFechar()}>
+    <DialogAberto onFechar={onFechar}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Adicionar jogador</DialogTitle>
@@ -25,7 +26,7 @@ export function NovoJogadorDialog({ onFechar }: { onFechar: () => void }) {
           <Button disabled={!nome.trim() || criar.isPending} onClick={enviar}>Adicionar</Button>
         </DialogFooter>
       </DialogContent>
-    </Dialog>
+    </DialogAberto>
   )
 }
 
@@ -35,7 +36,7 @@ export function ExcluirJogadorDialog({ nome, onFechar }: { nome: string; onFecha
     [['jogadores'], ['sessao'], ['turno']], `${nome} foi excluído.`,
   )
   return (
-    <Dialog open onOpenChange={(o) => !o && onFechar()}>
+    <DialogAberto onFechar={onFechar}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Excluir {nome}?</DialogTitle>
@@ -51,7 +52,7 @@ export function ExcluirJogadorDialog({ nome, onFechar }: { nome: string; onFecha
           </Button>
         </DialogFooter>
       </DialogContent>
-    </Dialog>
+    </DialogAberto>
   )
 }
 
@@ -59,7 +60,7 @@ export function CancelarRodadaDialog({ onFechar }: { onFechar: () => void }) {
   const [motivo, setMotivo] = useState('')
   const cancelar = useAcaoMestre(() => api.post<AcaoResposta>('/rodada/cancelar', { motivo }))
   return (
-    <Dialog open onOpenChange={(o) => !o && onFechar()}>
+    <DialogAberto onFechar={onFechar}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Cancelar rodada</DialogTitle>
@@ -75,6 +76,6 @@ export function CancelarRodadaDialog({ onFechar }: { onFechar: () => void }) {
           </Button>
         </DialogFooter>
       </DialogContent>
-    </Dialog>
+    </DialogAberto>
   )
 }

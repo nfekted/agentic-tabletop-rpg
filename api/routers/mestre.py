@@ -1,4 +1,5 @@
 import os
+from contextlib import contextmanager
 from typing import Annotated
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
@@ -18,10 +19,6 @@ class MotivoIn(BaseModel):
     motivo: str
 
 
-class DestinosIn(BaseModel):
-    destinos: list[str]
-
-
 def _resp(mensagem: str | None = None) -> dict:
     return {"mensagem": mensagem, "sessao": obter()}
 
@@ -33,6 +30,16 @@ def _salvar_imagem(imagem: UploadFile | None) -> str | None:
     if len(dados) > _MAX_IMAGEM:
         raise HTTPException(413, "Imagem maior que 10 MB.")
     return salvar_imagem_upload(imagem.filename, dados)
+
+
+@contextmanager
+def _imagem_temporaria(imagem: UploadFile | None):
+    caminho = _salvar_imagem(imagem)
+    try:
+        yield caminho
+    finally:
+        if caminho and os.path.exists(caminho):
+            os.remove(caminho)
 
 
 def _texto(comando: str) -> str:
@@ -66,13 +73,8 @@ def falar_todos(
     imagem: Annotated[UploadFile | None, File()] = None,
 ):
     comando = _texto(comando)
-    with trava_mestre():
-        caminho = _salvar_imagem(imagem)
-        try:
-            return _resp(mestre.falar_com_todos(comando, caminho))
-        finally:
-            if caminho and os.path.exists(caminho):
-                os.remove(caminho)
+    with trava_mestre(), _imagem_temporaria(imagem) as caminho:
+        return _resp(mestre.falar_com_todos(comando, caminho))
 
 
 @router.post("/mestre/falar-direcionado")
@@ -84,49 +86,17 @@ def falar_direcionado(
 ):
     comando = _texto(comando)
     presentes = [agente_valido(a) for a in alvos]
+    with trava_mestre(), _imagem_temporaria(imagem) as caminho:
+        return _resp(mestre.falar_direcionado(presentes, privado, comando, caminho))
+
+
+@router.post("/pendencias/chamada/{chamada_id}/aprovar")
+def aprovar_chamada(chamada_id: str):
     with trava_mestre():
-        caminho = _salvar_imagem(imagem)
-        try:
-            return _resp(mestre.falar_direcionado(presentes, privado, comando, caminho))
-        finally:
-            if caminho and os.path.exists(caminho):
-                os.remove(caminho)
+        return _resp(mestre.aprovar_chamada(chamada_id))
 
 
-@router.post("/pendencias/principal/aprovar")
-def aprovar_principal():
+@router.post("/pendencias/chamada/{chamada_id}/descartar")
+def descartar_chamada(chamada_id: str):
     with trava_mestre():
-        return _resp(mestre.aprovar_principal())
-
-
-@router.post("/pendencias/principal/descartar")
-def descartar_principal():
-    with trava_mestre():
-        return _resp(mestre.descartar_principal())
-
-
-@router.post("/pendencias/redirect/gerar")
-def gerar_redirects(body: DestinosIn):
-    with trava_mestre():
-        return _resp(mestre.gerar_redirects(body.destinos))
-
-
-@router.post("/pendencias/redirect/ignorar")
-def ignorar_redirect():
-    with trava_mestre():
-        mestre.ignorar_redirect()
-        return _resp()
-
-
-@router.post("/pendencias/redirect/{redirect_id}/aprovar")
-def aprovar_redirect(redirect_id: str):
-    with trava_mestre():
-        mestre.aprovar_redirect(redirect_id)
-        return _resp()
-
-
-@router.post("/pendencias/redirect/{redirect_id}/descartar")
-def descartar_redirect(redirect_id: str):
-    with trava_mestre():
-        mestre.descartar_redirect(redirect_id)
-        return _resp()
+        return _resp(mestre.descartar_chamada(chamada_id))

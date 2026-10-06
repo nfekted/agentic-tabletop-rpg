@@ -2,7 +2,7 @@ from typing import List
 
 from langchain_core.messages import SystemMessage, HumanMessage
 
-from rpg.config import carregar_configuracao, obter_llm
+from rpg.config import carregar_agentes, carregar_configuracao, obter_llm
 from rpg.fichas import carregar_ficha, carregar_regras
 from rpg.memoria import carregar_memoria_longo_prazo
 from rpg.metricas import registrar_chamada
@@ -10,6 +10,7 @@ from rpg.imagens import carregar_imagem_base64, obter_mimetype_imagem
 
 
 def default_prompt() -> str:
+    jogadores = ", ".join(carregar_agentes())
     return f"""
 # MESA DE RPG
 Você está em um RPG de mesa cooperativo.
@@ -33,15 +34,17 @@ Você está em um RPG de mesa cooperativo.
    - **[pensamento]...[/pensamento]**: Pensamentos internos, suspeitas ou planos. Sintético (1-2 frases). Não é ouvido pelos outros personagens.
    - **[fala]...[/fala]**: O que o personagem efetivamente diz em voz alta. Pessoas próximas podem ouvir
    - **[acao]...[/acao]**: Movimento físico ou ação conclusiva do turno.
-   - **[duvida]...[/duvida]**: Pergunta mecânica/narrativa ao Mestre.
+   - **[duvida]...[/duvida]**: Pergunta mecânica/narrativa ao Mestre (só ao Mestre).
+   - **[chamar]NomeExato: o que você diz a ele[/chamar]**: Chama outro jogador da mesa para participar da cena (ex.: `[chamar]Fulano: Pode vir ver isso?[/chamar]`). Use SOMENTE um destes nomes, escritos exatamente assim: {jogadores}. Nunca chame a si mesmo.
    
 5. **AUTONOMIA DE SEGREDO E REVELAÇÃO:**
    - **Informações Privadas:** Fatos revelados em cenas privadas, visões ou pensamentos pertencem exclusivamente ao seu personagem.
    - **Decisão de Revelar:** Você tem total autonomia para decidir SE, QUANDO e COMO compartilhar um segredo. Se optar por manter em segredo, use `[pensamento]` ou minta em `[fala]`. Só compartilhe com o grupo se o personagem achar que é o momento certo e seguro.
 
 6. **REGRA DE EXCLUSIVIDADE ([acao] vs [duvida]):**
-   - NUNCA use `[duvida]` e `[acao]` na mesma resposta.
-   - Fazer uma `[duvida]` JÁ É sua ação. Se usar `[duvida]`, OMITA a tag `[acao]`.
+   - NUNCA use `[duvida]` junto com `[acao]` ou `[chamar]` na mesma resposta.
+   - Fazer uma `[duvida]` JÁ É sua ação. Se usar `[duvida]`, OMITA as tags `[acao]` e `[chamar]`.
+   - `[chamar]` pode acompanhar `[fala]` e `[acao]`.
 
 7. **EXEMPLO DE RESPOSTA VÁLIDA:**
     [pensamento]O guarda parece desconfiado, preciso agir rápido.[/pensamento]
@@ -81,27 +84,19 @@ def montar_prompt(
     instrucao: str,
     caminho_imagem: str = None,
 ) -> List:
-    # Como o caching age de cima pra baixo, o que é menos mutavel fica por cima.
-    mensagens = []
-
-    # Adiciona em caching as regras padrões (nunca muda)
-    mensagens.append(SystemMessage(content=f"{default_prompt()}"))
-
-    # Adiciona as regras do cenário (somente quando acabar a cena)
-    mensagens.append(SystemMessage(content=f"{buscar_regras()}"))
-
-    # Adiciona memória (a cada 10 rodadas)
-    mensagens.append(SystemMessage(content=f"{buscar_memoria(nome_agente)}"))
-
-    # Adiciona a ficha do personagem (a cada ação praticamente)
-    mensagens.append(SystemMessage(content=f"{buscar_ficha(nome_agente)}"))
+    # o cache age de cima para baixo: o menos mutável vai primeiro
+    mensagens = [
+        SystemMessage(content=default_prompt()),
+        SystemMessage(content=buscar_regras()),
+        SystemMessage(content=buscar_memoria(nome_agente)),
+        SystemMessage(content=buscar_ficha(nome_agente)),
+    ]
 
     texto_turno = (
         f"## CONTEXTO RECENTE\n{historico_recente}\n\n## INSTRUÇÃO ATUAL\n{instrucao}"
     )
 
     if not caminho_imagem:
-        # Se não houver imagem, envia como mensagem de texto humana
         mensagens.append(HumanMessage(content=texto_turno))
     else:
         base64_image = carregar_imagem_base64(caminho_imagem)
@@ -126,11 +121,9 @@ def gerar_resposta_agente(
     historico_recente: List[str],
     caminho_imagem: str = None,
 ) -> str:
-    # Instancia dinamicamente o modelo configurado
     llm_jogadores = obter_llm(temperature=0.8)
 
-    # 'historico_recente' é a lista viva da rodada em aberto (historico_em_memoria em
-    # main.py/app.py), que só é resetada no "Fim da Rodada".
+    # historico_recente: lista viva da rodada (sessao["historico"]), zerada no fim da rodada
     mensagens = montar_prompt(agente, historico_recente, instrucao, caminho_imagem)
 
     resp = llm_jogadores.invoke(mensagens)

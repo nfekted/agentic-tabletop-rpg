@@ -2,6 +2,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { Habilidade, Habilidades } from '@/lib/types'
+import { patchAt, removeAt } from '@/lib/utils'
 
 const BLOCOS = [
   { chave: 'habilidades', titulo: 'Habilidades', singular: 'Habilidade', exemplo: 'Camuflar', cor: 'border-l-sky-400' },
@@ -16,7 +17,7 @@ export function HabilidadesEditor({ valor, onChange }: { valor: Habilidades; onC
       {BLOCOS.map((b) => {
         const lista = valor[b.chave]
         const set = (i: number, patch: Partial<Habilidade>) =>
-          setBloco(b.chave, lista.map((h, k) => (k === i ? { ...h, ...patch } : h)))
+          setBloco(b.chave, patchAt(lista, i, patch))
         return (
           <section key={b.chave} className={`space-y-2 rounded-xl border border-l-4 p-3 ${b.cor}`}>
             <h3 className="text-sm font-semibold">{b.titulo}</h3>
@@ -29,7 +30,7 @@ export function HabilidadesEditor({ valor, onChange }: { valor: Habilidades; onC
                   onChange={(e) => set(i, { custo: e.target.value })} />
                 <Input value={h.descricao} placeholder="Descrição" aria-label="Descrição"
                   onChange={(e) => set(i, { descricao: e.target.value })} />
-                <Button variant="ghost" size="icon-sm" aria-label="Remover" onClick={() => setBloco(b.chave, lista.filter((_, k) => k !== i))}>
+                <Button variant="ghost" size="icon-sm" aria-label="Remover" onClick={() => setBloco(b.chave, removeAt(lista, i))}>
                   <Trash2 />
                 </Button>
               </div>

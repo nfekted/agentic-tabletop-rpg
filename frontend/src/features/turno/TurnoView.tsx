@@ -1,18 +1,23 @@
 import { useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, Play, Plus, Swords, Square, StepForward } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Carregando } from '@/components/Carregando'
+import { DialogAberto } from '@/components/DialogAberto'
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { AcaoMestre } from '@/features/mesa/AcaoMestre'
+import { Historico } from '@/features/mesa/Historico'
+import { Pendencias } from '@/features/mesa/Pendencias'
 import { StatusEditor } from '@/features/fichas/StatusEditor'
 import { useJogadores, useSessao, useTokens, useTurno } from '@/hooks/queries'
-import { useMutation } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type { TurnoEstado, TurnoToken } from '@/lib/types'
+import { semTxt } from '@/lib/utils'
 import { Areas } from './Areas'
 import { FilaIniciativa } from './FilaIniciativa'
 import type { Part } from './Participante'
@@ -22,7 +27,7 @@ function FichaTokenDialog({ token, onFechar, onSalvar }: {
 }) {
   const [f, setF] = useState(token.ficha_dados)
   return (
-    <Dialog open onOpenChange={(o) => !o && onFechar()}>
+    <DialogAberto onFechar={onFechar}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>{token.tipo_icone} {token.nome_exibicao}</DialogTitle>
@@ -35,9 +40,11 @@ function FichaTokenDialog({ token, onFechar, onSalvar }: {
           <Button onClick={() => { onSalvar(f); onFechar() }}>Salvar</Button>
         </DialogFooter>
       </DialogContent>
-    </Dialog>
+    </DialogAberto>
   )
 }
+
+type AcaoTurno = () => Promise<TurnoEstado & { ok?: boolean; mensagem?: string }>
 
 export function TurnoView() {
   const qc = useQueryClient()
@@ -49,17 +56,17 @@ export function TurnoView() {
   const [arq, setArq] = useState<string>('')
   const [fichaToken, setFichaToken] = useState<string | null>(null)
 
-  // Toda ação do turno devolve o estado completo (ou { ok, mensagem, ...estado }).
+  // toda ação do turno devolve o estado completo (ou { ok, mensagem, ...estado })
   const acao = useMutation({
-    mutationFn: (fn: () => Promise<TurnoEstado & { ok?: boolean; mensagem?: string }>) => fn(),
+    mutationFn: (fn: AcaoTurno) => fn(),
     onSuccess: (r) => {
       qc.setQueryData(['turno'], { ativo: r.ativo, turno: r.turno, empates: r.empates })
       if (r.mensagem) (r.ok === false ? toast.warning : toast)(r.mensagem.replaceAll('**', ''))
     },
   })
-  const run = (fn: () => Promise<TurnoEstado & { ok?: boolean; mensagem?: string }>) => acao.mutate(fn)
+  const run = (fn: AcaoTurno) => acao.mutate(fn)
 
-  if (!estado) return <p className="text-sm text-muted-foreground">Carregando…</p>
+  if (!estado) return <Carregando />
 
   if (!estado.ativo || !estado.turno)
     return (
@@ -120,7 +127,7 @@ export function TurnoView() {
               <Select value={arq} onValueChange={(v) => setArq(v ?? '')} disabled={!cat}>
                 <SelectTrigger className="min-w-28 flex-1"><SelectValue placeholder="Token" /></SelectTrigger>
                 <SelectContent>
-                  {arquivos.map((a) => <SelectItem key={a.arquivo} value={a.arquivo}>{a.arquivo.replace(/\.txt$/, '')}</SelectItem>)}
+                  {arquivos.map((a) => <SelectItem key={a.arquivo} value={a.arquivo}>{semTxt(a.arquivo)}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Button variant="secondary" disabled={!arq} onClick={() => run(() => api.post('/turno/tokens', { categoria: cat, arquivo: arq }))}>
@@ -145,6 +152,12 @@ export function TurnoView() {
               ? api.put(`/turno/areas/${areaId}/participantes`, { participante_id: pid })
               : api.del(`/turno/participantes/${pid}/area`))}
         />
+      </div>
+
+      <Pendencias />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <AcaoMestre />
+        <Historico />
       </div>
 
       {token && (

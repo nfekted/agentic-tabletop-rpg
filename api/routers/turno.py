@@ -30,6 +30,11 @@ class FilaIn(BaseModel):
     ids: list[str]  # participantes na ordem de iniciativa; os ausentes ficam sem ordem
 
 
+class AjusteStatusIn(BaseModel):
+    nome: str
+    delta: int
+
+
 class FichaTokenIn(BaseModel):
     conteudo: str
     status: list[dict] = []
@@ -140,6 +145,15 @@ def ficha_token(token_id: str, body: FichaTokenIn):
         _exigir_ativo()
         if not t.atualizar_ficha_token(token_id, body.model_dump()):
             raise HTTPException(404, "Token não encontrado.")
+        return _estado()
+
+
+@router.post("/turno/tokens/{token_id}/status/ajustar")
+def ajustar_status_token(token_id: str, body: AjusteStatusIn):
+    with trava_turno():
+        _exigir_ativo()
+        if not t.ajustar_status_token(token_id, body.nome, body.delta):
+            raise HTTPException(404, "Token ou status não encontrado.")
         return _estado()
 
 

@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Download, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DialogAberto } from '@/components/DialogAberto'
+import { DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { useAcao, useMesasSalvas } from '@/hooks/queries'
 import { api } from '@/lib/api'
@@ -26,7 +27,7 @@ export function MesasDialog({ onFechar }: { onFechar: () => void }) {
   )
 
   return (
-    <Dialog open onOpenChange={(o) => !o && onFechar()}>
+    <DialogAberto onFechar={onFechar}>
       <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>💾 Salvar / Restaurar mesa</DialogTitle>
@@ -74,6 +75,6 @@ export function MesasDialog({ onFechar }: { onFechar: () => void }) {
           </section>
         </div>
       </DialogContent>
-    </Dialog>
+    </DialogAberto>
   )
 }

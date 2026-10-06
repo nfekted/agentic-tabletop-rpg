@@ -11,7 +11,7 @@ export function Historico() {
   useEffect(() => { fim.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) }, [linhas.length])
 
   return (
-    <section className="flex h-full min-h-64 flex-col rounded-2xl border bg-card">
+    <section className="flex h-full max-h-[32rem] min-h-64 flex-col rounded-2xl border bg-card">
       <h2 className="border-b p-4 font-semibold">🗒️ Histórico da cena atual</h2>
       <div className="flex-1 space-y-2 overflow-y-auto p-4">
         {linhas.length === 0 && <p className="text-sm text-muted-foreground">Nenhum evento ainda nesta rodada.</p>}

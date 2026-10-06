@@ -1,6 +1,5 @@
 import { createContext, useContext } from 'react'
 
-// Modais globais abertos a partir de qualquer tela (cards, sidebar, turno...).
 export type Modal =
   | { tipo: 'ficha-editar'; nome: string }
   | { tipo: 'ficha-ver'; nome: string }
@@ -9,6 +8,7 @@ export type Modal =
   | { tipo: 'excluir-jogador'; nome: string }
   | { tipo: 'novo-jogador' }
   | { tipo: 'regras' }
+  | { tipo: 'padrao-ficha' }
   | { tipo: 'config' }
   | { tipo: 'mesas' }
   | { tipo: 'cancelar-rodada' }

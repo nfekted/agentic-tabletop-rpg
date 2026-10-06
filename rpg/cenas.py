@@ -1,4 +1,4 @@
-# Persistência das cenas do Mestre (arquivos .txt em arquivos/cenas).
+# Cenas do mestre (arquivos/cenas/*.txt)
 import re
 from pathlib import Path
 from rpg.paths import ARQUIVOS
@@ -7,7 +7,6 @@ PASTA_CENAS = Path(ARQUIVOS) / "cenas"
 
 
 def nome_seguro(nome: str) -> str:
-    # Remove caracteres inválidos para nome de arquivo.
     return re.sub(r'[\\/:*?"<>|]', "", nome).strip()
 
 
@@ -29,7 +28,6 @@ def salvar_cena(nome: str, conteudo: str) -> None:
 
 
 def deletar_cena(nome: str) -> bool:
-    # Deleta o arquivo da cena se ele existir no disco.
     arquivo = PASTA_CENAS / f"{nome}.txt"
     if arquivo.exists():
         arquivo.unlink()

@@ -37,12 +37,8 @@ def excluir_personagem(nome: str) -> bool:
     s["envolvidos"] = [e for e in s["envolvidos"] if e != nome]
     s["ultima_fala"].pop(nome, None)
     s["compressao_perguntada"].pop(nome, None)
-    pp = s["pending_principal"]
-    if pp and pp["alvo"] == nome:
-        s["pending_principal"] = None
-    s["pending_redirects"] = [r for r in s["pending_redirects"] if r["destino"] != nome]
-    ar = s["aguardando_redirect"]
-    if ar and ar["alvo_principal"] == nome:
-        s["aguardando_redirect"] = None
+    s["pending_chamadas"] = [
+        c for c in s["pending_chamadas"] if nome not in (c["origem"], c["destino"])
+    ]
     sessao.salvar()
     return True

@@ -1,9 +1,11 @@
 import { useRef, useState } from 'react'
 import { Avatar } from '@/components/Avatar'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DialogAberto } from '@/components/DialogAberto'
+import { DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useAcao, useJogadores } from '@/hooks/queries'
 import { api } from '@/lib/api'
+import { IMAGENS_ACEITAS } from '@/lib/utils'
 
 export function AvatarDialog({ nome, onFechar }: { nome: string; onFechar: () => void }) {
   const { data } = useJogadores()
@@ -19,7 +21,7 @@ export function AvatarDialog({ nome, onFechar }: { nome: string; onFechar: () =>
   const remover = useAcao(() => api.del(`/jogadores/${nome}/avatar`), [['jogadores']], 'Foto removida.')
 
   return (
-    <Dialog open onOpenChange={(o) => !o && onFechar()}>
+    <DialogAberto onFechar={onFechar}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Foto de {nome}</DialogTitle>
@@ -30,13 +32,13 @@ export function AvatarDialog({ nome, onFechar }: { nome: string; onFechar: () =>
             ? <img src={previa} alt="Prévia" className="size-32 rounded-2xl object-cover ring-1 ring-border" />
             : <Avatar nome={nome} v={j?.avatar_v ?? null} className="size-32 text-2xl" />}
         </div>
-        <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => setArquivo(e.target.files?.[0] ?? null)} />
+        <input ref={input} type="file" accept={IMAGENS_ACEITAS} hidden onChange={(e) => setArquivo(e.target.files?.[0] ?? null)} />
         <Button variant="outline" onClick={() => input.current?.click()}>{arquivo ? arquivo.name : 'Escolher imagem…'}</Button>
         <DialogFooter>
           {j?.avatar_v && <Button variant="outline" disabled={remover.isPending} onClick={() => remover.mutate()}>Remover foto</Button>}
           <Button disabled={!arquivo || enviar.isPending} onClick={() => enviar.mutate(undefined, { onSuccess: onFechar })}>Salvar foto</Button>
         </DialogFooter>
       </DialogContent>
-    </Dialog>
+    </DialogAberto>
   )
 }

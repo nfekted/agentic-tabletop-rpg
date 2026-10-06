@@ -1,14 +1,10 @@
-# Salvar / restaurar a mesa inteira (arquivos/ + tokens/) como um .zip dentro de mesas/
+# Salvar e restaurar a mesa (arquivos/ + tokens/) como .zip em mesas/
 import os
 import re
 import shutil
 import zipfile
-from rpg.paths import RAIZ, ARQUIVOS, TOKENS, MESAS
+from rpg.paths import RAIZ as _PASTA_RAIZ, MESAS as PASTA_MESAS
 
-_PASTA_RAIZ = RAIZ
-PASTA_MESAS = MESAS
-PASTA_ARQUIVOS = ARQUIVOS
-PASTA_TOKENS = TOKENS
 _PASTA_STAGING = os.path.join(PASTA_MESAS, ".restore_tmp")
 
 _RAIZES = ("arquivos", "tokens")
@@ -92,7 +88,7 @@ def restaurar_mesa(nome: str):
     if not nome or not mesa_existe(nome):
         return False, "Mesa não encontrada."
 
-    # 1 e 2: valida e extrai para staging, sem tocar nos dados atuais
+    # valida e extrai para staging, sem tocar nos dados atuais
     shutil.rmtree(_PASTA_STAGING, ignore_errors=True)
     try:
         with zipfile.ZipFile(_caminho_mesa(nome)) as zf:
@@ -101,7 +97,7 @@ def restaurar_mesa(nome: str):
         for raiz in _RAIZES:
             os.makedirs(os.path.join(_PASTA_STAGING, raiz), exist_ok=True)
 
-        # 3: preserva a config da LLM atual (API Key não vai no backup)
+        # a config da LLM atual é mantida (a API Key não vai no backup)
         atual_cfg = os.path.join(_PASTA_RAIZ, _CONFIG_LLM)
         if os.path.isfile(atual_cfg):
             shutil.copy2(atual_cfg, os.path.join(_PASTA_STAGING, _CONFIG_LLM))
@@ -109,7 +105,7 @@ def restaurar_mesa(nome: str):
         shutil.rmtree(_PASTA_STAGING, ignore_errors=True)
         return False, f"Não foi possível restaurar: {e}"
 
-    # 4: troca por rename, com rollback se algo falhar
+    # troca por rename, com rollback se algo falhar
     movidos = []
     try:
         for raiz in _RAIZES:

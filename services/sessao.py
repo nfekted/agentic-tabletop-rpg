@@ -1,5 +1,4 @@
-# Estado da mesa (rodada, histórico, pendências, balões). Único, global e persistido em
-# arquivos/sessao.json — substitui o antigo st.session_state de domínio.
+# Estado único da mesa (rodada, histórico, pendências, balões), persistido em arquivos/sessao.json
 import copy
 import json
 import os
@@ -18,9 +17,7 @@ _PADRAO = {
     "historico": [],
     "rodada_ativa": False,
     "envolvidos": [],
-    "pending_principal": None,
-    "aguardando_redirect": None,
-    "pending_redirects": [],
+    "pending_chamadas": [],
     "ultima_fala": {},
     "seq_fala": 0,
     "compressao_perguntada": {},
@@ -41,6 +38,8 @@ def obter() -> dict:
         try:
             with open(_CAMINHO, "r", encoding="utf-8") as f:
                 _estado.update(json.load(f))
+            for antiga in ("pending_principal", "aguardando_redirect", "pending_redirects"):
+                _estado.pop(antiga, None)  # fluxo de aprovação anterior
         except Exception:
             pass
     return _estado
@@ -62,7 +61,7 @@ def resetar():
 
 
 def registrar_fala(agente: str, texto: str, aprovada: bool = True, privado: bool = False):
-    # "seq" identifica cada fala; permite ao front fechar só a fala atual.
+    # seq identifica cada fala: o front fecha só a atual
     s = obter()
     s["seq_fala"] += 1
     s["ultima_fala"][agente] = {
@@ -72,6 +71,3 @@ def registrar_fala(agente: str, texto: str, aprovada: bool = True, privado: bool
         "privado": privado,
     }
 
-
-def limpar_fala(agente: str):
-    obter()["ultima_fala"].pop(agente, None)

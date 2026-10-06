@@ -1,5 +1,4 @@
-# API FastAPI da Mesa de RPG. Inicie a partir da raiz do projeto:
-#   uvicorn api.main:app --reload --port 8000
+# API FastAPI da Mesa de RPG: uvicorn api.main:app --reload --port 8000 (a partir da raiz)
 import asyncio
 import os
 import sys

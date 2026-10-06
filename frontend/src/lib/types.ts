@@ -1,16 +1,19 @@
 export type Status = { nome: string; valor_atual: number; valor_max: number; cor: string }
 
+export type PadraoFicha = {
+  configurado: boolean
+  status: { nome: string; cor: string }[]
+  atributos: { nome: string }[]
+}
+
 export type Contexto = {
   usado: number
   limite: number
   pct: number
   gatilho_pct: number
-  passou_gatilho: boolean
   faixa: 'verde' | 'ambar' | 'vermelho'
   partes: Record<string, number>
   estimado: boolean
-  medicao_id: number
-  atualizado_em: string
 }
 
 export type Jogador = {
@@ -21,50 +24,21 @@ export type Jogador = {
   contexto: Contexto | null
 }
 
-export type Tags = {
-  pensamento?: string | null
-  fala?: string | null
-  acao?: string | null
-  duvida?: string | null
-}
-
 export type Fala = { seq: number; texto: string; aprovada: boolean; privado: boolean }
 
-export type PendingPrincipal = {
-  alvo: string
-  resposta_completa: string
-  conteudo_publico: string
-  tags: Tags
-  presentes: string[]
-  agentes_alvo_log: string[]
-}
-
-export type AguardandoRedirect = {
-  candidatos: string[]
-  alvo_principal: string
-  resposta_pergunta: string
-  agentes_alvo_log: string[]
-}
-
-export type PendingRedirect = {
+type PendingChamada = {
   id: string
+  origem: string
   destino: string
-  resposta_completa: string
-  conteudo_publico: string
-  tags: Tags
-  alvo_principal: string
-  agentes_alvo_log: string[]
+  mensagem: string
+  presentes: string[]
 }
 
 export type Sessao = {
   historico: string[]
   rodada_ativa: boolean
-  envolvidos: string[]
-  pending_principal: PendingPrincipal | null
-  aguardando_redirect: AguardandoRedirect | null
-  pending_redirects: PendingRedirect[]
+  pending_chamadas: PendingChamada[]
   ultima_fala: Record<string, Fala>
-  seq_fala: number
 }
 
 export type AcaoResposta = { mensagem: string | null; sessao: Sessao }
@@ -79,7 +53,7 @@ export type Config = {
   provedores: string[]
 }
 
-export type FichaBase = { nome: string; classe: string; passado_origem: string }
+type FichaBase = { nome: string; classe: string; passado_origem: string }
 export type ParNomeValor = { nome: string; valor: string }
 export type Habilidade = { nome: string; custo: string; descricao: string }
 export type Habilidades = { habilidades: Habilidade[]; poderes: Habilidade[]; passivas: Habilidade[] }
@@ -94,7 +68,7 @@ export type Item = {
   descricao: string
 }
 export type Itens = { tamanho_mochila: number; equipamento: Item[]; mochila: Item[] }
-export type FichaPersonalidade = {
+type FichaPersonalidade = {
   tratamento_personalidade: string
   medos_gatilhos: string
   segredos_pessoais: string
@@ -123,7 +97,7 @@ export type TokenCategoria = {
   arquivos: { arquivo: string; tem_imagem: boolean }[]
 }
 
-export type TurnoPersonagem = { id: string; nome: string; ordem: number | null }
+type TurnoPersonagem = { id: string; nome: string; ordem: number | null }
 export type TurnoToken = {
   id: string
   nome_exibicao: string
@@ -134,7 +108,7 @@ export type TurnoToken = {
   ficha_dados: { conteudo: string; status: Status[] }
 }
 export type TurnoArea = { id: string; nome: string; participantes: string[] }
-export type TurnoDados = {
+type TurnoDados = {
   em_andamento: boolean
   ordem_atual: number | null
   areas: TurnoArea[]

@@ -1,19 +1,16 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { Star, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DialogAberto } from '@/components/DialogAberto'
+import { DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { useAcao, useRegras } from '@/hooks/queries'
+import { useAcao, useRegra, useRegras } from '@/hooks/queries'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
 function Editor({ arquivo, ativa }: { arquivo: string; ativa: boolean }) {
-  const { data } = useQuery({
-    queryKey: ['regra', arquivo], gcTime: 0,
-    queryFn: () => api.get<{ conteudo: string }>(`/regras/${encodeURIComponent(arquivo)}`),
-  })
+  const { data } = useRegra(arquivo)
   const [texto, setTexto] = useState<string | null>(null)
   const atual = texto ?? data?.conteudo ?? ''
 
@@ -46,7 +43,7 @@ export function RegrasDialog({ onFechar }: { onFechar: () => void }) {
   )
 
   return (
-    <Dialog open onOpenChange={(o) => !o && onFechar()}>
+    <DialogAberto onFechar={onFechar}>
       <DialogContent className="flex h-[80vh] flex-col sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>📜 Conjuntos de regras</DialogTitle>
@@ -74,6 +71,6 @@ export function RegrasDialog({ onFechar }: { onFechar: () => void }) {
           {atual && <Editor key={atual} arquivo={atual} ativa={data?.ativa === atual} />}
         </div>
       </DialogContent>
-    </Dialog>
+    </DialogAberto>
   )
 }

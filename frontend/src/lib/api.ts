@@ -1,10 +1,4 @@
-export class ApiError extends Error {
-  status: number
-  constructor(message: string, status: number) {
-    super(message)
-    this.status = status
-  }
-}
+class ApiError extends Error {}
 
 async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
   const init: RequestInit = { method }
@@ -18,7 +12,7 @@ async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
   try {
     res = await fetch(`/api${url}`, init)
   } catch {
-    throw new ApiError('Não foi possível falar com a API. Ela está rodando?', 0)
+    throw new ApiError('Não foi possível falar com a API. Ela está rodando?')
   }
   if (!res.ok) {
     let msg = `Erro ${res.status}`
@@ -29,7 +23,7 @@ async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
     } catch {
       /* corpo não era JSON */
     }
-    throw new ApiError(msg, res.status)
+    throw new ApiError(msg)
   }
   return res.json() as Promise<T>
 }

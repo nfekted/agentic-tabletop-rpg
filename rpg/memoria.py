@@ -1,5 +1,4 @@
-# Persistência de memória por agente e a hierarquia rodada -> cena -> mesa.
-
+# Memória por agente: rodada -> cena -> mesa.
 import os
 import re
 import shutil
@@ -8,17 +7,26 @@ from datetime import datetime
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from rpg.config import obter_llm
+from rpg.config import carregar_configuracao, obter_llm
 from rpg.fichas import carregar_arquivo
+from rpg.metricas import atualizar_apos_compressao
 from rpg.tags import extrair_tags_resposta, formatar_conteudo_publico, formatar_para_autor
 from rpg.paths import ARQUIVOS
 
 
 def obter_pasta_agente(agente: str) -> str:
     pasta = os.path.join(ARQUIVOS, f"memoria_{agente}")
-    if not os.path.exists(pasta):
-        os.makedirs(pasta, exist_ok=True)
+    os.makedirs(pasta, exist_ok=True)
     return pasta
+
+
+def _caminho_temp(agente: str) -> str:
+    return os.path.join(obter_pasta_agente(agente), "rodada_atual_temp.txt")
+
+
+def _anexar_temp(agente: str, linha: str):
+    with open(_caminho_temp(agente), "a", encoding="utf-8") as f:
+        f.write(linha + "\n")
 
 
 def _arquivos_numerados(pasta: str, prefixo: str) -> List[str]:
@@ -48,54 +56,36 @@ def tamanho_memoria_chars(agente: str) -> int:
 
 
 def carregar_memoria_longo_prazo(agente: str) -> str:
-    # Carrega a memória de longo prazo específica do diretório do agente.
     pasta = obter_pasta_agente(agente)
     memoria = ""
 
-    # 1. Lê o histórico permanente (mesa.txt)
     caminho_mesa = os.path.join(pasta, "mesa.txt")
     if os.path.exists(caminho_mesa):
-        with open(caminho_mesa, "r", encoding="utf-8") as f:
-            memoria += "=== HISTÓRICO PERMANENTE DA MESA ===\n" + f.read() + "\n\n"
+        memoria += "=== HISTÓRICO PERMANENTE DA MESA ===\n" + _ler(caminho_mesa) + "\n\n"
 
-    # 2. Lê as cenas já concluídas
     cenas = _arquivos_numerados(pasta, "cena")
     if cenas:
         memoria += "=== CENAS RECENTES ===\n"
         for c in cenas:
-            caminho_c = os.path.join(pasta, c)
-            with open(caminho_c, "r", encoding="utf-8") as f:
-                memoria += f"[{c}]: " + f.read() + "\n"
+            memoria += f"[{c}]: " + _ler(os.path.join(pasta, c)) + "\n"
         memoria += "\n"
 
-    # 3. Lê as rodadas salvas
     rodadas = _arquivos_numerados(pasta, "rodada")
     if rodadas:
         memoria += "=== ÚLTIMAS RODADAS ===\n"
         for r in rodadas:
-            caminho_r = os.path.join(pasta, r)
-            with open(caminho_r, "r", encoding="utf-8") as f:
-                memoria += f"[{r}]: " + f.read() + "\n"
+            memoria += f"[{r}]: " + _ler(os.path.join(pasta, r)) + "\n"
 
-    return (
-        memoria
-        if memoria
-        else "A aventura está apenas começando. Nenhuma rodada anterior registrada."
-    )
+    return memoria or "A aventura está apenas começando. Nenhuma rodada anterior registrada."
 
 
 def obter_arquivos_memoria(agente: str) -> dict:
-    # Retorna, de forma estruturada, todo o conteúdo de memória de um agente
     pasta = obter_pasta_agente(agente)
-
-    caminho_temp = os.path.join(pasta, "rodada_atual_temp.txt")
-    temp = carregar_arquivo(caminho_temp, "")
-
     rodadas = _arquivos_numerados(pasta, "rodada")
     cenas = _arquivos_numerados(pasta, "cena")
 
     return {
-        "rodada_atual": temp,
+        "rodada_atual": carregar_arquivo(_caminho_temp(agente), ""),
         "rodadas": [(r, carregar_arquivo(os.path.join(pasta, r))) for r in rodadas],
         "cenas": [(c, carregar_arquivo(os.path.join(pasta, c))) for c in cenas],
         "mesa": carregar_arquivo(os.path.join(pasta, "mesa.txt"), ""),
@@ -105,12 +95,8 @@ def obter_arquivos_memoria(agente: str) -> dict:
 class GerenciadorMemoriaRPG:
     @staticmethod
     def salvar_log_rodada_atual(texto: str, agentes_alvo: List[str]):
-        # Grava a linha de log do turno temporário na pasta dos agentes alvo.
         for agente in agentes_alvo:
-            pasta = obter_pasta_agente(agente)
-            caminho_temp = os.path.join(pasta, "rodada_atual_temp.txt")
-            with open(caminho_temp, "a", encoding="utf-8") as f:
-                f.write(texto + "\n")
+            _anexar_temp(agente, texto)
 
     @staticmethod
     def salvar_resposta_agente(
@@ -122,71 +108,40 @@ class GerenciadorMemoriaRPG:
         conteudo_autor = formatar_para_autor(tags) or resposta
         conteudo_publico = formatar_conteudo_publico(tags)
 
-        # 1. Registra na memória do autor (com pensamentos íntimos)
+        # o autor registra também os pensamentos; os demais, só o conteúdo público
         if agente_autor in agentes_presentes:
-            pasta_autor = obter_pasta_agente(agente_autor)
-            caminho_temp_autor = os.path.join(pasta_autor, "rodada_atual_temp.txt")
-            with open(caminho_temp_autor, "a", encoding="utf-8") as f:
-                f.write(f"{agente_autor}: {conteudo_autor}\n")
-
-        # 2. Registra na memória dos outros presentes (somente conteúdo público)
+            _anexar_temp(agente_autor, f"{agente_autor}: {conteudo_autor}")
         if conteudo_publico:
             for outro in agentes_presentes:
                 if outro != agente_autor:
-                    pasta_outro = obter_pasta_agente(outro)
-                    caminho_temp_outro = os.path.join(
-                        pasta_outro, "rodada_atual_temp.txt"
-                    )
-                    with open(caminho_temp_outro, "a", encoding="utf-8") as f:
-                        f.write(f"{agente_autor}: {conteudo_publico}\n")
+                    _anexar_temp(outro, f"{agente_autor}: {conteudo_publico}")
 
     @staticmethod
     def limpar_temp_nao_envolvidos(agentes_nao_envolvidos: List[str]):
-        # Remove o rodada_atual_temp.txt de agentes que não participaram da rodada.
         for agente in agentes_nao_envolvidos:
-            pasta = obter_pasta_agente(agente)
-            caminho_temp = os.path.join(pasta, "rodada_atual_temp.txt")
+            caminho_temp = _caminho_temp(agente)
             if os.path.exists(caminho_temp):
                 os.remove(caminho_temp)
 
     @staticmethod
     def cancelar_rodada(motivo: str):
-        # 1. Cria a pasta para rodadas canceladas se não existir
         pasta_canceladas = os.path.join(ARQUIVOS, "rodadas_canceladas")
         os.makedirs(pasta_canceladas, exist_ok=True)
-
-        # 2. Formata a data atual
         data_formatada = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        
-        # 3. Varre as pastas dos agentes para buscar os arquivos temporários
-        pasta_arquivos = ARQUIVOS
-        if not os.path.exists(pasta_arquivos):
-            return
 
-        for subpasta in os.listdir(pasta_arquivos):
-            caminho_agente = os.path.join(pasta_arquivos, subpasta)
-            
+        for subpasta in os.listdir(ARQUIVOS):
+            caminho_agente = os.path.join(ARQUIVOS, subpasta)
             if os.path.isdir(caminho_agente) and subpasta.startswith("memoria_"):
                 agente = subpasta.replace("memoria_", "")
                 caminho_temp = os.path.join(caminho_agente, "rodada_atual_temp.txt")
 
                 if os.path.exists(caminho_temp):
-                    # Lê o conteúdo original
-                    with open(caminho_temp, "r", encoding="utf-8") as f:
-                        conteudo_original = f.read()
-
-                    # Monta o cabeçalho no topo do arquivo
                     cabecalho = f"Rodada cancelada em {data_formatada}, motivo: {motivo}\n\n"
-                    conteudo_final = cabecalho + conteudo_original
-
-                    # Define o novo caminho e grava o arquivo cancelado
-                    nome_arquivo_cancelado = f"rodada cancelada em {data_formatada}_{agente}.txt"
-                    caminho_destino = os.path.join(pasta_canceladas, nome_arquivo_cancelado)
-
+                    caminho_destino = os.path.join(
+                        pasta_canceladas, f"rodada cancelada em {data_formatada}_{agente}.txt"
+                    )
                     with open(caminho_destino, "w", encoding="utf-8") as f:
-                        f.write(conteudo_final)
-
-                    # Remove o temporário original
+                        f.write(cabecalho + _ler(caminho_temp))
                     os.remove(caminho_temp)
 
     @staticmethod
@@ -194,7 +149,7 @@ class GerenciadorMemoriaRPG:
         # Consolida a rodada temporária em um resumo individual para cada agente alvo.
         for agente in agentes_alvo:
             pasta = obter_pasta_agente(agente)
-            caminho_temp = os.path.join(pasta, "rodada_atual_temp.txt")
+            caminho_temp = _caminho_temp(agente)
 
             if not os.path.exists(caminho_temp):
                 continue
@@ -202,8 +157,7 @@ class GerenciadorMemoriaRPG:
             rodadas_existentes = _arquivos_numerados(pasta, "rodada")
             num_rodada = len(rodadas_existentes) + 1
 
-            with open(caminho_temp, "r", encoding="utf-8") as f:
-                conteudo = f.read()
+            conteudo = _ler(caminho_temp)
 
             mensagems = []
             
@@ -218,8 +172,10 @@ class GerenciadorMemoriaRPG:
                 - Trate como os eventos reais, visíveis e audíveis que aconteceram na cena.
             3. DÚVIDAS ([duvida]...[/duvida]):
                 - Trate como hesitações ou percepções atentas do personagem, sem incluir regras ou jargões mecânicos.
-            4. TEXTO LIMPO E SEM TAGS:
-                - É terminantemente PROIBIDO incluir as tags literais ([pensamento], [/pensamento], [fala], [acao], [duvida]) no resumo final.
+            4. CHAMADAS ([chamar]Nome: mensagem[/chamar]):
+                - Trate como uma fala em voz alta do personagem chamando o jogador citado para a cena.
+            5. TEXTO LIMPO E SEM TAGS:
+                - É terminantemente PROIBIDO incluir as tags literais ([pensamento], [/pensamento], [fala], [acao], [duvida], [chamar]) no resumo final.
                 - Escreva uma prosa corrida fluida (2 a 4 frases ou parágrafos concisos) em terceira pessoa focada na personagem do resumo.
             """
         
@@ -247,23 +203,19 @@ class GerenciadorMemoriaRPG:
             os.remove(caminho_temp)
             print(f"✅ Rodada {num_rodada} de {agente} encerrada e salva.")
 
-            # Se atingir 10 rodadas na pasta deste agente, compila para Cena
             if num_rodada >= 10:
                 GerenciadorMemoriaRPG.compilar_cenas(agente)
 
     @staticmethod
     def compilar_cenas(agente: str, encadear: bool = True):
-        # Resume TODAS as rodadas existentes em uma cena. O automático chama com 10 rodadas;
-        # a compressão manual chama com as que houver (encadear=False evita o ciclo automático).
+        # resume todas as rodadas existentes em uma cena (encadear=False evita o ciclo automático do mesa)
         llm_historiador = obter_llm(temperature=0.3)
         pasta = obter_pasta_agente(agente)
         rodadas = _arquivos_numerados(pasta, "rodada")
         if not rodadas:
             return
         print(f"\n🔄 Compilando {len(rodadas)} rodada(s) em CENA para {agente}...")
-        conteudo_rodadas = ""
-        for nome_arq in rodadas:
-            conteudo_rodadas += f"\n--- {nome_arq} ---\n" + _ler(os.path.join(pasta, nome_arq))
+        conteudo_rodadas = "".join(f"\n--- {nome_arq} ---\n" + _ler(os.path.join(pasta, nome_arq)) for nome_arq in rodadas)
 
         prompt = f"""Sintetize estes resumos de rodadas da perspectiva de {agente} em uma narrativa fluida de CENA. Regras:
         Descarte:
@@ -303,9 +255,7 @@ class GerenciadorMemoriaRPG:
         caminhos = [os.path.join(pasta, f) for f in _arquivos_numerados(pasta, "cena")]
         if not caminhos:
             return "", []
-        conteudo_cenas = ""
-        for arq in caminhos:
-            conteudo_cenas += f"\n--- {os.path.basename(arq)} ---\n" + _ler(arq)
+        conteudo_cenas = "".join(f"\n--- {os.path.basename(arq)} ---\n" + _ler(arq) for arq in caminhos)
 
         prompt = f"Faça um resumo consolidado destas cenas para o histórico de longo prazo de {agente}:\n{conteudo_cenas}"
         return _texto_resp(llm_historiador.invoke(prompt)), caminhos
@@ -336,7 +286,6 @@ class GerenciadorMemoriaRPG:
 
     @staticmethod
     def _reduzir_mesa(agente: str, mesa: str, alvo_chars: int) -> str:
-        # Pede ao agente historiador um resumo do mesa.txt com limite de caracteres.
         llm_historiador = obter_llm(temperature=0.3)
 
         def pedir(limite: int, aviso: str = "") -> str:
@@ -360,9 +309,6 @@ class GerenciadorMemoriaRPG:
     @staticmethod
     def comprimir_memoria(agente: str):
         # Compressão manual: rodadas -> cena, reduz o mesa.txt e anexa o resumo das cenas.
-        from rpg.config import carregar_configuracao
-        from rpg.metricas import atualizar_apos_compressao
-
         pasta = obter_pasta_agente(agente)
         caminho_mesa = os.path.join(pasta, "mesa.txt")
         chars_antes = tamanho_memoria_chars(agente)
@@ -379,10 +325,9 @@ class GerenciadorMemoriaRPG:
             if mesa_original:
                 shutil.copy2(caminho_mesa, caminho_bak)
 
-            # 1. Rodadas -> cena (sem disparar o ciclo automático do mesa)
+            # rodadas -> cena, sem disparar o ciclo automático do mesa
             GerenciadorMemoriaRPG.compilar_cenas(agente, encadear=False)
 
-            # 2. Reduz o mesa.txt atual
             if mesa_original:
                 alvo = int(len(mesa_original) * (1 - reducao / 100))
                 reduzido = GerenciadorMemoriaRPG._reduzir_mesa(agente, mesa_original, alvo)
@@ -395,7 +340,6 @@ class GerenciadorMemoriaRPG:
                 with open(caminho_mesa, "w", encoding="utf-8") as f:
                     f.write(reduzido)
 
-            # 3. Resume as cenas e anexa ao mesa.txt já reduzido
             resumo_cenas, caminhos = GerenciadorMemoriaRPG._resumir_cenas(agente)
             if caminhos:
                 GerenciadorMemoriaRPG._anexar_ao_mesa(pasta, resumo_cenas)

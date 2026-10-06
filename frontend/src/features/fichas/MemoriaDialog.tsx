@@ -1,6 +1,8 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DialogAberto } from '@/components/DialogAberto'
+import { DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useMemoria } from '@/hooks/queries'
+import { Carregando } from '@/components/Carregando'
 
 function Texto({ children }: { children: string }) {
   return (
@@ -27,10 +29,10 @@ function Lista({ itens }: { itens: { arquivo: string; conteudo: string }[] }) {
 export function MemoriaDialog({ nome, onFechar }: { nome: string; onFechar: () => void }) {
   const { data: m } = useMemoria(nome)
   return (
-    <Dialog open onOpenChange={(o) => !o && onFechar()}>
+    <DialogAberto onFechar={onFechar}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader><DialogTitle>📖 Memória de {nome}</DialogTitle></DialogHeader>
-        {!m ? <p className="text-sm text-muted-foreground">Carregando…</p> : (
+        {!m ? <Carregando /> : (
           <Tabs defaultValue="mesa">
             <TabsList>
               <TabsTrigger value="mesa">Mesa</TabsTrigger>
@@ -45,6 +47,6 @@ export function MemoriaDialog({ nome, onFechar }: { nome: string; onFechar: () =
           </Tabs>
         )}
       </DialogContent>
-    </Dialog>
+    </DialogAberto>
   )
 }

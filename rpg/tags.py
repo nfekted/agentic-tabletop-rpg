@@ -1,100 +1,67 @@
 import re
+import unicodedata
 from typing import Dict, Optional
 
 
-def extrair_tags_resposta(texto: str) -> Dict[str, Optional[str]]:
-    # Extrai o conteúdo de [pensamento], [fala], [acao] e [duvida].
-    if not texto:
-        return {"pensamento": None, "fala": None, "acao": None, "duvida": None}
+_TAGS = ("pensamento", "fala", "acao", "duvida", "chamar")
 
-    padroes = {
-        "pensamento": r"\[pensamento\](.*?)\[/pensamento\]",
-        "fala": r"\[fala\](.*?)\[/fala\]",
-        "acao": r"\[acao\](.*?)\[/acao\]",
-        "duvida": r"\[duvida\](.*?)\[/duvida\]",
-    }
+
+def extrair_tags_resposta(texto: str) -> Dict[str, Optional[str]]:
+    if not texto:
+        return dict.fromkeys(_TAGS)
 
     resultado: Dict[str, Optional[str]] = {}
-    for tag, regex in padroes.items():
-        m = re.search(regex, texto, re.DOTALL | re.IGNORECASE)
-        if m:
-            conteudo = m.group(1).strip()
-            resultado[tag] = conteudo if conteudo else None
-        else:
-            resultado[tag] = None
+    for tag in _TAGS:
+        m = re.search(rf"\[{tag}\](.*?)\[/{tag}\]", texto, re.DOTALL | re.IGNORECASE)
+        resultado[tag] = (m.group(1).strip() or None) if m else None
 
-    # Fallback: Se nenhuma tag fechada foi capturada, busca padrão [tag] até próxima tag ou fim
+    # sem tag fechada: aceita "[tag] texto" até a próxima tag ou o fim
     if not any(resultado.values()):
-        partes = re.findall(
-            r"\[(pensamento|fala|acao|duvida)\](.*?)(?=\[(?:pensamento|fala|acao|duvida|/)|$)",
-            texto,
-            re.DOTALL | re.IGNORECASE,
-        )
+        nomes = "|".join(_TAGS)
+        partes = re.findall(rf"\[({nomes})\](.*?)(?=\[(?:{nomes}|/)|$)", texto, re.DOTALL | re.IGNORECASE)
         for t, c in partes:
             c_strip = c.strip()
             if c_strip:
                 resultado[t.lower()] = c_strip
 
-    # Fallback final: se o modelo respondeu texto puro sem tags
+    # texto puro, sem tags, é fala
     if not any(resultado.values()) and texto.strip():
-        # Trata texto puro como fala
         resultado["fala"] = texto.strip()
 
     return resultado
 
 
+def _formatar(tags: Dict[str, Optional[str]], nomes: tuple) -> str:
+    return " ".join(f"[{t}]{tags[t]}[/{t}]" for t in nomes if tags.get(t)).strip()
+
+
 def formatar_conteudo_publico(tags: Dict[str, Optional[str]]) -> str:
-    # Retorna apenas a parte pública da mensagem (o que outros personagens podem ouvir/ver).
-    partes = []
-    if tags.get("fala"):
-        partes.append(f'[fala]{tags["fala"]}[/fala]')
-    if tags.get("acao"):
-        partes.append(f'[acao]{tags["acao"]}[/acao]')
-    if tags.get("duvida"):
-        partes.append(f'[duvida]{tags["duvida"]}[/duvida]')
-    return " ".join(partes).strip()
+    # o que os outros personagens podem ouvir/ver (sem o pensamento)
+    return _formatar(tags, _TAGS[1:])
 
 
 def formatar_para_autor(tags: Dict[str, Optional[str]]) -> str:
-    # Retorna o conjunto completo para o próprio autor (pensamento + fala + acao/duvida).
-    partes = []
-    if tags.get("pensamento"):
-        partes.append(f'[pensamento]{tags["pensamento"]}[/pensamento]')
-    if tags.get("fala"):
-        partes.append(f'[fala]{tags["fala"]}[/fala]')
-    if tags.get("acao"):
-        partes.append(f'[acao]{tags["acao"]}[/acao]')
-    if tags.get("duvida"):
-        partes.append(f'[duvida]{tags["duvida"]}[/duvida]')
-    return " ".join(partes).strip()
+    return _formatar(tags, _TAGS)
 
 
-def formatar_exibicao_amigavel(tags: Dict[str, Optional[str]]) -> str:
-    # Formata a resposta de forma limpa para exibição no chat/interface.
-    partes = []
-    if tags.get("fala"):
-        partes.append(f'"{tags["fala"]}"')
-    if tags.get("acao"):
-        partes.append(f'*{tags["acao"]}*')
-    if tags.get("duvida"):
-        partes.append(f'*(Dúvida ao Mestre: {tags["duvida"]})*')
-    return " ".join(partes).strip()
+def _normalizar_nome(nome: str) -> str:
+    sem_acento = unicodedata.normalize("NFD", nome)
+    return "".join(c for c in sem_acento if not unicodedata.combining(c)).casefold().strip()
 
 
-def tem_acao(tags: Dict[str, Optional[str]]) -> bool:
-    return bool(tags.get("acao"))
-
-
-def tem_duvida(tags: Dict[str, Optional[str]]) -> bool:
-    return bool(tags.get("duvida"))
-
-
-def tem_pensamento(tags: Dict[str, Optional[str]]) -> bool:
-    return bool(tags.get("pensamento"))
+def separar_chamada(texto: str, nomes: list) -> Optional[tuple]:
+    # "NomeExato: mensagem" -> (nome canônico, mensagem). Nome fora da lista ou sem mensagem: None.
+    m = re.match(r"\s*([^:]+?)\s*:\s*(.+)", texto or "", re.DOTALL)
+    if not m:
+        return None
+    alvo = _normalizar_nome(m.group(1))
+    for nome in nomes:
+        if _normalizar_nome(nome) == alvo:
+            return nome, m.group(2).strip()
+    return None
 
 
 def apenas_pensamento(tags: Dict[str, Optional[str]]) -> bool:
     return bool(tags.get("pensamento")) and not (
-        tags.get("fala") or tags.get("acao") or tags.get("duvida")
+        tags.get("fala") or tags.get("acao") or tags.get("duvida") or tags.get("chamar")
     )
-

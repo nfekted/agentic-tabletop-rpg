@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 from langchain_community.llms import Ollama
+from rpg.fichas import inicializar_ficha_agente, salvar_json
 from rpg.paths import ARQUIVOS
 
 _CAMINHO_CONFIG = os.path.join(ARQUIVOS, "config.json")
@@ -36,9 +37,7 @@ def carregar_configuracao() -> dict:
 
 
 def salvar_configuracao(dados: dict):
-    os.makedirs(ARQUIVOS, exist_ok=True)
-    with open(_CAMINHO_CONFIG, "w", encoding="utf-8") as f:
-        json.dump(dados, f, indent=2, ensure_ascii=False)
+    salvar_json(_CAMINHO_CONFIG, dados)
 
 
 def obter_llm(temperature: float = 0.8):
@@ -47,7 +46,6 @@ def obter_llm(temperature: float = 0.8):
     api_key = cfg.get("api_key")
     base_url = cfg.get("base_url")
 
-    # Limita a temperatura em 1.0 para evitarem erros de API
     temp_normalizada = min(temperature, 1.0)
 
     if provedor == "Gemini 3.5-flash":
@@ -56,35 +54,31 @@ def obter_llm(temperature: float = 0.8):
             google_api_key=api_key or os.getenv("GEMINI_API_KEY"),
             temperature=temp_normalizada,
         )
-    elif provedor == "GPT-luna":
+    if provedor == "GPT-luna":
         return ChatOpenAI(
             model="gpt-luna",
             api_key=api_key or os.getenv("OPENAI_API_KEY"),
             temperature=temp_normalizada,
         )
-    elif provedor == "Ollama local":
+    if provedor == "Ollama local":
         return Ollama(
             model="llama3",
             base_url=base_url or "http://localhost:11434",
             temperature=temp_normalizada,
         )
-    elif provedor == "Omniroute local":
+    if provedor == "Omniroute local":
         return ChatOpenAI(
             model="omniroute-local",
             api_key=api_key or "local-key",
             base_url=base_url or "http://localhost:8000/v1",
             temperature=temp_normalizada,
         )
-    else:
-        raise ValueError(f"Provedor desconhecido: {provedor}")
+    raise ValueError(f"Provedor desconhecido: {provedor}")
 
 
-# --- ARMAZENAMENTO CENTRALIZADO DE JOGADORES ---
 def carregar_dados_jogadores() -> list:
     if not os.path.exists(_CAMINHO_JOGADORES):
-        os.makedirs(ARQUIVOS, exist_ok=True)
-        with open(_CAMINHO_JOGADORES, "w", encoding="utf-8") as f:
-            json.dump([], f, indent=2, ensure_ascii=False)
+        salvar_dados_jogadores([])
         return []
     try:
         with open(_CAMINHO_JOGADORES, "r", encoding="utf-8") as f:
@@ -113,9 +107,7 @@ def carregar_dados_jogadores() -> list:
 
 
 def salvar_dados_jogadores(dados: list):
-    os.makedirs(ARQUIVOS, exist_ok=True)
-    with open(_CAMINHO_JOGADORES, "w", encoding="utf-8") as f:
-        json.dump(dados, f, indent=2, ensure_ascii=False)
+    salvar_json(_CAMINHO_JOGADORES, dados)
 
 
 def carregar_agentes() -> list:
@@ -123,20 +115,20 @@ def carregar_agentes() -> list:
     return [j["nome"] for j in dados if j.get("nome")]
 
 
+def _achar_jogador(dados: list, nome: str) -> dict | None:
+    return next((j for j in dados if j.get("nome", "").lower() == nome.lower()), None)
+
+
 def obter_modificadores_jogador(nome: str) -> str:
-    dados = carregar_dados_jogadores()
-    for j in dados:
-        if j.get("nome", "").lower() == nome.lower():
-            return j.get("modificadores", "")
-    return ""
+    jogador = _achar_jogador(carregar_dados_jogadores(), nome)
+    return jogador.get("modificadores", "") if jogador else ""
 
 
 def salvar_modificadores_jogador(nome: str, modificadores: str):
     dados = carregar_dados_jogadores()
-    for j in dados:
-        if j.get("nome", "").lower() == nome.lower():
-            j["modificadores"] = modificadores.strip()
-            break
+    jogador = _achar_jogador(dados, nome)
+    if jogador:
+        jogador["modificadores"] = modificadores.strip()
     salvar_dados_jogadores(dados)
 
 
@@ -152,26 +144,6 @@ def adicionar_agente(nome: str) -> bool:
     dados_atuais.append({"nome": nome, "modificadores": ""})
     salvar_dados_jogadores(dados_atuais)
 
-    pasta_memoria = os.path.join(ARQUIVOS, f"memoria_{nome}")
-    os.makedirs(pasta_memoria, exist_ok=True)
-
-    # Inicializa os 6 subarquivos modulares da ficha
-    from rpg.fichas import inicializar_ficha_agente
+    os.makedirs(os.path.join(ARQUIVOS, f"memoria_{nome}"), exist_ok=True)
     inicializar_ficha_agente(nome)
     return True
-
-
-def remover_agente(nome: str) -> bool:
-    nome = nome.strip()
-    dados_atuais = carregar_dados_jogadores()
-    nova_lista = [j for j in dados_atuais if j.get("nome", "").lower() != nome.lower()]
-    if len(nova_lista) == len(dados_atuais):
-        return False
-    salvar_dados_jogadores(nova_lista)
-    return True
-
-
-def __getattr__(name: str):
-    if name == "AGENTES":
-        return carregar_agentes()
-    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

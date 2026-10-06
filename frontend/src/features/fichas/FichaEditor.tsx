@@ -1,19 +1,21 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { DialogAberto } from '@/components/DialogAberto'
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useAcao, useFicha } from '@/hooks/queries'
+import { useAcao, useFicha, usePadraoFicha } from '@/hooks/queries'
 import { api } from '@/lib/api'
 import type { Ficha } from '@/lib/types'
 import { CamposFixos, type Campo } from './CamposFixos'
 import { HabilidadesEditor } from './HabilidadesEditor'
 import { ItensEditor } from './ItensEditor'
 import { ListaNomeValor } from './ListaNomeValor'
-import { StatusEditor } from './StatusEditor'
+import { AtributosValores, AvisoSemPadrao, StatusValores } from './ValoresPadrao'
+import { Carregando } from '@/components/Carregando'
 
 const CAMPOS_BASE: Campo[] = [
   { chave: 'nome', rotulo: 'Nome', dica: 'Nome do personagem' },
@@ -28,6 +30,8 @@ const CAMPOS_PERSONALIDADE: Campo[] = [
 
 function Form({ inicial, nome, onFechar }: { inicial: Ficha; nome: string; onFechar: () => void }) {
   const [f, setF] = useState<Ficha>(inicial)
+  const { data: padrao } = usePadraoFicha()
+  const semPadrao = padrao && !padrao.configurado
   const salvar = useAcao(
     () => api.put<Ficha>(`/fichas/${nome}`, f),
     [['jogadores'], ['ficha', nome], ['ficha-md', nome]],
@@ -54,11 +58,12 @@ function Form({ inicial, nome, onFechar }: { inicial: Ficha; nome: string; onFec
           <CamposFixos campos={CAMPOS_BASE} valores={f.base} onChange={(v) => setF({ ...f, base: v as Ficha['base'] })} />
         </TabsContent>
         <TabsContent value="status" className="pt-2">
-          <StatusEditor status={f.status} onChange={(status) => setF({ ...f, status })} />
+          {semPadrao ? <AvisoSemPadrao /> : <StatusValores status={f.status} onChange={(status) => setF({ ...f, status })} />}
         </TabsContent>
         <TabsContent value="geral" className="grid gap-3 pt-2 md:grid-cols-2">
-          <ListaNomeValor titulo="Atributos" itens={f.atributos} rotuloAdicionar="Atributo" exemploNome="Força" exemploValor="3"
-            onChange={(atributos) => setF({ ...f, atributos })} />
+          {semPadrao
+            ? <AvisoSemPadrao />
+            : <AtributosValores atributos={f.atributos} onChange={(atributos) => setF({ ...f, atributos })} />}
           <ListaNomeValor titulo="Perícias" itens={f.pericias} rotuloAdicionar="Perícia" exemploNome="Espada" exemploValor="Treinado"
             onChange={(pericias) => setF({ ...f, pericias })} />
         </TabsContent>
@@ -84,14 +89,14 @@ function Form({ inicial, nome, onFechar }: { inicial: Ficha; nome: string; onFec
 export function FichaEditor({ nome, onFechar }: { nome: string; onFechar: () => void }) {
   const { data, isLoading } = useFicha(nome)
   return (
-    <Dialog open onOpenChange={(o) => !o && onFechar()}>
+    <DialogAberto onFechar={onFechar}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Ficha de {nome}</DialogTitle>
           <DialogDescription>Preencha os campos; o que ficar em branco não vai para o prompt do agente.</DialogDescription>
         </DialogHeader>
-        {isLoading || !data ? <p className="text-sm text-muted-foreground">Carregando…</p> : <Form inicial={data} nome={nome} onFechar={onFechar} />}
+        {isLoading || !data ? <Carregando /> : <Form inicial={data} nome={nome} onFechar={onFechar} />}
       </DialogContent>
-    </Dialog>
+    </DialogAberto>
   )
 }

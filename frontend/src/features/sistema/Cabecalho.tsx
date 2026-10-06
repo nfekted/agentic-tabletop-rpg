@@ -6,6 +6,7 @@ import { useAcao, useAcaoMestre, useRegras, useSessao } from '@/hooks/queries'
 import { api } from '@/lib/api'
 import type { AcaoResposta } from '@/lib/types'
 import { useUi } from '@/lib/ui-context'
+import { semTxt } from '@/lib/utils'
 
 export function Cabecalho() {
   const { abrir } = useUi()
@@ -26,7 +27,7 @@ export function Cabecalho() {
           <Select value={regras.ativa} onValueChange={(v) => v && v !== regras.ativa && ativar.mutate(v)}>
             <SelectTrigger size="sm" aria-label="Conjunto de regras ativo" className="max-w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {regras.arquivos.map((a) => <SelectItem key={a} value={a}>📜 {a.replace(/\.txt$/, '')}</SelectItem>)}
+              {regras.arquivos.map((a) => <SelectItem key={a} value={a}>📜 {semTxt(a)}</SelectItem>)}
             </SelectContent>
           </Select>
         )}

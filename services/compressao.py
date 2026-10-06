@@ -1,4 +1,4 @@
-# Decide quando oferecer a compressão de memória (antes: ui/compressao_panel.verificar_compressoes).
+# Decide quando oferecer a compressão de memória
 from rpg.config import carregar_agentes
 from rpg.metricas import calcular_contexto
 from services.sessao import obter, salvar
@@ -8,8 +8,7 @@ LIMITE_MEMORIA_UTIL_PCT = 15
 
 
 def proxima_pergunta() -> dict | None:
-    # Devolve no máximo um personagem por chamada e o marca como "perguntado" para a
-    # medição atual — uma nova medição (nova chamada de LLM) volta a perguntar.
+    # um personagem por chamada, marcado como perguntado até a próxima medição
     perguntadas = obter()["compressao_perguntada"]
     for nome in carregar_agentes():
         ctx = calcular_contexto(nome)
