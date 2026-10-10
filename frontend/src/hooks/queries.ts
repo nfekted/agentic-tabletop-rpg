@@ -2,13 +2,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
 import type {
-  AcaoResposta, Config, Ficha, Jogador, Memoria, PadraoFicha, Sessao, TokenCategoria, TurnoEstado, MesaSalva,
+  AcaoResposta, Config, Ficha, Jogador, Memoria, PadraoFicha, Sessao, TokenCategoria, TurnoEstado, MesaSalva, Limites,
 } from '@/lib/types'
 
 export const useSessao = () => useQuery({ queryKey: ['sessao'], queryFn: () => api.get<Sessao>('/sessao') })
 export const useJogadores = () =>
   useQuery({ queryKey: ['jogadores'], queryFn: () => api.get<Jogador[]>('/jogadores') })
 export const useConfig = () => useQuery({ queryKey: ['config'], queryFn: () => api.get<Config>('/config') })
+export const useLimites = () =>
+  useQuery({ queryKey: ['limites'], queryFn: () => api.get<Limites>('/limites'), refetchInterval: 5000 })
 export const useFicha = (nome: string) =>
   useQuery({ queryKey: ['ficha', nome], queryFn: () => api.get<Ficha>(`/fichas/${nome}`), gcTime: 0 })
 export const usePadraoFicha = () =>

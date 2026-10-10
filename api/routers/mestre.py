@@ -5,7 +5,8 @@ from typing import Annotated
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
-from api.deps import agente_valido, trava_mestre
+from api.deps import agente_valido, checar_limites, trava_mestre
+from rpg.config import carregar_agentes
 from rpg.imagens import salvar_imagem_upload
 from services import mestre
 from services.sessao import obter
@@ -58,6 +59,7 @@ def iniciar():
 @router.post("/rodada/finalizar")
 def finalizar():
     with trava_mestre():
+        checar_limites(mestre.chamadas_finalizar())
         return _resp(mestre.finalizar_rodada())
 
 
@@ -74,6 +76,7 @@ def falar_todos(
 ):
     comando = _texto(comando)
     with trava_mestre(), _imagem_temporaria(imagem) as caminho:
+        checar_limites(len(carregar_agentes()))
         return _resp(mestre.falar_com_todos(comando, caminho))
 
 
@@ -87,11 +90,13 @@ def falar_direcionado(
     comando = _texto(comando)
     presentes = [agente_valido(a) for a in alvos]
     with trava_mestre(), _imagem_temporaria(imagem) as caminho:
+        checar_limites(len(presentes))
         return _resp(mestre.falar_direcionado(presentes, privado, comando, caminho))
 
 @router.post("/pendencias/chamada/{chamada_id}/aprovar")
 def aprovar_chamada(chamada_id: str):
     with trava_mestre():
+        checar_limites(1)
         return _resp(mestre.aprovar_chamada(chamada_id))
 
 @router.post("/pendencias/chamada/{chamada_id}/descartar")

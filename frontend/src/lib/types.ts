@@ -43,12 +43,18 @@ export type Sessao = {
 
 export type AcaoResposta = { mensagem: string | null; sessao: Sessao }
 
+export type Limite = { limite: number; usado: number; zera_em: number; libera_em: number }
+export type Limites = { rpm: Limite; tpm: Limite; rpd: Limite }
+
 export type Config = {
   provedor: string
   base_url: string
   limite_contexto_tokens: number
   gatilho_compressao_pct: number
   alvo_reducao_pct: number
+  limite_rpm: number
+  limite_tpm: number
+  limite_rpd: number
   api_key_definida: boolean
   provedores: string[]
 }

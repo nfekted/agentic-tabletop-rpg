@@ -20,6 +20,9 @@ CONFIG_PADRAO = {
     "limite_contexto_tokens": 0,  # 0 = controle de contexto desligado
     "gatilho_compressao_pct": 85,
     "alvo_reducao_pct": 50,  # % que será cortado do mesa.txt na compressão
+    "limite_rpm": 0,  # limites do provedor (0 = sem controle)
+    "limite_tpm": 0,
+    "limite_rpd": 0,
 }
 
 

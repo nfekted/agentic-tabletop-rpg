@@ -27,6 +27,12 @@ def _envolver(agente: str):
         s["envolvidos"].append(agente)
 
 
+def chamadas_finalizar() -> int:
+    # 1 chamada do historiador por personagem envolvido (a cascata de cenas/mesa não entra na estimativa)
+    s = obter()
+    return len(s["envolvidos"]) or len(carregar_agentes())
+
+
 def _gerar(agente: str, instrucao: str, caminho_imagem=None) -> str:
     eventos.publicar("agente_respondendo", agente=agente)
     try:

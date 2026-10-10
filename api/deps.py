@@ -4,6 +4,7 @@ from contextlib import contextmanager
 
 from fastapi import HTTPException
 
+from rpg import limites
 from rpg.config import carregar_agentes
 from services.sessao import LOCK_MESTRE, LOCK_TURNO
 
@@ -23,6 +24,13 @@ def nome_arquivo_valido(nome: str) -> str:
     if not _NOME_ARQUIVO.match(nome) or ".." in nome:
         raise HTTPException(400, "Nome inválido.")
     return nome
+
+
+def checar_limites(chamadas: int):
+    # Recusa a ação antes de começar se ela não couber nos limites RPM/TPM/RPD da LLM.
+    msg = limites.verificar(chamadas)
+    if msg:
+        raise HTTPException(429, msg)
 
 
 @contextmanager

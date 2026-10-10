@@ -5,6 +5,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from rpg.config import carregar_agentes, carregar_configuracao, obter_llm
 from rpg.fichas import carregar_ficha, carregar_regras
 from rpg.memoria import carregar_memoria_longo_prazo
+from rpg.limites import registrar as registrar_limites
 from rpg.metricas import registrar_chamada
 from rpg.imagens import carregar_imagem_base64, obter_mimetype_imagem
 
@@ -127,6 +128,7 @@ def gerar_resposta_agente(
     mensagens = montar_prompt(agente, historico_recente, instrucao, caminho_imagem)
 
     resp = llm_jogadores.invoke(mensagens)
+    registrar_limites(mensagens, resp)
     registrar_chamada(
         agente,
         mensagens,

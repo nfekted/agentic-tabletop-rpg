@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from rpg import limites
 from rpg.config import PROVEDORES, carregar_configuracao, salvar_configuracao
 
 router = APIRouter(tags=["config"])
@@ -13,6 +14,9 @@ class ConfigIn(BaseModel):
     limite_contexto_tokens: int = 0
     gatilho_compressao_pct: int = 85
     alvo_reducao_pct: int = 50
+    limite_rpm: int = 0
+    limite_tpm: int = 0
+    limite_rpd: int = 0
 
 
 def _publica(cfg: dict) -> dict:
@@ -37,3 +41,8 @@ def salvar_config(body: ConfigIn):
         novo["api_key"] = body.api_key
     salvar_configuracao(novo)
     return _publica(novo)
+
+
+@router.get("/limites")
+def obter_limites():
+    return limites.estado()

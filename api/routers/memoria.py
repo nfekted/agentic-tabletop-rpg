@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from api.deps import agente_valido, trava_mestre
+from api.deps import agente_valido, checar_limites, trava_mestre
 from rpg.memoria import GerenciadorMemoriaRPG, obter_arquivos_memoria
 from rpg.metricas import calcular_contexto
 
@@ -27,5 +27,6 @@ def contexto(nome: str):
 def comprimir(nome: str):
     nome = agente_valido(nome)
     with trava_mestre():
+        checar_limites(2)  # estimativa: resumo de cenas + redução do mesa.txt
         ok, msg = GerenciadorMemoriaRPG.comprimir_memoria(nome)
     return {"ok": ok, "mensagem": msg}

@@ -9,6 +9,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from rpg.config import carregar_configuracao, obter_llm
 from rpg.fichas import carregar_arquivo
+from rpg.limites import registrar as registrar_limites
 from rpg.metricas import atualizar_apos_compressao
 from rpg.tags import extrair_tags_resposta, formatar_conteudo_publico, formatar_para_autor
 from rpg.paths import ARQUIVOS
@@ -39,6 +40,12 @@ def _arquivos_numerados(pasta: str, prefixo: str) -> List[str]:
 def _ler(caminho: str) -> str:
     with open(caminho, "r", encoding="utf-8") as f:
         return f.read()
+
+
+def _invocar(llm, prompt):
+    resp = llm.invoke(prompt)
+    registrar_limites(prompt, resp)
+    return resp
 
 
 def _texto_resp(resp) -> str:
@@ -194,7 +201,7 @@ class GerenciadorMemoriaRPG:
             mensagems.append(HumanMessage(content=prompt_dinamico))
 
             llm_historiador = obter_llm(temperature=0.3)
-            resumo = llm_historiador.invoke(mensagems).content.strip()
+            resumo = _invocar(llm_historiador, mensagems).content.strip()
 
             nome_arq_rodada = os.path.join(pasta, f"rodada_{num_rodada}.txt")
             with open(nome_arq_rodada, "w", encoding="utf-8") as f:
@@ -231,7 +238,7 @@ class GerenciadorMemoriaRPG:
         5. Pontos de virada.
         
         CENA:\n{conteudo_rodadas}"""
-        resumo_cena = _texto_resp(llm_historiador.invoke(prompt))
+        resumo_cena = _texto_resp(_invocar(llm_historiador, prompt))
 
         num_cena = len(_arquivos_numerados(pasta, "cena")) + 1
         nome_arq_cena = os.path.join(pasta, f"cena_{num_cena}.txt")
@@ -258,7 +265,7 @@ class GerenciadorMemoriaRPG:
         conteudo_cenas = "".join(f"\n--- {os.path.basename(arq)} ---\n" + _ler(arq) for arq in caminhos)
 
         prompt = f"Faça um resumo consolidado destas cenas para o histórico de longo prazo de {agente}:\n{conteudo_cenas}"
-        return _texto_resp(llm_historiador.invoke(prompt)), caminhos
+        return _texto_resp(_invocar(llm_historiador, prompt)), caminhos
 
     @staticmethod
     def _anexar_ao_mesa(pasta: str, resumo: str):
@@ -296,7 +303,7 @@ class GerenciadorMemoriaRPG:
 
             HISTÓRICO:
             {mesa}"""
-            return _texto_resp(llm_historiador.invoke(prompt))
+            return _texto_resp(_invocar(llm_historiador, prompt))
 
         resumo = pedir(int(alvo_chars * 0.9))
         if len(resumo) > alvo_chars:

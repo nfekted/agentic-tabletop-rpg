@@ -9,6 +9,7 @@ _PASTA_STAGING = os.path.join(PASTA_MESAS, ".restore_tmp")
 
 _RAIZES = ("arquivos", "tokens")
 _CONFIG_LLM = os.path.join("arquivos", "config.json")  # contém a API Key: fora do backup
+_PRESERVAR = (_CONFIG_LLM, os.path.join("arquivos", "limites.json"))  # configuração/uso da LLM: sobrevivem a restaurar e reiniciar
 _IGNORAR_ARQUIVOS = {"rodada_atual_temp.txt", "sessao.json"}  # rodada não finalizada (estado da sessão)
 _IGNORAR_PASTAS = {"__pycache__"}
 _NOME_VALIDO = re.compile(r"^[\w\- ]+$", re.UNICODE)
@@ -64,7 +65,7 @@ def salvar_mesa(nome: str):
                         zf.writestr(rel_pasta.replace(os.sep, "/") + "/", "")
                     for arq in arquivos:
                         rel = os.path.join(rel_pasta, arq)
-                        if rel == _CONFIG_LLM or arq in _IGNORAR_ARQUIVOS:
+                        if rel in _PRESERVAR or arq in _IGNORAR_ARQUIVOS:
                             continue
                         zf.write(os.path.join(pasta, arq), rel.replace(os.sep, "/"))
         os.replace(tmp, destino)
@@ -98,9 +99,10 @@ def restaurar_mesa(nome: str):
             os.makedirs(os.path.join(_PASTA_STAGING, raiz), exist_ok=True)
 
         # a config da LLM atual é mantida (a API Key não vai no backup)
-        atual_cfg = os.path.join(_PASTA_RAIZ, _CONFIG_LLM)
-        if os.path.isfile(atual_cfg):
-            shutil.copy2(atual_cfg, os.path.join(_PASTA_STAGING, _CONFIG_LLM))
+        for rel in _PRESERVAR:
+            atual = os.path.join(_PASTA_RAIZ, rel)
+            if os.path.isfile(atual):
+                shutil.copy2(atual, os.path.join(_PASTA_STAGING, rel))
     except Exception as e:
         shutil.rmtree(_PASTA_STAGING, ignore_errors=True)
         return False, f"Não foi possível restaurar: {e}"
@@ -129,3 +131,24 @@ def restaurar_mesa(nome: str):
         shutil.rmtree(os.path.join(_PASTA_RAIZ, raiz + ".old"), ignore_errors=True)
     shutil.rmtree(_PASTA_STAGING, ignore_errors=True)
     return True, f"Mesa '{nome}' restaurada."
+
+
+def reiniciar_mesa():
+    # Apaga tudo de arquivos/ e tokens/, mantendo só a config/uso da LLM e os default.txt (placeholders versionados)
+    manter = {os.path.join(_PASTA_RAIZ, rel) for rel in _PRESERVAR}
+    try:
+        for raiz in _RAIZES:
+            base = os.path.join(_PASTA_RAIZ, raiz)
+            for pasta, _, arquivos in os.walk(base, topdown=False):
+                for arq in arquivos:
+                    caminho = os.path.join(pasta, arq)
+                    if arq != "default.txt" and caminho not in manter:
+                        os.remove(caminho)
+                if pasta != base:
+                    try:
+                        os.rmdir(pasta)  # só remove se ficou vazia
+                    except OSError:
+                        pass
+    except Exception as e:
+        return False, f"Erro ao reiniciar a mesa: {e}"
+    return True, "Mesa reiniciada."
