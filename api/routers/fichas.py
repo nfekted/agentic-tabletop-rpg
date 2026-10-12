@@ -15,6 +15,7 @@ class Base(BaseModel):
     nome: str = ""
     classe: str = ""
     passado_origem: str = ""
+    detalhes_adicionais: str = ""
 
 
 class Status(BaseModel):

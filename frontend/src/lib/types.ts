@@ -80,7 +80,7 @@ export type Config = {
   provedores: string[]
 }
 
-type FichaBase = { nome: string; classe: string; passado_origem: string }
+type FichaBase = { nome: string; classe: string; passado_origem: string; detalhes_adicionais: string }
 export type ParNomeValor = { nome: string; valor: string }
 export type Habilidade = { nome: string; custo: string; descricao: string }
 export type Habilidades = { habilidades: Habilidade[]; poderes: Habilidade[]; passivas: Habilidade[] }

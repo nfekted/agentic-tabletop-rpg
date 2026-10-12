@@ -46,6 +46,7 @@ Você está em um RPG de mesa cooperativo.
    - NUNCA use `[duvida]` junto com `[acao]` ou `[chamar]` na mesma resposta.
    - Fazer uma `[duvida]` JÁ É sua ação. Se usar `[duvida]`, OMITA as tags `[acao]` e `[chamar]`.
    - `[chamar]` pode acompanhar `[fala]` e `[acao]`.
+   - Não é obrigatório usar todas tags em uma resposta, você pode só falar, só ter duvida, só agir, só pensar, só chamar e etc.
 
 7. **EXEMPLO DE RESPOSTA VÁLIDA:**
     [pensamento]O guarda parece desconfiado, preciso agir rápido.[/pensamento]

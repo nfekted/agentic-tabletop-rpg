@@ -21,6 +21,7 @@ const CAMPOS_BASE: Campo[] = [
   { chave: 'nome', rotulo: 'Nome', dica: 'Nome do personagem' },
   { chave: 'classe', rotulo: 'Classe', dica: 'Ex.: Guerreiro, Mago, Ladino' },
   { chave: 'passado_origem', rotulo: 'Passado/Origem', dica: 'Uma frase sobre quem ele é e sua motivação' },
+  { chave: 'detalhes_adicionais', rotulo: 'Detalhes adicionais', dica: 'Idade, aparência e outras características', multilinha: true },
 ]
 const CAMPOS_PERSONALIDADE: Campo[] = [
   { chave: 'tratamento_personalidade', rotulo: 'Tratamento/Personalidade', dica: 'Como interage com os outros. Ex.: tímido, mas valente' },

@@ -99,7 +99,12 @@ def carregar_regras() -> str:
 # Ordem das seções no prompt
 SECOES = ("base", "status", "atributos", "pericias", "habilidades", "itens", "personalidade")
 
-CAMPOS_BASE = (("nome", "Nome"), ("classe", "Classe"), ("passado_origem", "Passado/Origem"))
+CAMPOS_BASE = (
+    ("nome", "Nome"),
+    ("classe", "Classe"),
+    ("passado_origem", "Passado/Origem"),
+    ("detalhes_adicionais", "Detalhes adicionais"),
+)
 CAMPOS_PERSONALIDADE = (
     ("tratamento_personalidade", "Tratamento/Personalidade"),
     ("medos_gatilhos", "Medos/Gatilhos"),
@@ -280,7 +285,12 @@ def _bloco(titulo: str, linhas: list) -> str:
 
 
 def formatar_base_markdown(base: dict) -> str:
-    linhas = [f"- **{rotulo}:** {_linha(base.get(chave))}" for chave, rotulo in CAMPOS_BASE if _linha(base.get(chave))]
+    # os detalhes adicionais entram como texto simples, logo após o passado/origem
+    linhas = [
+        _texto(base.get(chave)) if chave == "detalhes_adicionais" else f"- **{rotulo}:** {_linha(base.get(chave))}"
+        for chave, rotulo in CAMPOS_BASE
+        if _linha(base.get(chave))
+    ]
     return _bloco("## INFORMAÇÕES BÁSICAS", linhas)
 
 
@@ -378,7 +388,7 @@ def formatar_personalidade_markdown(personalidade: dict) -> str:
 # --- Registro das seções: modelo inicial, normalização e formatação de cada uma ---
 
 _SECOES = {
-    "base": (lambda ag: {"nome": ag, "classe": "", "passado_origem": ""}, _normalizar_base, formatar_base_markdown),
+    "base": (lambda ag: {"nome": ag, "classe": "", "passado_origem": "", "detalhes_adicionais": ""}, _normalizar_base, formatar_base_markdown),
     "status": (lambda ag: [], _normalizar_status, formatar_status_markdown),
     "atributos": (lambda ag: [], _normalizar_pares, formatar_atributos_markdown),
     "pericias": (lambda ag: [], _normalizar_pares, formatar_pericias_markdown),

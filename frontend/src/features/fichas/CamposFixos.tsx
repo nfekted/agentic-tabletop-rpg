@@ -2,7 +2,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 
-export type Campo = { chave: string; rotulo: string; dica: string }
+export type Campo = { chave: string; rotulo: string; dica: string; multilinha?: boolean }
 
 // Conjunto fixo de campos de texto (Base e Personalidade): rótulos não são editáveis.
 export function CamposFixos({
@@ -18,7 +18,7 @@ export function CamposFixos({
       {campos.map((c) => (
         <div key={c.chave} className="space-y-1">
           <Label htmlFor={`campo-${c.chave}`}>{c.rotulo}</Label>
-          {multilinha ? (
+          {multilinha || c.multilinha ? (
             <Textarea
               id={`campo-${c.chave}`} rows={3} value={valores[c.chave] ?? ''} placeholder={c.dica}
               onChange={(e) => onChange({ ...valores, [c.chave]: e.target.value })}
