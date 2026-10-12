@@ -87,6 +87,7 @@ function Painel({ id, titulo, vazio, rodape, children }: {
 export function ItensEditor({ valor, onChange }: { valor: Itens; onChange: (i: Itens) => void }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
   const [arrastando, setArrastando] = useState<Item | null>(null)
+  const [tamanhoTexto, setTamanhoTexto] = useState<string | null>(null) // permite apagar o campo enquanto digita
 
   const setLista = (z: Zona, l: Item[]) => onChange({ ...valor, [z]: l })
   const mover = (de: Zona, i: number) => {
@@ -109,8 +110,13 @@ export function ItensEditor({ valor, onChange }: { valor: Itens; onChange: (i: I
     <div className="space-y-3">
       <div className="flex flex-wrap items-end gap-4 rounded-xl border p-3">
         <Campo rotulo="Tamanho da mochila">
-          <Input type="number" min={0} step={1} className="w-28" value={valor.tamanho_mochila}
-            onChange={(e) => onChange({ ...valor, tamanho_mochila: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} />
+          <Input type="number" min={0} step={1} className="w-28"
+            value={tamanhoTexto ?? valor.tamanho_mochila}
+            onChange={(e) => {
+              setTamanhoTexto(e.target.value)
+              onChange({ ...valor, tamanho_mochila: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })
+            }}
+            onBlur={() => setTamanhoTexto(null)} />
         </Campo>
         <p className={cn('pb-1.5 text-sm', livre < 0 ? 'font-medium text-destructive' : 'text-muted-foreground')}>
           Peso carregado: {carregado} · <b>{livre}</b> de {valor.tamanho_mochila} livres{livre < 0 && ' (sobrecarregado)'}

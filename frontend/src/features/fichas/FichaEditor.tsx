@@ -37,7 +37,6 @@ function Form({ inicial, nome, onFechar }: { inicial: Ficha; nome: string; onFec
     [['jogadores'], ['ficha', nome], ['ficha-md', nome]],
     'Ficha salva.',
   )
-  const salvarEFechar = () => salvar.mutate(undefined, { onSuccess: onFechar })
 
   return (
     <>
@@ -79,8 +78,8 @@ function Form({ inicial, nome, onFechar }: { inicial: Ficha; nome: string; onFec
         </TabsContent>
       </Tabs>
       <DialogFooter>
-        <Button variant="outline" onClick={onFechar}>Cancelar</Button>
-        <Button disabled={salvar.isPending} onClick={salvarEFechar}>Salvar ficha</Button>
+        <Button variant="outline" onClick={onFechar}>Fechar</Button>
+        <Button disabled={salvar.isPending} onClick={() => salvar.mutate()}>Salvar ficha</Button>
       </DialogFooter>
     </>
   )
