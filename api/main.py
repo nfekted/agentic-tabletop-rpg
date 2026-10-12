@@ -13,16 +13,18 @@ from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.responses import FileResponse, JSONResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 
+from rpg import limites  # noqa: E402
 from services import eventos  # noqa: E402
 from services.sessao import ErroNegocio  # noqa: E402
 from api.routers import (  # noqa: E402
-    config, jogadores, fichas, regras, cenas, tokens, memoria, turno, mesas, mestre, sessao,
+    config, jogadores, fichas, regras, cenas, tokens, memoria, turno, mesas, mestre, sessao, fila,
 )
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     eventos.iniciar(asyncio.get_running_loop())
+    limites.ouvintes.append(lambda: eventos.publicar("limites_atualizados"))
     yield
 
 
@@ -41,7 +43,7 @@ async def erro_negocio(_: Request, exc: ErroNegocio):
     return JSONResponse(status_code=400, content={"detail": str(exc)})
 
 
-for r in (config, jogadores, fichas, regras, cenas, tokens, memoria, turno, mesas, mestre, sessao):
+for r in (config, jogadores, fichas, regras, cenas, tokens, memoria, turno, mesas, mestre, sessao, fila):
     app.include_router(r.router, prefix="/api")
 
 # Produção: se o front foi compilado (npm run build), a API também o serve.

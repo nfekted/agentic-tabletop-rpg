@@ -1,19 +1,20 @@
 import { Check, Loader2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useAcaoMestre, useSessao } from '@/hooks/queries'
+import { filaOcupada, useAcaoMestre, useFila, useSessao } from '@/hooks/queries'
 import { api } from '@/lib/api'
 import type { AcaoResposta } from '@/lib/types'
 
 // Um personagem quis acionar outro jogador: a fala dele já foi registrada; o mestre decide se o chamado entra.
 export function Pendencias() {
   const { data: s } = useSessao()
+  const { data: fila } = useFila()
   const post = (url: string) => api.post<AcaoResposta>(url)
   const aprovar = useAcaoMestre((id: string) => post(`/pendencias/chamada/${id}/aprovar`))
   const descartar = useAcaoMestre((id: string) => post(`/pendencias/chamada/${id}/descartar`))
 
   const chamadas = s?.pending_chamadas ?? []
   if (!chamadas.length) return null
-  const ocupado = aprovar.isPending || descartar.isPending
+  const ocupado = aprovar.isPending || descartar.isPending || filaOcupada(fila)
 
   return (
     <section className="space-y-3 rounded-2xl border border-dashed border-amber-400/60 bg-amber-400/5 p-4">

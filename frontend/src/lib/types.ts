@@ -43,6 +43,27 @@ export type Sessao = {
 
 export type AcaoResposta = { mensagem: string | null; sessao: Sessao }
 
+export type FilaItem = {
+  agente: string
+  status: 'pendente' | 'verificando' | 'aguardando' | 'interpretando' | 'ok' | 'erro'
+  etapa: 'rodada' | 'cena' | 'mesa' | null
+  tokens_previstos: number
+  erro: string | null
+}
+export type Fila = {
+  id: string
+  tipo: 'falar_todos' | 'falar_direcionado' | 'aprovar_chamada' | 'finalizar_rodada'
+  status: 'rodando' | 'aguardando_limite' | 'pausada' | 'concluida'
+  erro: string | null
+  aviso: string | null
+  espera_ate: number | null
+  agora: number
+  indice: number
+  itens: FilaItem[]
+  mensagem: string | null
+  limites_ativos: boolean
+}
+
 export type Limite = { limite: number; usado: number; zera_em: number; libera_em: number }
 export type Limites = { rpm: Limite; tpm: Limite; rpd: Limite }
 

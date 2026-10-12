@@ -5,7 +5,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from rpg.config import carregar_agentes, carregar_configuracao, obter_llm
 from rpg.fichas import carregar_ficha, carregar_regras
 from rpg.memoria import carregar_memoria_longo_prazo
-from rpg.limites import registrar as registrar_limites
+from rpg.limites import invocar
 from rpg.metricas import registrar_chamada
 from rpg.imagens import carregar_imagem_base64, obter_mimetype_imagem
 
@@ -18,7 +18,7 @@ Você está em um RPG de mesa cooperativo.
 
 ## INSTRUÇÕES OBRIGATÓRIAS DE FORMATO DA RESPOSTA:
 
-1. **ROLEPLAY E CONEXÃO:** Responda alinhado ao histórico do personagem, seu tom emocional e à dinâmica da cena. Entre direto no personagem: fale em primeira pessoa e NUNCA use "meu personagem faz...".
+1. **ROLEPLAY E CONEXÃO:** Responda alinhado ao histórico do personagem, seu tom emocional e à dinâmica da cena. Entre direto no personagem: fale em primeira pessoa e NUNCA use "meu personagem faz...". Não use Emojis em nenhuma hipótese.
 
 2. **ANTI META-GAMING (PROIBIÇÃO DE CONHECIMENTO EXTERNO):**
    - Aborde ESTRITAMENTE com base no que seu personagem presenciou, ouviu ou sabe.
@@ -127,8 +127,7 @@ def gerar_resposta_agente(
     # historico_recente: lista viva da rodada (sessao["historico"]), zerada no fim da rodada
     mensagens = montar_prompt(agente, historico_recente, instrucao, caminho_imagem)
 
-    resp = llm_jogadores.invoke(mensagens)
-    registrar_limites(mensagens, resp)
+    resp = invocar(llm_jogadores, mensagens)
     registrar_chamada(
         agente,
         mensagens,

@@ -11,6 +11,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { AcaoMestre } from '@/features/mesa/AcaoMestre'
+import { FilaRequests } from '@/features/mesa/FilaRequests'
 import { Historico } from '@/features/mesa/Historico'
 import { Pendencias } from '@/features/mesa/Pendencias'
 import { StatusEditor } from '@/features/fichas/StatusEditor'
@@ -154,6 +155,7 @@ export function TurnoView() {
         />
       </div>
 
+      <FilaRequests />
       <Pendencias />
       <div className="grid gap-6 lg:grid-cols-2">
         <AcaoMestre />

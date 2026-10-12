@@ -17,6 +17,10 @@ export function EventosProvider({ children }: { children: ReactNode }) {
         qc.invalidateQueries({ queryKey: ['sessao'] })
         qc.invalidateQueries({ queryKey: ['jogadores'] })
         qc.invalidateQueries({ queryKey: ['turno'] })
+      } else if (ev.tipo === 'fila_atualizada') {
+        qc.invalidateQueries({ queryKey: ['fila'] })
+      } else if (ev.tipo === 'limites_atualizados') {
+        qc.invalidateQueries({ queryKey: ['limites'] })
       } else if (ev.tipo === 'agente_respondendo' && ev.agente) {
         setPensando((s) => new Set(s).add(ev.agente!))
       } else if (ev.tipo === 'agente_pronto' && ev.agente) {

@@ -10,7 +10,7 @@ _PASTA_STAGING = os.path.join(PASTA_MESAS, ".restore_tmp")
 _RAIZES = ("arquivos", "tokens")
 _CONFIG_LLM = os.path.join("arquivos", "config.json")  # contém a API Key: fora do backup
 _PRESERVAR = (_CONFIG_LLM, os.path.join("arquivos", "limites.json"))  # configuração/uso da LLM: sobrevivem a restaurar e reiniciar
-_IGNORAR_ARQUIVOS = {"rodada_atual_temp.txt", "sessao.json"}  # rodada não finalizada (estado da sessão)
+_IGNORAR_ARQUIVOS = {"rodada_atual_temp.txt", "sessao.json", "fila.json"}  # rodada não finalizada (estado da sessão)
 _IGNORAR_PASTAS = {"__pycache__"}
 _NOME_VALIDO = re.compile(r"^[\w\- ]+$", re.UNICODE)
 

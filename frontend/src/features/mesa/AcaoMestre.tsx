@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { ImagePlus, Library, Loader2, Send, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { useAcaoMestre, useJogadores } from '@/hooks/queries'
+import { filaOcupada, useAcaoMestre, useFila, useJogadores } from '@/hooks/queries'
 import { usePensando } from '@/hooks/eventos'
 import { api } from '@/lib/api'
 import type { AcaoResposta } from '@/lib/types'
@@ -29,6 +29,8 @@ async function enviar(modo: Modo, texto: string, alvos: string[], imagem: File |
 export function AcaoMestre() {
   const { data: jogadores = [] } = useJogadores()
   const pensando = usePensando()
+  const { data: fila } = useFila()
+  const emFila = filaOcupada(fila)
   const [modo, setModo] = useState<Modo>('todos')
   const [alvos, setAlvos] = useState<string[]>([])
   const [texto, setTexto] = useState('')
@@ -37,7 +39,7 @@ export function AcaoMestre() {
   const inputImg = useRef<HTMLInputElement>(null)
 
   const envio = useAcaoMestre(() => enviar(modo, texto.trim(), alvos, imagem))
-  const podeEnviar = texto.trim() && (modo === 'todos' || alvos.length > 0) && !envio.isPending
+  const podeEnviar = texto.trim() && (modo === 'todos' || alvos.length > 0) && !envio.isPending && !emFila
 
   // Jogadores específicos: um único alvo. Cena privada: um grupo.
   const alternar = (n: string) =>
@@ -125,11 +127,11 @@ export function AcaoMestre() {
           <Library /> Cenas
         </Button>
         <Button className="ml-auto" disabled={!podeEnviar} onClick={enviarAgora}>
-          {envio.isPending ? <Loader2 className="animate-spin" /> : <Send />}
-          {envio.isPending ? 'Aguardando…' : 'Enviar'}
+          {envio.isPending || fila?.status === 'rodando' || fila?.status === 'aguardando_limite' ? <Loader2 className="animate-spin" /> : <Send />}
+          {envio.isPending ? 'Enviando…' : emFila ? 'Fila em andamento' : 'Enviar'}
         </Button>
       </div>
-      {envio.isPending && pensando.size > 0 && (
+      {pensando.size > 0 && (
         <p className="text-xs text-muted-foreground">Respondendo: {[...pensando].join(', ')}…</p>
       )}
 

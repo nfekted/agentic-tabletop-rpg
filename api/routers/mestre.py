@@ -5,10 +5,9 @@ from typing import Annotated
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
-from api.deps import agente_valido, checar_limites, trava_mestre
-from rpg.config import carregar_agentes
+from api.deps import agente_valido, exigir_fila_livre, trava_mestre
 from rpg.imagens import salvar_imagem_upload
-from services import mestre
+from services import fila, mestre
 from services.sessao import obter
 
 router = APIRouter(tags=["mestre"])
@@ -33,16 +32,6 @@ def _salvar_imagem(imagem: UploadFile | None) -> str | None:
     return salvar_imagem_upload(imagem.filename, dados)
 
 
-@contextmanager
-def _imagem_temporaria(imagem: UploadFile | None):
-    caminho = _salvar_imagem(imagem)
-    try:
-        yield caminho
-    finally:
-        if caminho and os.path.exists(caminho):
-            os.remove(caminho)
-
-
 def _texto(comando: str) -> str:
     comando = comando.strip()
     if not comando:
@@ -58,9 +47,10 @@ def iniciar():
 
 @router.post("/rodada/finalizar")
 def finalizar():
+    exigir_fila_livre()
     with trava_mestre():
-        checar_limites(mestre.chamadas_finalizar())
-        return _resp(mestre.finalizar_rodada())
+        fila.enfileirar_finalizar()
+        return _resp()
 
 
 @router.post("/rodada/cancelar")
@@ -69,15 +59,28 @@ def cancelar(body: MotivoIn):
         return _resp(mestre.cancelar_rodada(body.motivo.strip() or "Sem motivo informado"))
 
 
+@contextmanager
+def _imagem_da_fila(imagem: UploadFile | None):
+    # A imagem fica guardada até a fila terminar (ela apaga); só é removida aqui se a fila não chegar a nascer.
+    caminho = _salvar_imagem(imagem)
+    try:
+        yield caminho
+    except BaseException:
+        if caminho and os.path.exists(caminho):
+            os.remove(caminho)
+        raise
+
+
 @router.post("/mestre/falar-todos")
 def falar_todos(
     comando: Annotated[str, Form()],
     imagem: Annotated[UploadFile | None, File()] = None,
 ):
     comando = _texto(comando)
-    with trava_mestre(), _imagem_temporaria(imagem) as caminho:
-        checar_limites(len(carregar_agentes()))
-        return _resp(mestre.falar_com_todos(comando, caminho))
+    exigir_fila_livre()
+    with trava_mestre(), _imagem_da_fila(imagem) as caminho:
+        fila.enfileirar_falar_todos(comando, caminho)
+        return _resp()
 
 
 @router.post("/mestre/falar-direcionado")
@@ -89,15 +92,18 @@ def falar_direcionado(
 ):
     comando = _texto(comando)
     presentes = [agente_valido(a) for a in alvos]
-    with trava_mestre(), _imagem_temporaria(imagem) as caminho:
-        checar_limites(len(presentes))
-        return _resp(mestre.falar_direcionado(presentes, privado, comando, caminho))
+    exigir_fila_livre()
+    with trava_mestre(), _imagem_da_fila(imagem) as caminho:
+        fila.enfileirar_falar_direcionado(presentes, privado, comando, caminho)
+        return _resp()
+
 
 @router.post("/pendencias/chamada/{chamada_id}/aprovar")
 def aprovar_chamada(chamada_id: str):
     with trava_mestre():
-        checar_limites(1)
-        return _resp(mestre.aprovar_chamada(chamada_id))
+        fila.enfileirar_chamada(chamada_id)
+        return _resp()
+
 
 @router.post("/pendencias/chamada/{chamada_id}/descartar")
 def descartar_chamada(chamada_id: str):

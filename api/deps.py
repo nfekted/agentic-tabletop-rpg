@@ -6,6 +6,7 @@ from fastapi import HTTPException
 
 from rpg import limites
 from rpg.config import carregar_agentes
+from services import fila
 from services.sessao import LOCK_MESTRE, LOCK_TURNO
 
 _NOME_ARQUIVO = re.compile(r"^[\w\-][\w\-. ]*$", re.UNICODE)
@@ -33,9 +34,15 @@ def checar_limites(chamadas: int):
         raise HTTPException(429, msg)
 
 
+def exigir_fila_livre():
+    if fila.ocupada():
+        raise HTTPException(409, "Há uma fila de requests em andamento ou pausada. Continue ou cancele a fila primeiro.")
+
+
 @contextmanager
 def trava_mestre():
     # Uma ação do mestre/LLM por vez. Em vez de enfileirar, avisa que há outra em andamento.
+    exigir_fila_livre()
     if not LOCK_MESTRE.acquire(blocking=False):
         raise HTTPException(409, "Outra ação está em andamento. Aguarde terminar.")
     try:

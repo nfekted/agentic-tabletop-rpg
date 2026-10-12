@@ -9,7 +9,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from rpg.config import carregar_configuracao, obter_llm
 from rpg.fichas import carregar_arquivo
-from rpg.limites import registrar as registrar_limites
+from rpg.limites import invocar
 from rpg.metricas import atualizar_apos_compressao
 from rpg.tags import extrair_tags_resposta, formatar_conteudo_publico, formatar_para_autor
 from rpg.paths import ARQUIVOS
@@ -43,9 +43,7 @@ def _ler(caminho: str) -> str:
 
 
 def _invocar(llm, prompt):
-    resp = llm.invoke(prompt)
-    registrar_limites(prompt, resp)
-    return resp
+    return invocar(llm, prompt)
 
 
 def _texto_resp(resp) -> str:
@@ -153,14 +151,20 @@ class GerenciadorMemoriaRPG:
 
     @staticmethod
     def finalizar_rodada(agentes_alvo: List[str]):
-        # Consolida a rodada temporária em um resumo individual para cada agente alvo.
         for agente in agentes_alvo:
-            pasta = obter_pasta_agente(agente)
-            caminho_temp = _caminho_temp(agente)
+            GerenciadorMemoriaRPG.finalizar_rodada_agente(agente)
 
-            if not os.path.exists(caminho_temp):
-                continue
+    @staticmethod
+    def finalizar_rodada_agente(agente: str, gate=None):
+        # Consolida a rodada temporária de um agente em um resumo e, se couber, a cascata cena -> mesa.
+        # Cada passo só roda se ainda for necessário, então a fila pode retomar de onde parou após uma falha.
+        # `gate(etapa)` é chamado antes de cada chamada à LLM ("rodada", "cena" ou "mesa").
+        gate = gate or (lambda etapa: None)
+        pasta = obter_pasta_agente(agente)
+        caminho_temp = _caminho_temp(agente)
 
+        if os.path.exists(caminho_temp):
+            gate("rodada")
             rodadas_existentes = _arquivos_numerados(pasta, "rodada")
             num_rodada = len(rodadas_existentes) + 1
 
@@ -208,10 +212,15 @@ class GerenciadorMemoriaRPG:
                 f.write(resumo)
 
             os.remove(caminho_temp)
-            print(f"✅ Rodada {num_rodada} de {agente} encerrada e salva.")
+            print(f"Rodada {num_rodada} de {agente} encerrada e salva.")
 
-            if num_rodada >= 10:
-                GerenciadorMemoriaRPG.compilar_cenas(agente)
+        if len(_arquivos_numerados(pasta, "rodada")) >= 10:
+            gate("cena")
+            GerenciadorMemoriaRPG.compilar_cenas(agente, encadear=False)
+
+        if len(_arquivos_numerados(pasta, "cena")) >= 10:
+            gate("mesa")
+            GerenciadorMemoriaRPG.compilar_mesa(agente)
 
     @staticmethod
     def compilar_cenas(agente: str, encadear: bool = True):
@@ -221,7 +230,7 @@ class GerenciadorMemoriaRPG:
         rodadas = _arquivos_numerados(pasta, "rodada")
         if not rodadas:
             return
-        print(f"\n🔄 Compilando {len(rodadas)} rodada(s) em CENA para {agente}...")
+        print(f"\nCompilando {len(rodadas)} rodada(s) em CENA para {agente}...")
         conteudo_rodadas = "".join(f"\n--- {nome_arq} ---\n" + _ler(os.path.join(pasta, nome_arq)) for nome_arq in rodadas)
 
         prompt = f"""Sintetize estes resumos de rodadas da perspectiva de {agente} em uma narrativa fluida de CENA. Regras:
@@ -249,7 +258,7 @@ class GerenciadorMemoriaRPG:
         for nome_arq in rodadas:
             os.remove(os.path.join(pasta, nome_arq))
 
-        print(f"✅ {nome_arq_cena} criada com sucesso para {agente}!")
+        print(f"{nome_arq_cena} criada com sucesso para {agente}!")
 
         if encadear and num_cena >= 10:
             GerenciadorMemoriaRPG.compilar_mesa(agente)
@@ -278,7 +287,7 @@ class GerenciadorMemoriaRPG:
     @staticmethod
     def compilar_mesa(agente: str):
         pasta = obter_pasta_agente(agente)
-        print(f"\n📜 Compilando CENAS no histórico permanente de {agente}...")
+        print(f"\nCompilando CENAS no histórico permanente de {agente}...")
         resumo_novo, caminhos = GerenciadorMemoriaRPG._resumir_cenas(agente)
         if not caminhos:
             return
@@ -289,7 +298,7 @@ class GerenciadorMemoriaRPG:
             if os.path.exists(arq):
                 os.remove(arq)
 
-        print(f"🏛️ Histórico 'mesa.txt' de {agente} atualizado!")
+        print(f"Histórico 'mesa.txt' de {agente} atualizado!")
 
     @staticmethod
     def _reduzir_mesa(agente: str, mesa: str, alvo_chars: int) -> str:

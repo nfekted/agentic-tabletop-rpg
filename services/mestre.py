@@ -27,12 +27,6 @@ def _envolver(agente: str):
         s["envolvidos"].append(agente)
 
 
-def chamadas_finalizar() -> int:
-    # 1 chamada do historiador por personagem envolvido (a cascata de cenas/mesa não entra na estimativa)
-    s = obter()
-    return len(s["envolvidos"]) or len(carregar_agentes())
-
-
 def _gerar(agente: str, instrucao: str, caminho_imagem=None) -> str:
     eventos.publicar("agente_respondendo", agente=agente)
     try:
@@ -95,16 +89,20 @@ def cancelar_rodada(motivo: str) -> str:
     return f"🚫 Rodada cancelada com sucesso. Motivo: {motivo}"
 
 
-def finalizar_rodada() -> str:
+def preparar_finalizar() -> list[str]:
+    # Marca o fim da rodada na memória de cada alvo; o historiador (um personagem por vez) roda na fila.
     s = obter()
     if not s["rodada_ativa"]:
         raise ErroNegocio("Inicie a rodada antes de finalizar.")
 
-    todos = carregar_agentes()
-    alvos = list(s["envolvidos"]) if s["envolvidos"] else todos
+    alvos = list(s["envolvidos"]) if s["envolvidos"] else carregar_agentes()
     GerenciadorMemoriaRPG.salvar_log_rodada_atual("--- FIM DA RODADA ---", alvos)
-    GerenciadorMemoriaRPG.finalizar_rodada(alvos)
+    return alvos
 
+
+def fechar_rodada(alvos: list[str]) -> str:
+    s = obter()
+    todos = carregar_agentes()
     nao_envolvidos = [ag for ag in todos if ag not in alvos]
     if nao_envolvidos:
         GerenciadorMemoriaRPG.limpar_temp_nao_envolvidos(nao_envolvidos)
@@ -171,7 +169,8 @@ def _processar_resposta(agente: str, resposta: str, presentes: list[str], rotulo
     return None
 
 
-def falar_com_todos(comando: str, caminho_imagem=None) -> str | None:
+def preparar_falar_todos(comando: str) -> tuple[list[str], list[dict]]:
+    # Registra a fala do mestre; devolve (presentes, itens da fila: um por jogador).
     s = obter()
     presentes = carregar_agentes()
     if not presentes:
@@ -185,17 +184,11 @@ def falar_com_todos(comando: str, caminho_imagem=None) -> str | None:
         GerenciadorMemoriaRPG.salvar_log_rodada_atual(log_mestre, presentes)
     salvar()
 
-    for ag in presentes:
-        resposta = _gerar(
-            ag,
-            f"O mestre disse a todos: '{comando}'. Dê sua reação no formato com tags {_TAGS}.",
-            caminho_imagem,
-        )
-        _processar_resposta(ag, resposta, presentes)
-    return None
+    instrucao = f"O mestre disse a todos: '{comando}'. Dê sua reação no formato com tags {_TAGS}."
+    return presentes, [{"agente": ag, "instrucao": instrucao} for ag in presentes]
 
 
-def falar_direcionado(presentes: list[str], is_privado: bool, comando: str, caminho_imagem=None) -> str | None:
+def preparar_falar_direcionado(presentes: list[str], is_privado: bool, comando: str) -> tuple[list[str], list[dict]]:
     # pública: todos ouvem e só o alvo responde; privada: só os selecionados ouvem e respondem
     s = obter()
     if not presentes:
@@ -213,17 +206,8 @@ def falar_direcionado(presentes: list[str], is_privado: bool, comando: str, cami
         GerenciadorMemoriaRPG.salvar_log_rodada_atual(log_mestre, agentes_alvo_log)
     salvar()
 
-    mensagens = []
-    for alvo in presentes:
-        resposta = _gerar(
-            alvo,
-            f"O mestre direcionou a você: '{comando}'. Responda usando as tags {_TAGS}.",
-            caminho_imagem,
-        )
-        msg = _processar_resposta(alvo, resposta, agentes_alvo_log)
-        if msg:
-            mensagens.append(msg)
-    return "\n".join(mensagens) or None
+    instrucao = f"O mestre direcionou a você: '{comando}'. Responda usando as tags {_TAGS}."
+    return agentes_alvo_log, [{"agente": alvo, "instrucao": instrucao} for alvo in presentes]
 
 
 def _tirar_chamada(chamada_id: str) -> dict:
@@ -234,8 +218,8 @@ def _tirar_chamada(chamada_id: str) -> dict:
     raise ErroNegocio("Chamada pendente não encontrada.")
 
 
-def aprovar_chamada(chamada_id: str) -> str | None:
-    # Aciona o jogador chamado: entra na cena (se ainda não estava) e responde.
+def preparar_aprovar_chamada(chamada_id: str) -> tuple[list[str], list[dict], str]:
+    # Aciona o jogador chamado: entra na cena (se ainda não estava); devolve (presentes, itens, rótulo).
     s = obter()
     c = _tirar_chamada(chamada_id)
     origem, destino = c["origem"], c["destino"]
@@ -247,11 +231,14 @@ def aprovar_chamada(chamada_id: str) -> str | None:
     _envolver(destino)
     salvar()
 
-    resposta = _gerar(
-        destino,
-        f"{origem} chamou você: '{c['mensagem']}'. Responda usando as tags {_TAGS}.",
-    )
-    return _processar_resposta(destino, resposta, presentes, f"chamado por {origem}")
+    instrucao = f"{origem} chamou você: '{c['mensagem']}'. Responda usando as tags {_TAGS}."
+    return presentes, [{"agente": destino, "instrucao": instrucao}], f"chamado por {origem}"
+
+
+def responder(agente: str, instrucao: str, presentes: list[str], rotulo: str = "", caminho_imagem=None) -> str | None:
+    # Um passo da fila: o agente responde e a resposta entra na história e na memória.
+    resposta = _gerar(agente, instrucao, caminho_imagem)
+    return _processar_resposta(agente, resposta, presentes, rotulo)
 
 
 def descartar_chamada(chamada_id: str) -> str:

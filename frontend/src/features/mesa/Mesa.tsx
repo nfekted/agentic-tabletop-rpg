@@ -2,6 +2,7 @@ import { Plus } from 'lucide-react'
 import { useJogadores, useSessao } from '@/hooks/queries'
 import { useUi } from '@/lib/ui-context'
 import { AcaoMestre } from './AcaoMestre'
+import { FilaRequests } from './FilaRequests'
 import { Historico } from './Historico'
 import { JogadorCard } from './JogadorCard'
 import { Pendencias } from './Pendencias'
@@ -26,6 +27,7 @@ export function Mesa() {
         </button>
       </div>
 
+      <FilaRequests />
       <Pendencias />
 
       <div className="grid gap-6 lg:grid-cols-2">

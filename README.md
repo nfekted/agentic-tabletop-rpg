@@ -49,6 +49,7 @@ uma API em Python (FastAPI), para quem não quer mexer em terminal.
   - [Sistema de memória (rodada → cena → mesa)](#sistema-de-memória-rodada--cena--mesa)
   - [Por que resumir um resumo pode "perder" informação (de propósito)](#por-que-resumir-um-resumo-pode-perder-informação-de-propósito)
   - [Controle de contexto e compressão de memória](#controle-de-contexto-e-compressão-de-memória)
+  - [Fila de requests e limites (RPM/TPM/RPD)](#fila-de-requests-e-limites-rpmtpmrpd)
   - [Balões de fala](#balões-de-fala)
   - [Fotos dos jogadores](#fotos-dos-jogadores)
   - [Imagens de contexto](#imagens-de-contexto)
@@ -273,7 +274,10 @@ fica em /arquivos/config.json, no formato:
   "base_url": "http://localhost:8000/v1",   (ou "")
   "limite_contexto_tokens": 0,     (0 = controle de contexto desligado)
   "gatilho_compressao_pct": 85,
-  "alvo_reducao_pct": 50
+  "alvo_reducao_pct": 50,
+  "limite_rpm": 0,                 (requisições por minuto; 0 = sem controle)
+  "limite_tpm": 0,                 (tokens por minuto; 0 = sem controle)
+  "limite_rpd": 0                  (requisições por dia; 0 = sem controle)
 }
 ```
 Tudo isso também pode ser editado pelo ícone **⚙️ Configurações da LLM** da
@@ -690,6 +694,34 @@ Antes de reduzir, o `mesa.txt` é copiado para `mesa.bak` e restaurado se algo
 falhar. Se o peso do contexto estiver em regras/ficha/histórico e não na
 memória, o diálogo apenas avisa, sem oferecer compressão.
 
+### Fila de requests e limites (RPM/TPM/RPD)
+
+As ações que falam com a LLM (falar com todos/jogador, acionar um chamado e
+finalizar rodada) viram uma **fila processada em segundo plano, um personagem
+por vez**. A fila aparece entre os cards e a Ação do mestre, em passos:
+`personagem → Verificando contexto → Interpretando`.
+
+- **Verificando contexto**: o jogo monta o prompt real do personagem (regras,
+  memória, ficha, histórico e a fala do mestre), converte os caracteres em
+  tokens pela razão calibrada (`metricas.json`) e soma uma margem de 2000
+  tokens (resposta e instruções internas). Se o RPM ou o TPM não deixarem
+  espaço, a fila **espera** a janela liberar (o tempo exato, mais ~5 s) e
+  segue sozinha.
+- **Janela deslizante**: cada chamada é gravada em `arquivos/limites.json`
+  com a hora do envio, a hora em que sai da janela de 60 s e os tokens
+  (previstos no envio, trocados pelo `usage_metadata` real na resposta).
+  Os expirados são removidos ao ler, e o uso sobrevive a reiniciar a API.
+- **Erro ou RPD esgotado**: a fila **para na vez atual** e mostra o motivo
+  (429, 503, timeout...). Corrija o problema e use **Continuar de {nome}**
+  (retoma sem repetir o que já foi feito) ou **Cancelar fila**. Enquanto há
+  fila pendente, as demais ações do mestre ficam bloqueadas.
+- **Finalizar rodada**: a fila tem um item por personagem; a cascata
+  rodada → cena → mesa é prevista de verdade e cada passo é retomável.
+- A barra de passos só aparece com **RPM e TPM preenchidos** em ⚙️
+  Configurações da LLM. Sem eles a fila roda do mesmo jeito (com pausa em
+  erro e Continuar), apenas sem a verificação de limites. O estado fica em
+  `arquivos/fila.json`; se a API reiniciar no meio, a fila volta **pausada**.
+
 ### Balões de fala
 
 Cada card de jogador (na tela principal e no Modo por Turnos) mostra um
@@ -797,6 +829,7 @@ Detalhes importantes:
 │   └── routers/            # Uma rota por assunto (fichas, regras, turno, mestre...)
 ├── services/               # Regras da mesa (antes viviam na interface)
 │   ├── sessao.py           # Estado da rodada, persistido em arquivos/sessao.json
+│   ├── fila.py             # Fila de requests à LLM (limites, espera, pausa e continuar)
 │   ├── mestre.py           # Ações do mestre, aprovações e dúvidas
 │   ├── compressao.py       # Quando oferecer a compressão de memória
 │   ├── personagens.py      # Exclusão total de um personagem
@@ -813,6 +846,8 @@ Detalhes importantes:
 │   ├── imagens.py          # Upload de imagens de contexto e fotos de jogador
 │   ├── memoria.py          # Memória rodada → cena → mesa e compressão manual
 │   ├── metricas.py         # Tokens/contexto do último prompt por personagem
+│   ├── limites.py          # Janela deslizante de RPM/TPM e contador de RPD
+│   ├── previsao.py         # Previsão de tokens de uma chamada antes de enviá-la
 │   ├── agentes.py          # Monta o prompt e gera as respostas dos jogadores
 │   ├── tags.py             # Extração de [fala], [acao], [duvida], [chamar], [pensamento]
 │   ├── cenas.py            # Cenas pré-cadastradas
@@ -833,6 +868,8 @@ Detalhes importantes:
     ├── padrao_ficha.json       # Padrão de status e atributos (nome e cor)
     ├── turno.json              # Estado do Modo por Turnos (se ativo)
     ├── sessao.json             # Rodada em andamento: histórico, falas, chamadas pendentes
+    ├── fila.json               # Fila de requests em andamento ou pausada
+    ├── limites.json            # Uso da janela de RPM/TPM e contador diário (RPD)
     ├── regras/                 # Conjuntos de regras (um arquivo por cenário)
     │   ├── .ativa               # Marca qual arquivo está em uso agora
     │   ├── geral.txt

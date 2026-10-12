@@ -6,6 +6,7 @@ import { MemoriaDialog } from '@/features/fichas/MemoriaDialog'
 import { Mesa } from '@/features/mesa/Mesa'
 import { Cabecalho } from '@/features/sistema/Cabecalho'
 import { CompressaoWatcher } from '@/features/sistema/CompressaoWatcher'
+import { FilaAviso } from '@/features/sistema/FilaAviso'
 import { ConfigDialog } from '@/features/sistema/ConfigDialog'
 import { CancelarRodadaDialog, ExcluirJogadorDialog, NovoJogadorDialog } from '@/features/sistema/Dialogos'
 import { MesasDialog } from '@/features/sistema/MesasDialog'
@@ -51,6 +52,7 @@ export default function App() {
       </div>
       <Modais modal={modal} fechar={ctx.fechar} />
       <CompressaoWatcher />
+      <FilaAviso />
     </UiContext.Provider>
   )
 }

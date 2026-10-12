@@ -2,15 +2,25 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
 import type {
-  AcaoResposta, Config, Ficha, Jogador, Memoria, PadraoFicha, Sessao, TokenCategoria, TurnoEstado, MesaSalva, Limites,
+  AcaoResposta, Config, Ficha, Jogador, Memoria, PadraoFicha, Sessao, TokenCategoria, TurnoEstado, MesaSalva, Limites, Fila,
 } from '@/lib/types'
 
 export const useSessao = () => useQuery({ queryKey: ['sessao'], queryFn: () => api.get<Sessao>('/sessao') })
 export const useJogadores = () =>
   useQuery({ queryKey: ['jogadores'], queryFn: () => api.get<Jogador[]>('/jogadores') })
 export const useConfig = () => useQuery({ queryKey: ['config'], queryFn: () => api.get<Config>('/config') })
+// Busca ao abrir e quando a API avisa (SSE); só relê sozinho a cada 30 s enquanto há uso a expirar.
 export const useLimites = () =>
-  useQuery({ queryKey: ['limites'], queryFn: () => api.get<Limites>('/limites'), refetchInterval: 5000 })
+  useQuery({
+    queryKey: ['limites'],
+    queryFn: () => api.get<Limites>('/limites'),
+    refetchInterval: (q) => {
+      const d = q.state.data
+      return d && (d.rpm.usado > 0 || d.tpm.usado > 0) ? 30000 : false
+    },
+  })
+export const useFila = () => useQuery({ queryKey: ['fila'], queryFn: () => api.get<Fila | null>('/fila') })
+export const filaOcupada = (f: Fila | null | undefined) => !!f && f.status !== 'concluida'
 export const useFicha = (nome: string) =>
   useQuery({ queryKey: ['ficha', nome], queryFn: () => api.get<Ficha>(`/fichas/${nome}`), gcTime: 0 })
 export const usePadraoFicha = () =>
@@ -41,6 +51,7 @@ export function useAcaoMestre<V = void>(fn: (v: V) => Promise<AcaoResposta>) {
     mutationFn: fn,
     onSuccess: (r) => {
       qc.setQueryData(['sessao'], r.sessao)
+      qc.invalidateQueries({ queryKey: ['fila'] })
       qc.invalidateQueries({ queryKey: ['jogadores'] })
       if (r.mensagem) toast(r.mensagem)
     },
