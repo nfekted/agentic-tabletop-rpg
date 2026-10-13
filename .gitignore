@@ -20,14 +20,15 @@ tempCodeRunnerFile.py
 
 # Pasta de arquivos (regras, fichas, imagens e memórias)
 arquivos/**/*
+tokens/**/*
 
-!arquivos/regras/default.txt
+!arquivos/regras/base.txt
 !arquivos/img/default.txt
 !arquivos/fichas/default.txt
 
-!arquivos/tokens/inimigo/default.txt
-!arquivos/tokens/npc/default.txt
-!arquivos/tokens/item/default.txt
+!tokens/inimigo/default.txt
+!tokens/npc/default.txt
+!tokens/item/default.txt
 
 # Backups de mesa
 mesas/*.zip
