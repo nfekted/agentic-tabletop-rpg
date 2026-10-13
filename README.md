@@ -10,7 +10,7 @@ uma API em Python (FastAPI), para quem não quer mexer em terminal.
 - 🎭 Agentes com ficha, regras e memória individualizadas por personagem
 - 🧠 Memória em três níveis (rodada → cena → mesa) que simula o esquecimento humano
 - 💬 Respostas com intenção: `[fala]`, `[acao]`, `[duvida]`, `[chamar]` e `[pensamento]`
-- 🔀 Escolha do modelo: Gemini 3.5, OpenAI Luna, Ollama ou Omniroute (local)
+- 🔀 Escolha do modelo: Gemini, qualquer API OpenAI-compatível ou servidor local (Ollama, Omniroute...), com o modelo digitado por você
 - 🖼️ Fotos para os jogadores e envio de imagens para contextualizar os agentes
 - 💸 Prompt dividido em partes fixas e variáveis, com cache, para economizar tokens
 - ⚔️ Modo por Turnos: gestão de cenas e combate com áreas, ordem de iniciativa (arrastar e soltar) e tokens com imagem
@@ -269,9 +269,10 @@ fica em /arquivos/config.json, no formato:
 
 ```
 {
-  "provedor": "Omniroute local",   (ou "Gemini 3.5-flash", "GPT-luna", "Ollama local")
+  "tipo_api": "local",             ("gemini", "openai" ou "local")
+  "modelo": "omniroute-local",     (nome do modelo, como na documentação do provedor)
   "api_key": "",                   (sua chave, se o provedor exigir)
-  "base_url": "http://localhost:8000/v1",   (ou "")
+  "base_url": "http://localhost:8000/v1",   (ou ""; ignorado no Gemini)
   "limite_contexto_tokens": 0,     (0 = controle de contexto desligado)
   "gatilho_compressao_pct": 85,
   "alvo_reducao_pct": 50,
@@ -490,6 +491,11 @@ Detalhes:
 é enviado no prompt de cada jogador. Isso evita gastar tokens à toa
 mandando regras de combate durante uma cena de exploração (ou vice-versa).
 
+O arquivo **`base.txt`** guarda o que é comum a todos os conjuntos (regras gerais,
+atributos etc.). Ele é enviado **sempre, no começo**, e o conjunto ativo vem logo
+depois, como se fosse um texto só (`base` + ativo). Ele não pode ser excluído nem
+marcado como ativo, e não aparece no seletor do cabeçalho — só no painel de regras.
+
 Pela interface você pode:
 - **Trocar rapidamente** o conjunto ativo no seletor 📜 do cabeçalho, sem abrir
   nenhum painel — ideal para alternar entre "exploração" e "combate" no
@@ -497,7 +503,7 @@ Pela interface você pode:
 - Clicar no ícone **📜 Regras** da barra lateral para abrir o painel completo,
   onde dá para editar o conteúdo de um conjunto existente, marcar outro
   como ativo, **criar** um conjunto novo (vazio, para você preencher) ou
-  **excluir** um conjunto (não é possível excluir o único restante).
+  **excluir** um conjunto (a `base.txt` não pode ser excluída).
 
 ### Conjuntos de cenas (arquivos/cenas/)
 
@@ -555,8 +561,9 @@ turnos** para abrir o painel de gestão de cenas e combate. O estado fica em
   todos e **todos os jogadores respondem**. Nada passa por aprovação.
 - **Falar com Jogador Específico [Cena Pública]** — como "o mestre olha para um
   jogador e pergunta o que ele faz": a mesa toda ouve (a narração e o que o
-  jogador disser ou fizer vão para a memória de todos), mas **só o jogador
-  escolhido responde**. Selecione um único jogador.
+  jogador disser ou fizer vão para a memória de todos), mas **só os jogadores
+  escolhidos respondem**, um de cada vez, na ordem em que foram marcados (1º,
+  2º...); quem responde depois já lê o que os anteriores disseram.
 - **Cena Privada** — um jogador ou um grupo vive uma parte da cena que os demais
   não presenciam. **Todos os selecionados respondem**, em sequência, e o
   registro fica só na memória deles. É assim que segredos ficam guardados
@@ -591,9 +598,9 @@ ela contém um `[chamar]` aparece o card **📣 Chamadas aguardando você**, com
 
 - **Acionar {jogador}**: o chamado entra na cena (se for Cena Privada, passa a
   lembrar dela a partir da chamada) e responde.
-- **Não acionar**: a fala de quem chamou continua registrada normalmente, mas o
-  chamado não é incluído nem respondido. Você pode então narrar o que
-  impediu a ação, com uma nova fala.
+- **Não acionar**: ninguém é chamado nem responde, e o `[chamar]` vira uma
+  `[fala]` comum no histórico, no balão e na memória da rodada. O que foi dito
+  continua registrado e quem estava presente segue ouvindo.
 
 A resposta do chamado pode, por sua vez, chamar outro jogador e passar pela
 mesma aprovação.
@@ -760,15 +767,18 @@ jogadores passam a reagir ao que "estão vendo". Os arquivos ficam salvos em
 
 ### Escolha do modelo de IA
 
-Os provedores são definidos em `config.py`; o escolhido fica em
-`arquivos/config.json` e pode ser trocado em **⚙️ Configurações da LLM**:
+O tipo de API e o **modelo** (texto livre, exatamente como na documentação do
+provedor) ficam em `arquivos/config.json` e podem ser trocados a qualquer
+momento em **⚙️ Configurações da LLM**:
 
-| Provedor | Onde roda | O que precisa |
+| Tipo de API | Para que serve | O que precisa |
 |---|---|---|
-| **Gemini 3.5** (Google) | Nuvem | API Key (pelas Configurações, ou a variável `GEMINI_API_KEY`) |
-| **OpenAI Luna** | Nuvem | API Key (pelas Configurações, ou a variável `OPENAI_API_KEY`) |
-| **Ollama** | Local (seu computador) | Ollama instalado e rodando, com o modelo já baixado |
-| **Omniroute** | Local | Servidor Omniroute rodando e acessível |
+| **Google Gemini** | Modelos Gemini (nuvem) | API Key (pelas Configurações, ou a variável `GEMINI_API_KEY`) |
+| **OpenAI-compatível** | OpenAI, DeepSeek, Kimi, Groq, OpenRouter, Mistral, Grok... | API Key e modelo; o endereço fica vazio para a OpenAI e é preenchido nos demais |
+| **Local** | Ollama, Omniroute, LM Studio e outros servidores na sua máquina | Servidor rodando e o endereço (ex.: `http://localhost:11434/v1` no Ollama, `http://localhost:8000/v1` no Omniroute); a chave costuma não ser necessária |
+
+Trocar de tipo ou de modelo recalibra a estimativa de tokens sozinho. Configs
+antigas (`"provedor": "GPT-luna"` etc.) são convertidas na primeira leitura.
 
 Modelos locais não cobram por token e mantêm tudo no seu computador, mas a
 qualidade e a velocidade dependem do seu hardware e do modelo escolhido.
@@ -811,11 +821,27 @@ Detalhes importantes:
 - O `config.json` **não entra no zip** (ele guarda a API Key). Ao restaurar,
   a configuração atual da LLM é mantida; se mudar de máquina, reconfigure a
   chave. Guarde-a em local seguro.
-- Rodadas em andamento (`rodada_atual_temp.txt`) não são salvas, e o estado da
-  sessão (`sessao.json`: histórico da rodada, falas, chamadas pendentes)
-  também fica de fora e é limpo ao restaurar.
+- A rodada em andamento **entra no zip**: `rodada_atual_temp.txt` de cada
+  personagem e `sessao.json` (rodada ativa, histórico, falas, chamadas
+  pendentes). Salvar antes de finalizar uma rodada permite restaurar e
+  finalizar de novo se o resumo ficar ruim. Zips antigos, sem esses arquivos,
+  restauram com a sessão zerada.
+- A fila de requests (`fila.json`) não é salva nem restaurada, e salvar ou
+  restaurar fica bloqueado enquanto há fila ativa ou pausada.
 - O zip é validado antes de qualquer alteração e a troca é feita com
   rollback: se algo falhar, os dados atuais permanecem.
+
+### Reiniciar e Resetar mesa
+
+Na tela de configurações (⚙️) há dois botões, ambos com confirmação (faça um
+backup antes, não há como desfazer):
+
+- **Reiniciar mesa**: recomeça a campanha **mantendo o cenário**. Fichas,
+  personagens, avatares, regras, cenas e tokens ficam. Apaga só as memórias
+  (rodadas, cenas, mesa, rascunho da rodada e métricas dos personagens), a rodada em
+  andamento, o histórico e a fila. Útil para repetir o mesmo cenário com outro modelo.
+- **Resetar mesa**: apaga tudo em `arquivos/` e `tokens/`, mantendo só a
+  configuração e o uso da LLM e os arquivos de exemplo (`default.txt`, `base.txt`).
 
 ---
 

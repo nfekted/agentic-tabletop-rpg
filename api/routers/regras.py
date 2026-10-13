@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 from api.deps import nome_arquivo_valido
 from rpg.fichas import (
+    ARQUIVO_BASE,
     carregar_regra,
     criar_arquivo_regra,
     definir_regra_ativa,
@@ -25,7 +26,7 @@ class ConteudoIn(BaseModel):
 
 def _existente(arquivo: str) -> str:
     arquivo = nome_arquivo_valido(arquivo)
-    if arquivo not in listar_arquivos_regras():
+    if arquivo != ARQUIVO_BASE and arquivo not in listar_arquivos_regras():
         raise HTTPException(404, "Conjunto de regras não encontrado.")
     return arquivo
 
@@ -33,7 +34,7 @@ def _existente(arquivo: str) -> str:
 @router.get("/regras")
 def listar():
     arquivos = listar_arquivos_regras()
-    return {"arquivos": arquivos, "ativa": obter_regra_ativa() if arquivos else None}
+    return {"base": ARQUIVO_BASE, "arquivos": arquivos, "ativa": obter_regra_ativa()}
 
 
 @router.post("/regras", status_code=201)
@@ -46,6 +47,8 @@ def criar(body: NomeIn):
 
 @router.put("/regras/ativa")
 def ativar(body: NomeIn):
+    if body.nome == ARQUIVO_BASE:
+        raise HTTPException(400, "A base já é sempre enviada; escolha um conjunto.")
     definir_regra_ativa(_existente(body.nome))
     return {"ativa": body.nome}
 
@@ -63,6 +66,7 @@ def salvar(arquivo: str, body: ConteudoIn):
 
 @router.delete("/regras/{arquivo}")
 def excluir(arquivo: str):
-    if not remover_arquivo_regra(_existente(arquivo)):
-        raise HTTPException(400, "Não é possível excluir o único conjunto restante.")
+    if _existente(arquivo) == ARQUIVO_BASE:
+        raise HTTPException(400, "A base não pode ser excluída.")
+    remover_arquivo_regra(arquivo)
     return {"ok": True}

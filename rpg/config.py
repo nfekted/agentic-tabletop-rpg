@@ -4,17 +4,18 @@ from dotenv import load_dotenv
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
-from langchain_community.llms import Ollama
 from rpg.fichas import inicializar_ficha_agente, salvar_json
 from rpg.paths import ARQUIVOS
 
 _CAMINHO_CONFIG = os.path.join(ARQUIVOS, "config.json")
 _CAMINHO_JOGADORES = os.path.join(ARQUIVOS, "jogadores.json")
 
-PROVEDORES = ["Gemini 3.5-flash", "GPT-luna", "Ollama local", "Omniroute local"]
+# tipo de API (qual cliente usar); o modelo é digitado pelo usuário, como na documentação do provedor
+TIPOS_API = {"gemini": "Google Gemini", "openai": "OpenAI-compatível", "local": "Local (Ollama, Omniroute...)"}
 
 CONFIG_PADRAO = {
-    "provedor": "Omniroute local",
+    "tipo_api": "local",
+    "modelo": "omniroute-local",
     "api_key": "",
     "base_url": "http://localhost:8000/v1",
     "limite_contexto_tokens": 0,  # 0 = controle de contexto desligado
@@ -26,6 +27,28 @@ CONFIG_PADRAO = {
 }
 
 
+def _migrar(dados: dict) -> dict:
+    # configs antigas guardavam um nome de provedor fixo ("GPT-luna", "Ollama local"...)
+    antigo = dados.pop("provedor", None)
+    if antigo and "tipo_api" not in dados:
+        tipo, modelo = {
+            "gemini-3.5-flash-lite": ("gemini", "gemini-3.5-flash-lite"),
+            "GPT-luna": ("openai", "gpt-luna"),
+            "Ollama local": ("local", "llama3"),
+        }.get(antigo, ("local", "omniroute-local"))
+        dados["tipo_api"], dados["modelo"] = tipo, modelo
+        url = (dados.get("base_url") or "").rstrip("/")
+        if antigo == "Ollama local":  # o Ollama fala o protocolo OpenAI em /v1
+            dados["base_url"] = (url or "http://localhost:11434") + ("" if url.endswith("/v1") else "/v1")
+    return dados
+
+
+def identidade_llm() -> str:
+    # muda quando troca o tipo ou o modelo (as métricas de tokens são recalibradas)
+    cfg = carregar_configuracao()
+    return f"{cfg.get('tipo_api')}:{cfg.get('modelo')}"
+
+
 def carregar_configuracao() -> dict:
     os.makedirs(ARQUIVOS, exist_ok=True)
     if not os.path.exists(_CAMINHO_CONFIG):
@@ -34,7 +57,7 @@ def carregar_configuracao() -> dict:
     try:
         with open(_CAMINHO_CONFIG, "r", encoding="utf-8") as f:
             dados = json.load(f)
-            return {**CONFIG_PADRAO, **dados}
+            return {**CONFIG_PADRAO, **_migrar(dados)}
     except Exception:
         return CONFIG_PADRAO
 
@@ -45,38 +68,38 @@ def salvar_configuracao(dados: dict):
 
 def obter_llm(temperature: float = 0.8):
     cfg = carregar_configuracao()
-    provedor = cfg.get("provedor")
+    tipo = cfg.get("tipo_api")
+    modelo = (cfg.get("modelo") or "").strip()
     api_key = cfg.get("api_key")
-    base_url = cfg.get("base_url")
+    base_url = (cfg.get("base_url") or "").strip()
 
     temp_normalizada = min(temperature, 1.0)
 
-    if provedor == "Gemini 3.5-flash":
+    if not modelo:
+        raise ValueError("Informe o modelo nas configurações.")
+    if tipo == "gemini":
         return ChatGoogleGenerativeAI(
-            model="gemini-3.5-flash",
+            model=modelo,
             google_api_key=api_key or os.getenv("GEMINI_API_KEY"),
             temperature=temp_normalizada,
         )
-    if provedor == "GPT-luna":
+    if tipo == "openai":
         return ChatOpenAI(
-            model="gpt-luna",
+            model=modelo,
             api_key=api_key or os.getenv("OPENAI_API_KEY"),
+            base_url=base_url or None,
             temperature=temp_normalizada,
         )
-    if provedor == "Ollama local":
-        return Ollama(
-            model="llama3",
-            base_url=base_url or "http://localhost:11434",
-            temperature=temp_normalizada,
-        )
-    if provedor == "Omniroute local":
+    if tipo == "local":
+        if not base_url:
+            raise ValueError("Informe o endereço (base URL) do servidor local nas configurações.")
         return ChatOpenAI(
-            model="omniroute-local",
+            model=modelo,
             api_key=api_key or "local-key",
-            base_url=base_url or "http://localhost:8000/v1",
+            base_url=base_url,
             temperature=temp_normalizada,
         )
-    raise ValueError(f"Provedor desconhecido: {provedor}")
+    raise ValueError(f"Tipo de API desconhecido: {tipo}")
 
 
 def carregar_dados_jogadores() -> list:

@@ -38,7 +38,7 @@ export const useCenas = () => useQuery({ queryKey: ['cenas'], queryFn: () => api
 export const useTokens = () =>
   useQuery({ queryKey: ['tokens'], queryFn: () => api.get<Record<string, TokenCategoria>>('/tokens') })
 export const useRegras = () =>
-  useQuery({ queryKey: ['regras'], queryFn: () => api.get<{ arquivos: string[]; ativa: string | null }>('/regras') })
+  useQuery({ queryKey: ['regras'], queryFn: () => api.get<{ base: string; arquivos: string[]; ativa: string | null }>('/regras') })
 export const useMesasSalvas = () =>
   useQuery({ queryKey: ['mesas'], queryFn: () => api.get<MesaSalva[]>('/mesas'), gcTime: 0 })
 export const useTurno = () =>

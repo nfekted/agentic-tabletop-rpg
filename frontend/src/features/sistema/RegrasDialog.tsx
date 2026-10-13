@@ -9,7 +9,7 @@ import { useAcao, useRegra, useRegras } from '@/hooks/queries'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
-function Editor({ arquivo, ativa }: { arquivo: string; ativa: boolean }) {
+function Editor({ arquivo, ativa, base }: { arquivo: string; ativa: boolean; base: boolean }) {
   const { data } = useRegra(arquivo)
   const [texto, setTexto] = useState<string | null>(null)
   const atual = texto ?? data?.conteudo ?? ''
@@ -23,8 +23,12 @@ function Editor({ arquivo, ativa }: { arquivo: string; ativa: boolean }) {
       <Textarea value={atual} onChange={(e) => setTexto(e.target.value)} className="min-h-64 flex-1 font-mono text-[13px]" disabled={!data} />
       <div className="flex flex-wrap gap-2">
         <Button disabled={salvar.isPending || texto === null} onClick={() => salvar.mutate()}>Salvar</Button>
-        <Button variant="secondary" disabled={ativa || ativar.isPending} onClick={() => ativar.mutate()}><Star /> Usar agora</Button>
-        <Button variant="outline" className="ml-auto" disabled={excluir.isPending} onClick={() => excluir.mutate()}><Trash2 /> Excluir</Button>
+        {!base && (
+          <>
+            <Button variant="secondary" disabled={ativa || ativar.isPending} onClick={() => ativar.mutate()}><Star /> Usar agora</Button>
+            <Button variant="outline" className="ml-auto" disabled={excluir.isPending} onClick={() => excluir.mutate()}><Trash2 /> Excluir</Button>
+          </>
+        )}
       </div>
     </div>
   )
@@ -34,8 +38,9 @@ export function RegrasDialog({ onFechar }: { onFechar: () => void }) {
   const { data } = useRegras()
   const [sel, setSel] = useState<string | null>(null)
   const [novo, setNovo] = useState('')
+  const base = data?.base ?? null
   const arquivos = data?.arquivos ?? []
-  const atual = sel && arquivos.includes(sel) ? sel : (data?.ativa ?? arquivos[0] ?? null)
+  const atual = sel && (sel === base || arquivos.includes(sel)) ? sel : (data?.ativa ?? base)
 
   const criar = useAcao(
     () => api.post<{ arquivo: string }>('/regras', { nome: novo }),
@@ -47,16 +52,17 @@ export function RegrasDialog({ onFechar }: { onFechar: () => void }) {
       <DialogContent className="flex h-[80vh] flex-col sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>📜 Conjuntos de regras</DialogTitle>
-          <DialogDescription>Só o conjunto ativo (⭐) é enviado no prompt dos jogadores.</DialogDescription>
+          <DialogDescription>A base vai sempre no início do prompt dos jogadores, seguida do conjunto ativo (⭐).</DialogDescription>
         </DialogHeader>
         <div className="flex min-h-0 flex-1 flex-col gap-3 sm:flex-row">
           <div className="space-y-2 sm:w-52 sm:shrink-0">
             <div className="max-h-40 space-y-1 overflow-y-auto sm:max-h-[50vh]">
-              {arquivos.map((a) => (
+              {[...(base ? [base] : []), ...arquivos].map((a) => (
                 <button key={a} onClick={() => setSel(a)}
                   className={cn('flex w-full items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-left text-sm hover:bg-muted', atual === a && 'border-primary bg-muted')}>
                   {data?.ativa === a && <Star className="size-3.5 shrink-0 fill-primary text-primary" />}
                   <span className="truncate">{a}</span>
+                  {a === base && <span className="ml-auto text-xs text-muted-foreground">sempre</span>}
                 </button>
               ))}
             </div>
@@ -68,7 +74,7 @@ export function RegrasDialog({ onFechar }: { onFechar: () => void }) {
               </Button>
             </div>
           </div>
-          {atual && <Editor key={atual} arquivo={atual} ativa={data?.ativa === atual} />}
+          {atual && <Editor key={atual} arquivo={atual} ativa={data?.ativa === atual} base={atual === base} />}
         </div>
       </DialogContent>
     </DialogAberto>

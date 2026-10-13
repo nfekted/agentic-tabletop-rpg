@@ -1,14 +1,15 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from rpg import limites
-from rpg.config import PROVEDORES, carregar_configuracao, salvar_configuracao
+from rpg.config import TIPOS_API, carregar_configuracao, salvar_configuracao
 
 router = APIRouter(tags=["config"])
 
 
 class ConfigIn(BaseModel):
-    provedor: str
+    tipo_api: str
+    modelo: str
     api_key: str | None = None  # None = manter a chave atual
     base_url: str = ""
     limite_contexto_tokens: int = 0
@@ -24,7 +25,7 @@ def _publica(cfg: dict) -> dict:
     return {
         **{k: v for k, v in cfg.items() if k != "api_key"},
         "api_key_definida": bool(cfg.get("api_key")),
-        "provedores": PROVEDORES,
+        "tipos_api": [{"id": k, "nome": v} for k, v in TIPOS_API.items()],
     }
 
 
@@ -35,6 +36,8 @@ def obter_config():
 
 @router.put("/config")
 def salvar_config(body: ConfigIn):
+    if body.tipo_api not in TIPOS_API:
+        raise HTTPException(400, "Tipo de API inválido.")
     atual = carregar_configuracao()
     novo = {**atual, **body.model_dump(exclude={"api_key"})}
     if body.api_key is not None:

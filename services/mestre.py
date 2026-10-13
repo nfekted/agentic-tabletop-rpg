@@ -69,6 +69,11 @@ def iniciar_rodada() -> str:
     return "🟢 Rodada iniciada."
 
 
+def _exigir_rodada():
+    if not obter()["rodada_ativa"]:
+        raise ErroNegocio("Inicie a rodada antes de falar com os jogadores.")
+
+
 def _limpar_pendencias(s: dict):
     s["pending_chamadas"] = []
 
@@ -110,7 +115,7 @@ def fechar_rodada(alvos: list[str]) -> str:
     s["rodada_ativa"] = False
     s["envolvidos"] = []
     s["historico"] = []
-    s["ultima_fala"] = {}
+    # ultima_fala fica: é só referência visual dos balões (não entra em nenhum prompt) e cada nova fala a substitui
     _limpar_pendencias(s)
     salvar()
     return "⏹️ Rodada finalizada e memória consolidada."
@@ -161,6 +166,7 @@ def _processar_resposta(agente: str, resposta: str, presentes: list[str], rotulo
             "destino": chamada[0],
             "mensagem": chamada[1],
             "conteudo_publico": publico,
+            "chamar_texto": tags["chamar"],
             "presentes": list(presentes),
         })
     salvar()
@@ -171,6 +177,7 @@ def _processar_resposta(agente: str, resposta: str, presentes: list[str], rotulo
 
 def preparar_falar_todos(comando: str) -> tuple[list[str], list[dict]]:
     # Registra a fala do mestre; devolve (presentes, itens da fila: um por jogador).
+    _exigir_rodada()
     s = obter()
     presentes = carregar_agentes()
     if not presentes:
@@ -189,12 +196,11 @@ def preparar_falar_todos(comando: str) -> tuple[list[str], list[dict]]:
 
 
 def preparar_falar_direcionado(presentes: list[str], is_privado: bool, comando: str) -> tuple[list[str], list[dict]]:
-    # pública: todos ouvem e só o alvo responde; privada: só os selecionados ouvem e respondem
+    # pública: todos ouvem e só os alvos respondem, na ordem; privada: só os selecionados ouvem e respondem
+    _exigir_rodada()
     s = obter()
     if not presentes:
         raise ErroNegocio("Selecione ao menos um jogador.")
-    if not is_privado and len(presentes) > 1:
-        raise ErroNegocio("Selecione apenas um jogador (ou use Cena privada para um grupo).")
 
     agentes_alvo_log = presentes if is_privado else carregar_agentes()
     for p in agentes_alvo_log:
@@ -220,6 +226,7 @@ def _tirar_chamada(chamada_id: str) -> dict:
 
 def preparar_aprovar_chamada(chamada_id: str) -> tuple[list[str], list[dict], str]:
     # Aciona o jogador chamado: entra na cena (se ainda não estava); devolve (presentes, itens, rótulo).
+    _exigir_rodada()
     s = obter()
     c = _tirar_chamada(chamada_id)
     origem, destino = c["origem"], c["destino"]
@@ -241,8 +248,21 @@ def responder(agente: str, instrucao: str, presentes: list[str], rotulo: str = "
     return _processar_resposta(agente, resposta, presentes, rotulo)
 
 
-def descartar_chamada(chamada_id: str) -> str:
-    # Não aciona ninguém; a fala/ação de quem chamou continua registrada.
+def descartar_chamada(chamada_id: str):
+    # Recusa: o chamado não aciona ninguém e vira fala comum ([chamar] -> [fala]), mantendo o que foi dito
+    # na história e na memória da rodada.
+    s = obter()
     c = _tirar_chamada(chamada_id)
+    texto = c.get("chamar_texto")
+    if texto:
+        trecho, novo = f"[chamar]{texto}[/chamar]", f"[fala]{texto}[/fala]"
+        for i in range(len(s["historico"]) - 1, -1, -1):
+            if trecho in s["historico"][i]:
+                s["historico"][i] = s["historico"][i].replace(trecho, novo)
+                break
+        fala = s["ultima_fala"].get(c["origem"])
+        if fala and trecho in fala["texto"]:
+            fala["texto"] = fala["texto"].replace(trecho, novo)
+        if s["rodada_ativa"]:
+            GerenciadorMemoriaRPG.substituir_trecho_temp(trecho, novo, c["presentes"])
     salvar()
-    return f"Chamada não acionada: {c['destino']} não foi chamado. A fala de {c['origem']} continua registrada."

@@ -1,4 +1,5 @@
 # Salvar e restaurar a mesa (arquivos/ + tokens/) como .zip em mesas/
+import glob
 import os
 import re
 import shutil
@@ -10,7 +11,7 @@ _PASTA_STAGING = os.path.join(PASTA_MESAS, ".restore_tmp")
 _RAIZES = ("arquivos", "tokens")
 _CONFIG_LLM = os.path.join("arquivos", "config.json")  # contém a API Key: fora do backup
 _PRESERVAR = (_CONFIG_LLM, os.path.join("arquivos", "limites.json"))  # configuração/uso da LLM: sobrevivem a restaurar e reiniciar
-_IGNORAR_ARQUIVOS = {"rodada_atual_temp.txt", "sessao.json", "fila.json"}  # rodada não finalizada (estado da sessão)
+_IGNORAR_ARQUIVOS = {"fila.json"}  # a fila de requests não é restaurada: uma ação pela metade não faz sentido
 _IGNORAR_PASTAS = {"__pycache__"}
 _NOME_VALIDO = re.compile(r"^[\w\- ]+$", re.UNICODE)
 
@@ -65,7 +66,7 @@ def salvar_mesa(nome: str):
                         zf.writestr(rel_pasta.replace(os.sep, "/") + "/", "")
                     for arq in arquivos:
                         rel = os.path.join(rel_pasta, arq)
-                        if rel in _PRESERVAR or arq in _IGNORAR_ARQUIVOS:
+                        if rel in _PRESERVAR or arq in _IGNORAR_ARQUIVOS or arq.endswith(".tmp"):
                             continue
                         zf.write(os.path.join(pasta, arq), rel.replace(os.sep, "/"))
         os.replace(tmp, destino)
@@ -133,8 +134,8 @@ def restaurar_mesa(nome: str):
     return True, f"Mesa '{nome}' restaurada."
 
 
-def reiniciar_mesa():
-    # Apaga tudo de arquivos/ e tokens/, mantendo só a config/uso da LLM e os default.txt (placeholders versionados)
+def resetar_mesa():
+    # Apaga tudo de arquivos/ e tokens/, mantendo só a config/uso da LLM e os default.txt/base.txt (placeholders versionados)
     manter = {os.path.join(_PASTA_RAIZ, rel) for rel in _PRESERVAR}
     try:
         for raiz in _RAIZES:
@@ -142,7 +143,7 @@ def reiniciar_mesa():
             for pasta, _, arquivos in os.walk(base, topdown=False):
                 for arq in arquivos:
                     caminho = os.path.join(pasta, arq)
-                    if arq != "default.txt" and caminho not in manter:
+                    if arq not in ("default.txt", "base.txt") and caminho not in manter:
                         os.remove(caminho)
                 if pasta != base:
                     try:
@@ -150,5 +151,21 @@ def reiniciar_mesa():
                     except OSError:
                         pass
     except Exception as e:
+        return False, f"Erro ao resetar a mesa: {e}"
+    return True, "Mesa resetada."
+
+
+def reiniciar_mesa():
+    # Recomeça a campanha do zero mantendo o cenário: só apaga a memória dos personagens (rodadas, cenas, mesa,
+    # rascunho da rodada e métricas); avatares, fichas, regras, cenas, tokens e configuração da LLM ficam.
+    try:
+        for pasta in glob.glob(os.path.join(_PASTA_RAIZ, "arquivos", "memoria_*")):
+            if not os.path.isdir(pasta):
+                continue
+            for arq in os.listdir(pasta):
+                caminho = os.path.join(pasta, arq)
+                if os.path.isfile(caminho) and not arq.startswith("avatar."):
+                    os.remove(caminho)
+    except Exception as e:
         return False, f"Erro ao reiniciar a mesa: {e}"
-    return True, "Mesa reiniciada."
+    return True, "Mesa reiniciada: personagens, fichas, cenas e tokens mantidos; memórias apagadas."

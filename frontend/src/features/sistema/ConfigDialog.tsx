@@ -27,14 +27,18 @@ function Form({ inicial, onFechar }: { inicial: Config; onFechar: () => void }) 
   const [c, setC] = useState(inicial)
   const qc = useQueryClient()
   const [chave, setChave] = useState('')
-  const [confirmar, setConfirmar] = useState(false)
+  const [confirmar, setConfirmar] = useState<'reiniciar' | 'resetar' | null>(null)
   const reiniciar = useAcao(
     () => api.post<{ mensagem: string }>('/mesas/reiniciar'),
     [], (r) => r.mensagem,
   )
+  const resetar = useAcao(
+    () => api.post<{ mensagem: string }>('/mesas/resetar'),
+    [], (r) => r.mensagem,
+  )
   const salvar = useAcao(
     () => api.put<Config>('/config', {
-      provedor: c.provedor, base_url: c.base_url,
+      tipo_api: c.tipo_api, modelo: c.modelo, base_url: c.base_url,
       limite_contexto_tokens: c.limite_contexto_tokens,
       gatilho_compressao_pct: c.gatilho_compressao_pct,
       alvo_reducao_pct: c.alvo_reducao_pct,
@@ -43,28 +47,31 @@ function Form({ inicial, onFechar }: { inicial: Config; onFechar: () => void }) 
     }),
     [['config'], ['jogadores'], ['limites']], 'Configurações salvas.',
   )
-  const usaChave = c.provedor !== 'Ollama local'
-  const usaUrl = c.provedor === 'Ollama local' || c.provedor === 'Omniroute local'
+  const usaUrl = c.tipo_api !== 'gemini'
   const num = (k: keyof Config) => (e: React.ChangeEvent<HTMLInputElement>) => setC({ ...c, [k]: Number(e.target.value) })
 
   return (
     <>
-      <Campo id="prov" rotulo="Provedor">
-        <Select value={c.provedor} onValueChange={(v) => v && setC({ ...c, provedor: v })}>
-          <SelectTrigger id="prov" className="w-full"><SelectValue /></SelectTrigger>
+      <Campo id="prov" rotulo="Tipo de API" dica="Qual protocolo usar. DeepSeek, Kimi, Groq, OpenRouter etc. usam OpenAI-compatível.">
+        <Select value={c.tipo_api} onValueChange={(v) => v && setC({ ...c, tipo_api: v })}>
+          <SelectTrigger id="prov" className="w-full">
+            <SelectValue>{(v: string) => c.tipos_api.find((t) => t.id === v)?.nome ?? v}</SelectValue>
+          </SelectTrigger>
           <SelectContent>
-            {c.provedores.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+            {c.tipos_api.map((t) => <SelectItem key={t.id} value={t.id}>{t.nome}</SelectItem>)}
           </SelectContent>
         </Select>
       </Campo>
-      {usaChave && (
-        <Campo id="key" rotulo="API Key" dica="Fica salva em arquivos/config.json e nunca é devolvida pela API. Deixe em branco para manter a atual.">
-          <Input id="key" type="password" autoComplete="off" value={chave} onChange={(e) => setChave(e.target.value)}
-            placeholder={inicial.api_key_definida ? '•••••••• (definida)' : 'Cole sua chave'} />
-        </Campo>
-      )}
+      <Campo id="modelo" rotulo="Modelo" dica="Nome exatamente como na documentação do provedor (ex.: gemini-3.5-flash-lite).">
+        <Input id="modelo" value={c.modelo} onChange={(e) => setC({ ...c, modelo: e.target.value })} placeholder="nome-do-modelo" />
+      </Campo>
+      <Campo id="key" rotulo="API Key" dica="Fica salva em arquivos/config.json e nunca é devolvida pela API. Deixe em branco para manter a atual (em servidor local costuma não ser necessária).">
+        <Input id="key" type="password" autoComplete="off" value={chave} onChange={(e) => setChave(e.target.value)}
+          placeholder={inicial.api_key_definida ? '•••••••• (definida)' : 'Cole sua chave'} />
+      </Campo>
       {usaUrl && (
-        <Campo id="url" rotulo="Endereço (base URL)">
+        <Campo id="url" rotulo="Endereço (base URL)"
+          dica={c.tipo_api === 'openai' ? 'Vazio = API oficial da OpenAI.' : 'Ollama: http://localhost:11434/v1 · Omniroute: http://localhost:8000/v1'}>
           <Input id="url" value={c.base_url} onChange={(e) => setC({ ...c, base_url: e.target.value })} placeholder="http://localhost:8000/v1" />
         </Campo>
       )}
@@ -92,20 +99,32 @@ function Form({ inicial, onFechar }: { inicial: Config; onFechar: () => void }) 
       </div>
       <div className="space-y-2 border-t pt-3">
         {!confirmar ? (
-          <Button variant="destructive" size="sm" onClick={() => setConfirmar(true)}>Reiniciar mesa</Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => setConfirmar('reiniciar')}>Reiniciar mesa</Button>
+            <Button variant="destructive" size="sm" onClick={() => setConfirmar('resetar')}>Resetar mesa</Button>
+          </div>
         ) : (
           <div className="space-y-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm">
-            <p>
-              Isso apaga <b>todos</b> os personagens, históricos, memórias, cenas, tokens, itens e inimigos.
-              Só as configurações da LLM são mantidas. <b>Não é possível recuperar</b>; recomendamos criar um backup
-              antes (💾 Salvar / Restaurar mesa). Continuar?
-            </p>
+            {confirmar === 'reiniciar' ? (
+              <p>
+                Recomeça a campanha do zero <b>mantendo o cenário</b>: personagens, fichas, regras, cenas e tokens ficam.
+                Apaga só as memórias dos personagens (rodadas, cenas, resumos, métricas), a rodada em andamento, o
+                histórico e a fila. <b>Não é possível recuperar</b>; recomendamos criar um backup antes
+                (💾 Salvar / Restaurar mesa). Continuar?
+              </p>
+            ) : (
+              <p>
+                Isso apaga <b>todos</b> os personagens, históricos, memórias, cenas, tokens, itens e inimigos.
+                Só as configurações da LLM são mantidas. <b>Não é possível recuperar</b>; recomendamos criar um backup
+                antes (💾 Salvar / Restaurar mesa). Continuar?
+              </p>
+            )}
             <div className="flex gap-2">
-              <Button variant="destructive" size="sm" disabled={reiniciar.isPending}
-                onClick={() => reiniciar.mutate(undefined, { onSuccess: () => { qc.invalidateQueries(); onFechar() } })}>
-                Sim, apagar tudo
+              <Button variant="destructive" size="sm" disabled={reiniciar.isPending || resetar.isPending}
+                onClick={() => (confirmar === 'reiniciar' ? reiniciar : resetar).mutate(undefined, { onSuccess: () => { qc.invalidateQueries(); onFechar() } })}>
+                {confirmar === 'reiniciar' ? 'Sim, reiniciar' : 'Sim, apagar tudo'}
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setConfirmar(false)}>Não</Button>
+              <Button variant="outline" size="sm" onClick={() => setConfirmar(null)}>Não</Button>
             </div>
           </div>
         )}

@@ -2,9 +2,9 @@ from typing import List
 
 from langchain_core.messages import SystemMessage, HumanMessage
 
-from rpg.config import carregar_agentes, carregar_configuracao, obter_llm
+from rpg.config import carregar_agentes, identidade_llm, obter_llm
 from rpg.fichas import carregar_ficha, carregar_regras
-from rpg.memoria import carregar_memoria_longo_prazo
+from rpg.memoria import carregar_memoria_longo_prazo, texto_resposta
 from rpg.limites import invocar
 from rpg.metricas import registrar_chamada
 from rpg.imagens import carregar_imagem_base64, obter_mimetype_imagem
@@ -36,7 +36,10 @@ Você está em um RPG de mesa cooperativo.
    - **[fala]...[/fala]**: O que o personagem efetivamente diz em voz alta. Pessoas próximas podem ouvir
    - **[acao]...[/acao]**: Movimento físico ou ação conclusiva do turno.
    - **[duvida]...[/duvida]**: Pergunta mecânica/narrativa ao Mestre (só ao Mestre).
-   - **[chamar]NomeExato: o que você diz a ele[/chamar]**: Chama outro jogador da mesa para participar da cena (ex.: `[chamar]Fulano: Pode vir ver isso?[/chamar]`). Use SOMENTE um destes nomes, escritos exatamente assim: {jogadores}. Nunca chame a si mesmo. Chame apenas personagens próximos ou na mesma cena que você.
+   - **[chamar]NomeExato: o que você diz a ele[/chamar]**: Traz para a cena um jogador que NÃO está nela, por estar em outro lugar (ex.: `[chamar]Fulano: Venha até o porão, achei uma pista![/chamar]`). Use SOMENTE um destes nomes, escritos exatamente assim: {jogadores}. Nunca chame a si mesmo.
+     - **Quem já está na cena NÃO deve ser chamado:** quem aparece no CONTEXTO RECENTE ou foi citado pelo mestre como destinatário (ex.: "Mestre (para A, B)") já te ouve. Para falar com essa pessoa, use `[fala]` citando o nome dela; para pedir algo a ela, peça em `[fala]`.
+     - **Não use [chamar] para dar ordens, repassar tarefas, combinar quem faz o quê ou responder a quem falou com você.** Se alguém te pediu algo, responda em `[fala]` ou `[acao]`.
+     - Na dúvida, não use [chamar]: um chamado desnecessário divide a cena e deixa parte dos jogadores sem saber o que foi dito.
    
 5. **AUTONOMIA DE SEGREDO E REVELAÇÃO:**
    - **Informações Privadas:** Fatos revelados em cenas privadas, visões ou pensamentos pertencem exclusivamente ao seu personagem.
@@ -133,7 +136,7 @@ def gerar_resposta_agente(
         agente,
         mensagens,
         resp,
-        carregar_configuracao().get("provedor", ""),
+        identidade_llm(),
         bool(caminho_imagem),
     )
-    return resp.content.strip()
+    return texto_resposta(resp)

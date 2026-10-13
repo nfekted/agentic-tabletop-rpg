@@ -4,7 +4,7 @@
 import os
 
 from rpg.agentes import montar_prompt
-from rpg.config import carregar_configuracao
+from rpg.config import identidade_llm
 from rpg.fichas import carregar_arquivo
 from rpg.memoria import _arquivos_numerados, _caminho_temp, obter_pasta_agente
 from rpg.metricas import CHARS_POR_TOKEN_PADRAO, _texto_da_mensagem, carregar_metricas
@@ -16,7 +16,7 @@ CHARS_PROMPT_HISTORIADOR = 1500  # instruções fixas do historiador
 
 def _razao(agente: str) -> float:
     dados = carregar_metricas(agente)
-    if dados.get("provedor") != carregar_configuracao().get("provedor", ""):
+    if dados.get("provedor") != identidade_llm():
         return CHARS_POR_TOKEN_PADRAO
     return float(dados.get("chars_por_token") or CHARS_POR_TOKEN_PADRAO)
 

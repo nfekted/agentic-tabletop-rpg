@@ -54,6 +54,14 @@ def salvar():
     eventos.publicar("sessao_atualizada")
 
 
+def recarregar():
+    # Relê arquivos/sessao.json (ex.: depois de restaurar uma mesa); sem o arquivo, volta ao estado inicial.
+    global _estado
+    _estado = None
+    obter()
+    eventos.publicar("sessao_atualizada")
+
+
 def resetar():
     global _estado
     _estado = copy.deepcopy(_PADRAO)

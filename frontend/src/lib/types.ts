@@ -68,7 +68,8 @@ export type Limite = { limite: number; usado: number; zera_em: number; libera_em
 export type Limites = { rpm: Limite; tpm: Limite; rpd: Limite }
 
 export type Config = {
-  provedor: string
+  tipo_api: string
+  modelo: string
   base_url: string
   limite_contexto_tokens: number
   gatilho_compressao_pct: number
@@ -77,7 +78,7 @@ export type Config = {
   limite_tpm: number
   limite_rpd: number
   api_key_definida: boolean
-  provedores: string[]
+  tipos_api: { id: string; nome: string }[]
 }
 
 type FichaBase = { nome: string; classe: string; passado_origem: string; detalhes_adicionais: string }

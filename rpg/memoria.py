@@ -46,8 +46,45 @@ def _invocar(llm, prompt):
     return invocar(llm, prompt)
 
 
-def _texto_resp(resp) -> str:
-    return str(getattr(resp, "content", resp)).strip()
+def texto_resposta(resp) -> str:
+    # Alguns modelos (ex.: Gemini 3) devolvem content como lista de blocos; fica só o texto, sem o "thinking".
+    conteudo = getattr(resp, "content", resp)
+    if isinstance(conteudo, list):
+        partes = [
+            p if isinstance(p, str) else p.get("text", "") if isinstance(p, dict) and p.get("type", "text") == "text" else ""
+            for p in conteudo
+        ]
+        conteudo = "".join(partes)
+    return str(conteudo).strip()
+
+
+_RE_TAG_ABERTA = re.compile(r"\[/?(?:pensamento|fala|acao|duvida|chamar)\]", re.IGNORECASE)
+_TAGS_EM_TEXTO = {
+    "pensamento": "pensou, sem dizer em voz alta: ",
+    "fala": "disse em voz alta: ",
+    "acao": "fez: ",
+    "duvida": "perguntou ao mestre: ",
+    "chamar": "chamou em voz alta: ",
+}
+
+
+_FATOS_A_PRESERVAR = """- Nomes próprios: personagens, NPCs, cidade, locais, organizações. Nunca troque um nome por "a cidade", "o veterano" ou "a policial": use o nome.
+        - A situação inicial e o objetivo da missão, mesmo que venham das primeiras rodadas.
+        - Informações recebidas, pistas, descobertas, itens, decisões tomadas e promessas feitas.
+        - Relações e tensões entre personagens e NPCs, e perigos ainda em aberto."""
+
+
+def tags_para_texto(registro: str) -> str:
+    # O historiador lê o registro sem as tags, para não ter o que copiar para o resumo.
+    def trocar(m):
+        return _TAGS_EM_TEXTO[m.group(1).lower()] + m.group(2).strip()
+
+    return re.sub(r"\[(pensamento|fala|acao|duvida|chamar)\](.*?)\[/\1\]", trocar, registro, flags=re.DOTALL | re.IGNORECASE)
+
+
+def limpar_tags(texto: str) -> str:
+    # Garantia final: tags que o modelo copiou para o resumo são removidas, o conteúdo fica.
+    return _RE_TAG_ABERTA.sub("", texto).strip()
 
 
 def tamanho_memoria_chars(agente: str) -> int:
@@ -122,6 +159,20 @@ class GerenciadorMemoriaRPG:
                     _anexar_temp(outro, f"{agente_autor}: {conteudo_publico}")
 
     @staticmethod
+    def substituir_trecho_temp(trecho: str, novo: str, agentes: List[str]):
+        # Troca a última ocorrência de `trecho` na memória da rodada atual de cada agente.
+        for agente in agentes:
+            caminho = _caminho_temp(agente)
+            if not os.path.exists(caminho):
+                continue
+            texto = _ler(caminho)
+            i = texto.rfind(trecho)
+            if i < 0:
+                continue
+            with open(caminho, "w", encoding="utf-8") as f:
+                f.write(texto[:i] + novo + texto[i + len(trecho):])
+
+    @staticmethod
     def limpar_temp_nao_envolvidos(agentes_nao_envolvidos: List[str]):
         for agente in agentes_nao_envolvidos:
             caminho_temp = _caminho_temp(agente)
@@ -168,28 +219,36 @@ class GerenciadorMemoriaRPG:
             rodadas_existentes = _arquivos_numerados(pasta, "rodada")
             num_rodada = len(rodadas_existentes) + 1
 
-            conteudo = _ler(caminho_temp)
+            conteudo = tags_para_texto(_ler(caminho_temp))
+            alvo_chars = min(3500, max(1000, int(len(conteudo) * 0.4)))
 
             mensagems = []
-            
+
             prompt_base = f"""
             Você é o Historiador e Cronista oficial de uma mesa de RPG cooperativo.
-            Sua missão é consolidar os acontecimentos da rodada recente em uma narrativa concisa, fluida e envolvente\n\n
-            ## DIRETRIZES FUNDAMENTAIS DE SÍNTESE
-            1. PENSAMENTOS INTERNOS ([pensamento]...[/pensamento]):
-                - Sintetize pensamentos do personagem focado como suas intuições, sentimentos, reflexões ou segredos íntimos.".
-                - NUNCA descreva um pensamento como algo que foi dito em voz alta ou percebido por outros personagens.
-            2. FALAS E AÇÕES ([fala]...[/fala], [acao]...[/acao]):
-                - Trate como os eventos reais, visíveis e audíveis que aconteceram na cena.
-            3. DÚVIDAS ([duvida]...[/duvida]):
-                - Trate como hesitações ou percepções atentas do personagem, sem incluir regras ou jargões mecânicos.
-            4. CHAMADAS ([chamar]Nome: mensagem[/chamar]):
-                - Trate como uma fala em voz alta do personagem chamando o jogador citado para a cena.
-            5. TEXTO LIMPO E SEM TAGS:
-                - É terminantemente PROIBIDO incluir as tags literais ([pensamento], [/pensamento], [fala], [acao], [duvida], [chamar]) no resumo final.
-                - Escreva uma prosa corrida fluida (2 a 4 frases ou parágrafos concisos) em terceira pessoa focada na personagem do resumo.
+            Sua missão é consolidar os acontecimentos da rodada recente em uma crônica fiel, fluida e SEM PERDA DE FATOS,
+            porque este texto será a única memória que o personagem terá desta rodada.
+
+            ## FATOS QUE NUNCA PODEM SER PERDIDOS
+            - Nomes próprios: personagens, NPCs, cidade, locais, organizações. Nunca troque um nome por "a cidade", "o veterano" ou "a policial": use o nome.
+            - A situação inicial e a introdução narrada pelo mestre: onde estavam, como chegaram, quem os acompanhava.
+            - O objetivo da missão e as regras ou condições dadas a eles.
+            - Informações recebidas, pistas, descobertas, itens, decisões tomadas e promessas feitas.
+            - Relações e tensões entre personagens e NPCs.
+            Corte apenas repetições e detalhes sem consequência.
+
+            ## COMO LER O REGISTRO
+            - "pensou, sem dizer em voz alta": é íntimo do personagem. Resuma como intuição, sentimento ou plano dele e NUNCA como algo dito ou percebido por outros.
+            - "disse em voz alta", "fez", "chamou em voz alta": eventos reais, visíveis e audíveis na cena.
+            - "perguntou ao mestre": trate como hesitação ou atenção do personagem, sem jargão de regras.
+            - Falas do Mestre e de NPCs são o mundo da história: preserve o que revelam.
+
+            ## FORMATO
+            - Prosa corrida em terceira pessoa, focada no personagem do resumo, em parágrafos curtos.
+            - Tamanho: cerca de {alvo_chars} caracteres. Pode passar um pouco se for necessário para não perder fatos.
+            - Não use tags, colchetes, listas nem marcações. Não invente nada que não esteja no registro.
             """
-        
+
             mensagems.append(SystemMessage(content=prompt_base))
             
             prompt_dinamico = f"""
@@ -205,7 +264,7 @@ class GerenciadorMemoriaRPG:
             mensagems.append(HumanMessage(content=prompt_dinamico))
 
             llm_historiador = obter_llm(temperature=0.3)
-            resumo = _invocar(llm_historiador, mensagems).content.strip()
+            resumo = limpar_tags(texto_resposta(_invocar(llm_historiador, mensagems)))
 
             nome_arq_rodada = os.path.join(pasta, f"rodada_{num_rodada}.txt")
             with open(nome_arq_rodada, "w", encoding="utf-8") as f:
@@ -233,21 +292,21 @@ class GerenciadorMemoriaRPG:
         print(f"\nCompilando {len(rodadas)} rodada(s) em CENA para {agente}...")
         conteudo_rodadas = "".join(f"\n--- {nome_arq} ---\n" + _ler(os.path.join(pasta, nome_arq)) for nome_arq in rodadas)
 
-        prompt = f"""Sintetize estes resumos de rodadas da perspectiva de {agente} em uma narrativa fluida de CENA. Regras:
-        Descarte:
-        1. Saudações.
-        2. Hesitações repetidas.
-        3. Descrições redundantes
-        4. Pensamentos que não alterem a decisão do personagem
-        Foco:
-        1. Ações concluidas
-        2. Decisões tomadas
-        3. Revelações importantes
-        4. Novos perigos
-        5. Pontos de virada.
-        
+        alvo_chars = min(7000, max(2000, int(len(conteudo_rodadas) * 0.4)))
+        prompt = f"""Você é o Historiador de uma mesa de RPG cooperativo. Sintetize estes resumos de rodadas, da perspectiva de {agente}, em uma narrativa fluida de CENA.
+        Este texto substituirá as rodadas na memória do personagem, então NÃO PERCA FATOS.
+
+        ## FATOS QUE NUNCA PODEM SER PERDIDOS
+        {_FATOS_A_PRESERVAR}
+
+        ## DESCARTE
+        Saudações, hesitações repetidas, descrições redundantes e pensamentos que não alterem a decisão do personagem.
+
+        ## FORMATO
+        Prosa corrida em terceira pessoa, em ordem cronológica, sem tags, listas ou títulos. Cerca de {alvo_chars} caracteres; pode passar um pouco se for preciso para não perder fatos.
+
         CENA:\n{conteudo_rodadas}"""
-        resumo_cena = _texto_resp(_invocar(llm_historiador, prompt))
+        resumo_cena = limpar_tags(texto_resposta(_invocar(llm_historiador, prompt)))
 
         num_cena = len(_arquivos_numerados(pasta, "cena")) + 1
         nome_arq_cena = os.path.join(pasta, f"cena_{num_cena}.txt")
@@ -273,8 +332,18 @@ class GerenciadorMemoriaRPG:
             return "", []
         conteudo_cenas = "".join(f"\n--- {os.path.basename(arq)} ---\n" + _ler(arq) for arq in caminhos)
 
-        prompt = f"Faça um resumo consolidado destas cenas para o histórico de longo prazo de {agente}:\n{conteudo_cenas}"
-        return _texto_resp(_invocar(llm_historiador, prompt)), caminhos
+        alvo_chars = min(15000, max(4000, int(len(conteudo_cenas) * 0.4)))
+        prompt = f"""Você é o Historiador de uma mesa de RPG cooperativo. Faça um resumo consolidado destas cenas para o histórico de longo prazo de {agente}.
+        Este texto substituirá as cenas na memória do personagem, então NÃO PERCA FATOS.
+
+        ## FATOS QUE NUNCA PODEM SER PERDIDOS
+        {_FATOS_A_PRESERVAR}
+
+        ## FORMATO
+        Prosa corrida em terceira pessoa, em ordem cronológica, sem tags, listas ou títulos. Cerca de {alvo_chars} caracteres; pode passar um pouco se for preciso para não perder fatos.
+
+        CENAS:\n{conteudo_cenas}"""
+        return limpar_tags(texto_resposta(_invocar(llm_historiador, prompt))), caminhos
 
     @staticmethod
     def _anexar_ao_mesa(pasta: str, resumo: str):
@@ -312,7 +381,7 @@ class GerenciadorMemoriaRPG:
 
             HISTÓRICO:
             {mesa}"""
-            return _texto_resp(_invocar(llm_historiador, prompt))
+            return limpar_tags(texto_resposta(_invocar(llm_historiador, prompt)))
 
         resumo = pedir(int(alvo_chars * 0.9))
         if len(resumo) > alvo_chars:

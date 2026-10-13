@@ -33,13 +33,30 @@ def caminho_regra(nome_arquivo: str) -> str:
     return os.path.join(PASTA_REGRAS, nome_arquivo)
 
 
-def listar_arquivos_regras() -> list:
+ARQUIVO_BASE = "base.txt"  # regras comuns a todos os conjuntos: vai sempre antes do conjunto ativo; não pode ser excluído
+
+
+def _garantir_base():
     os.makedirs(PASTA_REGRAS, exist_ok=True)
-    return sorted(f for f in os.listdir(PASTA_REGRAS) if f.endswith(".txt") and not f.startswith("."))
+    antigo, base = caminho_regra("default.txt"), caminho_regra(ARQUIVO_BASE)
+    if os.path.exists(base):
+        return
+    if os.path.exists(antigo):  # mesas antigas: o default.txt vira a base
+        os.rename(antigo, base)
+    else:
+        salvar_arquivo(base, "")
 
 
-def obter_regra_ativa() -> str:
+def listar_arquivos_regras() -> list:
+    # conjuntos selecionáveis (sem a base)
+    _garantir_base()
+    return sorted(f for f in os.listdir(PASTA_REGRAS) if f.endswith(".txt") and not f.startswith(".") and f != ARQUIVO_BASE)
+
+
+def obter_regra_ativa() -> str | None:
     arquivos = listar_arquivos_regras()
+    if not arquivos:
+        return None
     ativa = carregar_arquivo(CAMINHO_REGRA_ATIVA, "").strip()
     if ativa not in arquivos:
         ativa = arquivos[0]
@@ -69,7 +86,7 @@ def criar_arquivo_regra(nome: str) -> str:
         return None
 
     nome_arquivo = f"{slug}.txt"
-    if os.path.exists(caminho_regra(nome_arquivo)):
+    if nome_arquivo == "default.txt" or os.path.exists(caminho_regra(nome_arquivo)):
         return None
 
     salvar_arquivo(caminho_regra(nome_arquivo), "")
@@ -78,20 +95,25 @@ def criar_arquivo_regra(nome: str) -> str:
 
 def remover_arquivo_regra(nome_arquivo: str) -> bool:
     arquivos = listar_arquivos_regras()
-    if nome_arquivo not in arquivos or len(arquivos) <= 1:
+    if nome_arquivo not in arquivos:
         return False
 
     os.remove(caminho_regra(nome_arquivo))
 
     if carregar_arquivo(CAMINHO_REGRA_ATIVA, "").strip() == nome_arquivo:
         restantes = [a for a in arquivos if a != nome_arquivo]
-        definir_regra_ativa(restantes[0])
+        if restantes:
+            definir_regra_ativa(restantes[0])
 
     return True
 
 
 def carregar_regras() -> str:
-    return carregar_regra(obter_regra_ativa())
+    # base + conjunto ativo, como se fossem um texto só
+    _garantir_base()
+    ativa = obter_regra_ativa()
+    partes = [carregar_regra(ARQUIVO_BASE).strip(), carregar_regra(ativa).strip() if ativa else ""]
+    return "\n\n".join(p for p in partes if p)
 
 
 # --- Ficha: um .json por seção ({nome}_<seção>.json) ---

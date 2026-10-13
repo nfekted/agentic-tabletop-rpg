@@ -12,7 +12,7 @@ import { IMAGENS_ACEITAS, cn } from '@/lib/utils'
 type Modo = 'todos' | 'especificos' | 'privada'
 const MODOS: { id: Modo; rotulo: string; dica: string }[] = [
   { id: 'todos', rotulo: 'Todos (público)', dica: 'A mesa toda ouve e todos respondem.' },
-  { id: 'especificos', rotulo: 'Jogadores específicos', dica: 'A mesa toda ouve, mas só o jogador escolhido responde.' },
+  { id: 'especificos', rotulo: 'Jogadores específicos', dica: 'A mesa toda ouve, mas só os escolhidos respondem, na ordem marcada.' },
   { id: 'privada', rotulo: 'Cena privada', dica: 'Só os selecionados ouvem, lembram e respondem.' },
 ]
 
@@ -41,9 +41,8 @@ export function AcaoMestre() {
   const envio = useAcaoMestre(() => enviar(modo, texto.trim(), alvos, imagem))
   const podeEnviar = texto.trim() && (modo === 'todos' || alvos.length > 0) && !envio.isPending && !emFila
 
-  // Jogadores específicos: um único alvo. Cena privada: um grupo.
-  const alternar = (n: string) =>
-    setAlvos((a) => (a.includes(n) ? a.filter((x) => x !== n) : modo === 'especificos' ? [n] : [...a, n]))
+  // A ordem dos cliques é a ordem das respostas (jogadores específicos e cena privada).
+  const alternar = (n: string) => setAlvos((a) => (a.includes(n) ? a.filter((x) => x !== n) : [...a, n]))
   const limparImagem = () => {
     setImagem(null)
     if (inputImg.current) inputImg.current.value = ''
@@ -61,7 +60,7 @@ export function AcaoMestre() {
             role="radio"
             aria-checked={modo === m.id}
             title={m.dica}
-            onClick={() => { setModo(m.id); if (m.id === 'especificos') setAlvos((a) => a.slice(0, 1)) }}
+            onClick={() => setModo(m.id)}
             className={cn(
               'rounded-full border px-3 py-1 text-sm transition-colors',
               modo === m.id ? 'border-primary bg-primary/15 text-primary' : 'hover:bg-muted',

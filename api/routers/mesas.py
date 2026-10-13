@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from api.deps import trava_mestre, trava_turno
-from rpg.mesas_manager import info_mesa, listar_mesas, mesa_existe, reiniciar_mesa, restaurar_mesa, salvar_mesa
+from rpg.mesas_manager import info_mesa, listar_mesas, mesa_existe, reiniciar_mesa, resetar_mesa, restaurar_mesa, salvar_mesa
 from services import fila, sessao
 
 router = APIRouter(tags=["mesas"])
@@ -44,7 +44,18 @@ def restaurar(nome: str):
         ok, msg = restaurar_mesa(nome)
         if not ok:
             raise HTTPException(400, msg)
-        sessao.resetar()  # histórico, falas e pendências não fazem parte do backup
+        sessao.recarregar()  # a sessão vem do backup; mesas antigas, sem ela, começam do zero
+        fila.resetar()
+    return {"mensagem": msg}
+
+
+@router.post("/mesas/resetar")
+def resetar():
+    with trava_mestre(), trava_turno():
+        ok, msg = resetar_mesa()
+        if not ok:
+            raise HTTPException(400, msg)
+        sessao.resetar()
         fila.resetar()
     return {"mensagem": msg}
 
