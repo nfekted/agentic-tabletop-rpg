@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from rpg import limites
 from rpg.config import TIPOS_API, carregar_configuracao, salvar_configuracao
@@ -44,6 +44,16 @@ def salvar_config(body: ConfigIn):
         novo["api_key"] = body.api_key
     salvar_configuracao(novo)
     return _publica(novo)
+
+
+class RpdIn(BaseModel):
+    usado: int = Field(ge=0)
+
+
+@router.put("/limites/rpd")
+def definir_rpd(body: RpdIn):
+    limites.definir_rpd(body.usado)
+    return limites.estado()
 
 
 @router.get("/limites")

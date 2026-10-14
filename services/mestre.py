@@ -1,4 +1,5 @@
 # Ações do mestre: rodada, falas e aprovação de chamadas (estado em services.sessao)
+import random
 import uuid
 
 from rpg.config import carregar_agentes
@@ -192,7 +193,9 @@ def preparar_falar_todos(comando: str) -> tuple[list[str], list[dict]]:
     salvar()
 
     instrucao = f"O mestre disse a todos: '{comando}'. Dê sua reação no formato com tags {_TAGS}."
-    return presentes, [{"agente": ag, "instrucao": instrucao} for ag in presentes]
+    # a ordem de resposta é sorteada a cada mensagem geral: quem responde primeiro influencia os demais
+    ordem = random.sample(presentes, len(presentes))
+    return presentes, [{"agente": ag, "instrucao": instrucao} for ag in ordem]
 
 
 def preparar_falar_direcionado(presentes: list[str], is_privado: bool, comando: str) -> tuple[list[str], list[dict]]:

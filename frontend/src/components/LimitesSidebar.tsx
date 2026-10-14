@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { DialogAberto } from '@/components/DialogAberto'
+import { DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { useLimites } from '@/hooks/queries'
+import { useAcao, useLimites } from '@/hooks/queries'
+import { api } from '@/lib/api'
 import type { Limite } from '@/lib/types'
 
 const ROTULOS = {
@@ -14,9 +19,35 @@ const fmtTempo = (s: number) => {
   return s >= 60 ? `${Math.floor(s / 60)}min ${s % 60}s` : `${s}s`
 }
 const fmtNum = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1).replace('.0', '')}k` : String(n))
-const cor = (pct: number) => (pct >= 90 ? '#e74c3c' : pct >= 70 ? '#f39c12' : '#2ecc71')
+const cor = (pct: number) => (pct >= 80 ? '#e74c3c' : pct >= 50 ? '#f1c40f' : '#2ecc71')
 
-function Anel({ sigla, l, decorrido }: { sigla: keyof typeof ROTULOS; l: Limite; decorrido: number }) {
+function AjusteRpd({ usado, onFechar }: { usado: number; onFechar: () => void }) {
+  const [valor, setValor] = useState(String(usado))
+  const salvar = useAcao(
+    () => api.put('/limites/rpd', { usado: Math.max(0, Math.floor(Number(valor) || 0)) }),
+    [['limites']], 'Contador RPD ajustado.',
+  )
+  return (
+    <DialogAberto onFechar={onFechar}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Ajustar RPD</DialogTitle>
+          <DialogDescription>
+            Informe quantas requisições do dia o painel do provedor mostra. O contador local zera à meia-noite.
+          </DialogDescription>
+        </DialogHeader>
+        <Input type="number" min={0} autoFocus value={valor} onChange={(e) => setValor(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && salvar.mutate(undefined, { onSuccess: onFechar })} />
+        <DialogFooter>
+          <Button variant="outline" onClick={onFechar}>Cancelar</Button>
+          <Button disabled={salvar.isPending} onClick={() => salvar.mutate(undefined, { onSuccess: onFechar })}>Salvar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </DialogAberto>
+  )
+}
+
+function Anel({ sigla, l, decorrido, onClick }: { sigla: keyof typeof ROTULOS; l: Limite; decorrido: number; onClick?: () => void }) {
   const zera = Math.max(0, l.zera_em - decorrido)
   const libera = Math.max(0, l.libera_em - decorrido)
   const expirou = sigla !== 'rpd' && l.usado > 0 && zera === 0
@@ -26,7 +57,7 @@ function Anel({ sigla, l, decorrido }: { sigla: keyof typeof ROTULOS; l: Limite;
   const c = 2 * Math.PI * r
   return (
     <Tooltip>
-      <TooltipTrigger render={<div className="flex w-12 shrink-0 cursor-help flex-col items-center" />}>
+      <TooltipTrigger render={<div onClick={onClick} className={`flex w-12 shrink-0 flex-col items-center ${onClick ? 'cursor-pointer' : 'cursor-help'}`} />}>
         <div className="relative size-9">
           <svg viewBox="0 0 36 36" className="size-9 -rotate-90">
             <circle cx="18" cy="18" r={r} fill="none" strokeWidth="3" className="stroke-muted" />
@@ -43,6 +74,7 @@ function Anel({ sigla, l, decorrido }: { sigla: keyof typeof ROTULOS; l: Limite;
       <TooltipContent side="right" className="space-y-0.5 text-xs">
         <p className="font-medium">{sigla.toUpperCase()}: {usado.toLocaleString('pt-BR')} / {l.limite.toLocaleString('pt-BR')}</p>
         <p className="opacity-70">{ROTULOS[sigla]}</p>
+        {onClick && <p className="opacity-70">Clique para ajustar o valor</p>}
         {usado > 0 ? (
           <>
             <p>Zera em {fmtTempo(zera)}</p>
@@ -59,6 +91,7 @@ function Anel({ sigla, l, decorrido }: { sigla: keyof typeof ROTULOS; l: Limite;
 // Anéis de uso dos limites de RPM/TPM/RPD da LLM; só aparecem os que têm limite configurado.
 export function LimitesSidebar() {
   const { data, dataUpdatedAt } = useLimites()
+  const [ajustando, setAjustando] = useState(false)
   const [agora, setAgora] = useState(() => Date.now())
   useEffect(() => {
     const t = setInterval(() => setAgora(Date.now()), 1000)
@@ -70,7 +103,10 @@ export function LimitesSidebar() {
   if (ativos.length === 0) return null
   return (
     <div className="hidden flex-col items-center gap-1.5 pb-1 md:flex">
-      {ativos.map((k) => <Anel key={k} sigla={k} l={data[k]} decorrido={decorrido} />)}
+      {ativos.map((k) => (
+        <Anel key={k} sigla={k} l={data[k]} decorrido={decorrido} onClick={k === 'rpd' ? () => setAjustando(true) : undefined} />
+      ))}
+      {ajustando && <AjusteRpd usado={data.rpd.usado} onFechar={() => setAjustando(false)} />}
     </div>
   )
 }

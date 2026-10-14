@@ -118,6 +118,15 @@ def reservar(tokens_previstos: int) -> str:
     return id_
 
 
+def definir_rpd(usado: int):
+    # Ajuste manual do contador do dia (o painel do provedor pode zerar em outro horário).
+    with _LOCK:
+        dados = _carregar_podado(_agora())
+        dados["rpd"] = max(0, int(usado))
+        _gravar(dados)
+    _avisar()
+
+
 def confirmar(id_: str, prompt, resp):
     # Troca a previsão pelo consumo real. Nunca pode quebrar o jogo: qualquer erro de contagem é ignorado.
     try:

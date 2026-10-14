@@ -558,7 +558,8 @@ turnos** para abrir o painel de gestão de cenas e combate. O estado fica em
 - **Finalizar Rodada** — fecha a rodada atual e manda o conteúdo para o
   "historiador" resumir (ver [Sistema de memória](#sistema-de-memória-rodada--cena--mesa)).
 - **Falar com Todos (Público)** — a narração do mestre é gravada na memória de
-  todos e **todos os jogadores respondem**. Nada passa por aprovação.
+  todos e **todos os jogadores respondem**, em **ordem sorteada a cada
+  mensagem** (quem responde primeiro influencia os demais). Nada passa por aprovação.
 - **Falar com Jogador Específico [Cena Pública]** — como "o mestre olha para um
   jogador e pergunta o que ele faz": a mesa toda ouve (a narração e o que o
   jogador disser ou fizer vão para a memória de todos), mas **só os jogadores
@@ -718,6 +719,10 @@ por vez**. A fila aparece entre os cards e a Ação do mestre, em passos:
   com a hora do envio, a hora em que sai da janela de 60 s e os tokens
   (previstos no envio, trocados pelo `usage_metadata` real na resposta).
   Os expirados são removidos ao ler, e o uso sobrevive a reiniciar a API.
+- **Anéis de uso** (barra lateral): verde até 50%, amarelo de 50% a 80% e
+  vermelho acima de 80%. O contador local de RPD zera à meia-noite; se o painel
+  do provedor zera em outro horário, clique no anel **RPD** e informe o valor
+  certo para ajustá-lo manualmente.
 - **Erro ou RPD esgotado**: a fila **para na vez atual** e mostra o motivo
   (429, 503, timeout...). Corrija o problema e use **Continuar de {nome}**
   (retoma sem repetir o que já foi feito) ou **Cancelar fila**. Enquanto há

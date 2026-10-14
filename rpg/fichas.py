@@ -118,8 +118,8 @@ def carregar_regras() -> str:
 
 # --- Ficha: um .json por seção ({nome}_<seção>.json) ---
 
-# Ordem das seções no prompt
-SECOES = ("base", "status", "atributos", "pericias", "habilidades", "itens", "personalidade")
+# Ordem das seções no prompt: do que menos muda para o que mais muda (favorece o cache de prefixo da LLM)
+SECOES = ("base", "personalidade", "atributos", "pericias", "habilidades", "status", "itens")
 
 CAMPOS_BASE = (
     ("nome", "Nome"),
@@ -404,7 +404,7 @@ def formatar_personalidade_markdown(personalidade: dict) -> str:
         for chave, rotulo in CAMPOS_PERSONALIDADE
         if _linha(personalidade.get(chave))
     ]
-    return _bloco("## PERSONALIDADE E REGRAS DE INTERPRETAÇÃO (ROLEPLAY)", linhas)
+    return _bloco("## PERSONALIDADE (ROLEPLAY)", linhas)
 
 
 # --- Registro das seções: modelo inicial, normalização e formatação de cada uma ---
@@ -471,6 +471,16 @@ def salvar_subarquivos_ficha(agente: str, dados: dict):
     for secao in SECOES:
         if secao in dados:
             salvar_secao(agente, secao, dados[secao])
+
+
+def lembrete_recursos(agente: str) -> str:
+    # Lembrete só com nomes (habilidades, poderes, passivas e itens) no fim do prompt, onde o modelo presta mais
+    # atenção: custos e descrições continuam só na ficha.
+    habilidades = carregar_secao(agente, "habilidades")
+    itens = carregar_secao(agente, "itens")
+    grupos = [(titulo.capitalize(), [h["nome"] for h in habilidades.get(chave, [])]) for chave, titulo in BLOCOS_HABILIDADES]
+    grupos += [("Equipados", [i["nome"] for i in itens["equipamento"]]), ("Na mochila", list(dict.fromkeys(i["nome"] for i in itens["mochila"])))]
+    return "\n".join(f"- {titulo}: {', '.join(nomes)}" for titulo, nomes in grupos if nomes)
 
 
 def carregar_ficha(agente: str) -> str:
