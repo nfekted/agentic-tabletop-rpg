@@ -1,8 +1,10 @@
+import time
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from rpg import limites
-from rpg.config import TIPOS_API, carregar_configuracao, salvar_configuracao
+from rpg.config import TIPOS_API, carregar_configuracao, obter_llm, salvar_configuracao
 
 router = APIRouter(tags=["config"])
 
@@ -18,6 +20,7 @@ class ConfigIn(BaseModel):
     limite_rpm: int = 0
     limite_tpm: int = 0
     limite_rpd: int = 0
+    fila_sempre_visivel: bool = False
 
 
 def _publica(cfg: dict) -> dict:
@@ -44,6 +47,31 @@ def salvar_config(body: ConfigIn):
         novo["api_key"] = body.api_key
     salvar_configuracao(novo)
     return _publica(novo)
+
+
+class TesteIn(BaseModel):
+    tipo_api: str
+    modelo: str
+    api_key: str | None = None  # None/vazio = usar a chave salva
+    base_url: str = ""
+
+
+@router.post("/config/testar")
+def testar_config(body: TesteIn):
+    # Testa os valores do formulário sem salvar e sem contar nos limites.
+    if body.tipo_api not in TIPOS_API:
+        raise HTTPException(400, "Tipo de API inválido.")
+    cfg = {**carregar_configuracao(), **body.model_dump(exclude={"api_key"})}
+    if body.api_key:
+        cfg["api_key"] = body.api_key
+    inicio = time.monotonic()
+    try:
+        resp = obter_llm(0, cfg).invoke("Responda apenas: ok")
+    except Exception as e:
+        return {"ok": False, "mensagem": (str(e).strip() or type(e).__name__)[:400]}
+    ms = round((time.monotonic() - inicio) * 1000)
+    texto = resp.content if isinstance(resp.content, str) else str(resp.content)
+    return {"ok": True, "ms": ms, "mensagem": f"Conectado em {ms} ms. Resposta: {texto.strip()[:80]}"}
 
 
 class RpdIn(BaseModel):

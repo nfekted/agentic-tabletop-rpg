@@ -18,7 +18,7 @@ Você está em um RPG de mesa cooperativo.
 
 ## INSTRUÇÕES OBRIGATÓRIAS DE FORMATO DA RESPOSTA:
 
-1. **ROLEPLAY E CONEXÃO:** Responda alinhado ao histórico do personagem, seu tom emocional e à dinâmica da cena. Entre direto no personagem: fale em primeira pessoa e NUNCA use "meu personagem faz...". Não use Emojis em nenhuma hipótese.
+1. **ROLEPLAY E CONEXÃO:** Responda alinhado ao histórico do personagem, seu tom emocional e à dinâmica da cena. Entre direto no personagem: fale em primeira pessoa e NUNCA use "meu personagem faz...". Não use Emojis em nenhuma hipótese. O sistema já identifica quem fala: NUNCA escreva seu nome nem prefixos como "Nome:" no começo de `[fala]`, `[acao]` ou de qualquer parte da resposta (no histórico, as linhas aparecem como "Nome: ..." só para você saber quem disse o quê).
 
 2. **ANTI META-GAMING (PROIBIÇÃO DE CONHECIMENTO EXTERNO):**
    - Aborde ESTRITAMENTE com base no que seu personagem presenciou, ouviu ou sabe.
@@ -99,6 +99,7 @@ def montar_prompt(
     historico_recente: List[str],
     instrucao: str,
     caminho_imagem: str = None,
+    pensamentos: List[str] = None,
 ) -> List:
     # o cache age de cima para baixo: o menos mutável vai primeiro
     mensagens = [
@@ -111,6 +112,7 @@ def montar_prompt(
     lembrete = lembrete_recursos(nome_agente)
     texto_turno = (
         f"## CONTEXTO RECENTE\n{historico_recente}\n\n"
+        + (f"## SEUS ÚLTIMOS PENSAMENTOS (só você os ouviu)\n" + "\n".join(f"- {p}" for p in pensamentos) + "\n\n" if pensamentos else "")
         + (f"## SEUS RECURSOS (lembrete)\n{lembrete}\n\n" if lembrete else "")
         + f"## INSTRUÇÃO ATUAL\n{instrucao}"
     )
@@ -139,11 +141,12 @@ def gerar_resposta_agente(
     instrucao: str,
     historico_recente: List[str],
     caminho_imagem: str = None,
+    pensamentos: List[str] = None,
 ) -> str:
     llm_jogadores = obter_llm(temperature=0.8)
 
     # historico_recente: lista viva da rodada (sessao["historico"]), zerada no fim da rodada
-    mensagens = montar_prompt(agente, historico_recente, instrucao, caminho_imagem)
+    mensagens = montar_prompt(agente, historico_recente, instrucao, caminho_imagem, pensamentos)
 
     resp = invocar(llm_jogadores, mensagens)
     registrar_chamada(

@@ -22,6 +22,7 @@ export type Jogador = {
   avatar_v: number | null
   status: Status[]
   contexto: Contexto | null
+  rodada_chars: number
 }
 
 export type Fala = { seq: number; texto: string; aprovada: boolean; privado: boolean }
@@ -77,6 +78,7 @@ export type Config = {
   limite_rpm: number
   limite_tpm: number
   limite_rpd: number
+  fila_sempre_visivel: boolean
   api_key_definida: boolean
   tipos_api: { id: string; nome: string }[]
 }

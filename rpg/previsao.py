@@ -25,10 +25,12 @@ def _tokens(agente: str, chars: int) -> int:
     return round(chars / _razao(agente))
 
 
-def prever_entrada(agente: str, instrucao: str, historico: list, caminho_imagem: str | None = None) -> int:
+def prever_entrada(
+    agente: str, instrucao: str, historico: list, caminho_imagem: str | None = None, pensamentos: list | None = None,
+) -> int:
     # Tokens previstos de uma resposta do jogador: prompt real (base, regras, memória, ficha, histórico,
     # instrução) + margem. Sem imagem no cálculo de caracteres: ela entra como custo fixo.
-    mensagens = montar_prompt(agente, historico, instrucao, None)
+    mensagens = montar_prompt(agente, historico, instrucao, None, pensamentos)
     chars = sum(len(_texto_da_mensagem(m)) for m in mensagens)
     previsto = _tokens(agente, chars) + MARGEM_TOKENS
     return previsto + (TOKENS_IMAGEM if caminho_imagem else 0)

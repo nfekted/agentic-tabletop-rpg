@@ -19,6 +19,7 @@ _PADRAO = {
     "envolvidos": [],
     "pending_chamadas": [],
     "ultima_fala": {},
+    "pensamentos": {},  # últimos pensamentos de cada jogador na rodada (só ele os vê no prompt)
     "seq_fala": 0,
     "compressao_perguntada": {},
 }

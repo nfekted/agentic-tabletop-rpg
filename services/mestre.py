@@ -22,6 +22,9 @@ from services.sessao import (
 )
 
 
+MAX_PENSAMENTOS = 3  # quantos pensamentos recentes o jogador relê no prompt
+
+
 def _envolver(agente: str):
     s = obter()
     if agente not in s["envolvidos"]:
@@ -31,8 +34,10 @@ def _envolver(agente: str):
 def _gerar(agente: str, instrucao: str, caminho_imagem=None) -> str:
     eventos.publicar("agente_respondendo", agente=agente)
     try:
+        s = obter()
         return gerar_resposta_agente(
-            agente, instrucao, obter()["historico"], caminho_imagem=caminho_imagem
+            agente, instrucao, s["historico"], caminho_imagem=caminho_imagem,
+            pensamentos=s["pensamentos"].get(agente),
         )
     finally:
         eventos.publicar("agente_pronto", agente=agente)
@@ -57,6 +62,9 @@ def _fala_do_mestre(tags: dict, publico: str) -> str:
 def _pensamento_de(agente: str, tags: dict):
     if tags.get("pensamento"):
         salvar_pensamento_privado(agente, f"[pensamento]{tags['pensamento']}[/pensamento]")
+        recentes = obter()["pensamentos"].setdefault(agente, [])
+        recentes.append(tags["pensamento"])
+        del recentes[:-MAX_PENSAMENTOS]
 
 
 def iniciar_rodada() -> str:
@@ -89,6 +97,7 @@ def cancelar_rodada(motivo: str) -> str:
     s["rodada_ativa"] = False
     s["envolvidos"] = []
     s["historico"] = []
+    s["pensamentos"] = {}
     s["ultima_fala"] = {}
     _limpar_pendencias(s)
     salvar()
@@ -116,6 +125,7 @@ def fechar_rodada(alvos: list[str]) -> str:
     s["rodada_ativa"] = False
     s["envolvidos"] = []
     s["historico"] = []
+    s["pensamentos"] = {}
     # ultima_fala fica: é só referência visual dos balões (não entra em nenhum prompt) e cada nova fala a substitui
     _limpar_pendencias(s)
     salvar()

@@ -15,6 +15,7 @@ export function MesasDialog({ onFechar }: { onFechar: () => void }) {
   const [nome, setNome] = useState('')
   const [sel, setSel] = useState<string | null>(null)
   const [confirmar, setConfirmar] = useState(false)
+  const [perigo, setPerigo] = useState<'reiniciar' | 'resetar' | null>(null)
 
   const existe = mesas.some((m) => m.nome === nome.trim())
   const salvar = useAcao(
@@ -25,6 +26,9 @@ export function MesasDialog({ onFechar }: { onFechar: () => void }) {
     () => api.post<{ mensagem: string }>(`/mesas/${encodeURIComponent(sel!)}/restaurar`),
     [], (r) => r.mensagem,
   )
+
+  const reiniciar = useAcao(() => api.post<{ mensagem: string }>('/mesas/reiniciar'), [], (r) => r.mensagem)
+  const resetar = useAcao(() => api.post<{ mensagem: string }>('/mesas/resetar'), [], (r) => r.mensagem)
 
   return (
     <DialogAberto onFechar={onFechar}>
@@ -73,6 +77,51 @@ export function MesasDialog({ onFechar }: { onFechar: () => void }) {
               O config.json (com a API Key) não entra no zip. Rodadas em andamento não são salvas.
             </p>
           </section>
+        </div>
+        <div className="space-y-3 rounded-lg border border-destructive/40 p-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-destructive">Zona de perigo</p>
+          {!perigo ? (
+            <div className="space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-sm">
+                  <b>Reiniciar mesa</b>
+                  <span className="block text-xs text-muted-foreground">Mantém personagens, fichas, regras, cenas e tokens. Apaga só memórias, sessão e fila.</span>
+                </p>
+                <Button variant="outline" size="sm" onClick={() => setPerigo('reiniciar')}>Reiniciar</Button>
+              </div>
+              <div className="flex items-start justify-between gap-3 border-t pt-3">
+                <p className="text-sm">
+                  <b>Resetar mesa</b>
+                  <span className="block text-xs text-muted-foreground">Apaga tudo: personagens, memórias, cenas, tokens, itens e inimigos.</span>
+                </p>
+                <Button variant="destructive" size="sm" onClick={() => setPerigo('resetar')}>Resetar</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm">
+              {perigo === 'reiniciar' ? (
+                <p>
+                  Recomeça a campanha do zero <b>mantendo o cenário</b>: personagens, fichas, regras, cenas e tokens ficam.
+                  Apaga só as memórias dos personagens (rodadas, cenas, resumos, métricas), a rodada em andamento, o
+                  histórico e a fila. <b>Não é possível recuperar</b>; recomendamos criar um backup antes
+                  (💾 Salvar / Restaurar mesa). Continuar?
+                </p>
+              ) : (
+                <p>
+                  Isso apaga <b>todos</b> os personagens, históricos, memórias, cenas, tokens, itens e inimigos.
+                  Só as configurações da LLM são mantidas. <b>Não é possível recuperar</b>; recomendamos criar um backup
+                  antes (💾 Salvar / Restaurar mesa). Continuar?
+                </p>
+              )}
+              <div className="flex gap-2">
+                <Button variant="destructive" size="sm" disabled={reiniciar.isPending || resetar.isPending}
+                  onClick={() => (perigo === 'reiniciar' ? reiniciar : resetar).mutate(undefined, { onSuccess: () => { qc.invalidateQueries(); onFechar() } })}>
+                  {perigo === 'reiniciar' ? 'Sim, reiniciar' : 'Sim, apagar tudo'}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setPerigo(null)}>Não</Button>
+              </div>
+            </div>
+          )}
         </div>
       </DialogContent>
     </DialogAberto>

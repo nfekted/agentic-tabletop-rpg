@@ -24,6 +24,7 @@ CONFIG_PADRAO = {
     "limite_rpm": 0,  # limites do provedor (0 = sem controle)
     "limite_tpm": 0,
     "limite_rpd": 0,
+    "fila_sempre_visivel": False,  # mostra os passos da fila mesmo sem RPM/TPM
 }
 
 
@@ -66,8 +67,8 @@ def salvar_configuracao(dados: dict):
     salvar_json(_CAMINHO_CONFIG, dados)
 
 
-def obter_llm(temperature: float = 0.8):
-    cfg = carregar_configuracao()
+def obter_llm(temperature: float = 0.8, cfg: dict | None = None):
+    cfg = cfg or carregar_configuracao()
     tipo = cfg.get("tipo_api")
     modelo = (cfg.get("modelo") or "").strip()
     api_key = cfg.get("api_key")

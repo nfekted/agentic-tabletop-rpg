@@ -4,7 +4,7 @@ import { DialogAberto } from '@/components/DialogAberto'
 import { DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { useAcao, useLimites } from '@/hooks/queries'
+import { useAcao, useJogadores, useLimites } from '@/hooks/queries'
 import { api } from '@/lib/api'
 import type { Limite } from '@/lib/types'
 
@@ -47,12 +47,11 @@ function AjusteRpd({ usado, onFechar }: { usado: number; onFechar: () => void })
   )
 }
 
-function Anel({ sigla, l, decorrido, onClick }: { sigla: keyof typeof ROTULOS; l: Limite; decorrido: number; onClick?: () => void }) {
-  const zera = Math.max(0, l.zera_em - decorrido)
-  const libera = Math.max(0, l.libera_em - decorrido)
-  const expirou = sigla !== 'rpd' && l.usado > 0 && zera === 0
-  const usado = expirou ? 0 : l.usado
-  const pct = Math.min(100, (usado / l.limite) * 100)
+// Anel de uso com sigla embaixo; o conteúdo do tooltip vem como filho.
+function AnelBase({ sigla, pct, valor, onClick, children }: {
+  sigla: string; pct: number; valor: string; onClick?: () => void; children: React.ReactNode
+}) {
+  pct = Math.min(100, pct)
   const r = 15
   const c = 2 * Math.PI * r
   return (
@@ -66,12 +65,25 @@ function Anel({ sigla, l, decorrido, onClick }: { sigla: keyof typeof ROTULOS; l
               style={{ stroke: cor(pct), transition: 'stroke-dashoffset .4s, stroke .4s' }} />
           </svg>
           <span className="absolute inset-0 flex items-center justify-center text-[10px] font-medium tabular-nums">
-            {fmtNum(usado)}
+            {valor}
           </span>
         </div>
         <span className="text-[9px] leading-tight text-muted-foreground uppercase">{sigla}</span>
       </TooltipTrigger>
       <TooltipContent side="right" className="space-y-0.5 text-xs">
+        {children}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+function Anel({ sigla, l, decorrido, onClick }: { sigla: keyof typeof ROTULOS; l: Limite; decorrido: number; onClick?: () => void }) {
+  const zera = Math.max(0, l.zera_em - decorrido)
+  const libera = Math.max(0, l.libera_em - decorrido)
+  const expirou = sigla !== 'rpd' && l.usado > 0 && zera === 0
+  const usado = expirou ? 0 : l.usado
+  return (
+    <AnelBase sigla={sigla} pct={(usado / l.limite) * 100} valor={fmtNum(usado)} onClick={onClick}>
         <p className="font-medium">{sigla.toUpperCase()}: {usado.toLocaleString('pt-BR')} / {l.limite.toLocaleString('pt-BR')}</p>
         <p className="opacity-70">{ROTULOS[sigla]}</p>
         {onClick && <p className="opacity-70">Clique para ajustar o valor</p>}
@@ -83,12 +95,34 @@ function Anel({ sigla, l, decorrido, onClick }: { sigla: keyof typeof ROTULOS; l
         ) : (
           <p>Sem uso na janela atual</p>
         )}
-      </TooltipContent>
-    </Tooltip>
+    </AnelBase>
   )
 }
 
-// Anéis de uso dos limites de RPM/TPM/RPD da LLM; só aparecem os que têm limite configurado.
+const META_MEM = 10000 // meta de caracteres por rodada; é só referência, o mestre decide quando finalizar
+
+// Maior rodada em andamento (em caracteres) entre os jogadores.
+function AnelMem() {
+  const { data } = useJogadores()
+  const lista = [...(data ?? [])].sort((a, b) => b.rodada_chars - a.rodada_chars)
+  const maior = lista[0]?.rodada_chars ?? 0
+  return (
+    <AnelBase sigla="mem" pct={(maior / META_MEM) * 100} valor={fmtNum(maior)}>
+      <p className="font-medium">MEM: {maior.toLocaleString('pt-BR')} / {META_MEM.toLocaleString('pt-BR')} caracteres</p>
+      <p className="opacity-70">Memória da rodada em andamento (a maior entre os jogadores). Recomendado finalizar a rodada ao atingir esse limite.</p>
+      {lista.filter((j) => j.rodada_chars > 0).map((j) => (
+        <p key={j.nome}>{j.nome}: {j.rodada_chars.toLocaleString('pt-BR')}</p>
+      ))}
+      <p className="opacity-70">
+        {maior > META_MEM
+          ? 'Acima do limite: pode continuar, mas o resumo comprime mais e perde detalhes.'
+          : 'Não bloqueia nada: finalizar a rodada perto do limite mantém o resumo detalhado.'}
+      </p>
+    </AnelBase>
+  )
+}
+
+// Anéis da barra lateral: MEM (sempre visível) e os limites RPM/TPM/RPD da LLM que estiverem configurados.
 export function LimitesSidebar() {
   const { data, dataUpdatedAt } = useLimites()
   const [ajustando, setAjustando] = useState(false)
@@ -97,16 +131,15 @@ export function LimitesSidebar() {
     const t = setInterval(() => setAgora(Date.now()), 1000)
     return () => clearInterval(t)
   }, [])
-  if (!data) return null
   const decorrido = Math.max(0, Math.floor((agora - dataUpdatedAt) / 1000))
-  const ativos = (['rpm', 'tpm', 'rpd'] as const).filter((k) => data[k].limite > 0)
-  if (ativos.length === 0) return null
+  const ativos = data ? (['rpm', 'tpm', 'rpd'] as const).filter((k) => data[k].limite > 0) : []
   return (
     <div className="hidden flex-col items-center gap-1.5 pb-1 md:flex">
-      {ativos.map((k) => (
+      <AnelMem />
+      {data && ativos.map((k) => (
         <Anel key={k} sigla={k} l={data[k]} decorrido={decorrido} onClick={k === 'rpd' ? () => setAjustando(true) : undefined} />
       ))}
-      {ajustando && <AjusteRpd usado={data.rpd.usado} onFechar={() => setAjustando(false)} />}
+      {ajustando && data && <AjusteRpd usado={data.rpd.usado} onFechar={() => setAjustando(false)} />}
     </div>
   )
 }

@@ -13,6 +13,7 @@ from rpg.config import (
 )
 from rpg.fichas import carregar_status_jogador
 from rpg.imagens import caminho_avatar, remover_avatar_jogador, salvar_avatar_jogador
+from rpg.memoria import tamanho_rodada_atual
 from rpg.metricas import calcular_contexto
 from services.personagens import excluir_personagem
 
@@ -37,6 +38,7 @@ def _card(nome: str) -> dict:
         "avatar_v": int(os.path.getmtime(av)) if av else None,
         "status": carregar_status_jogador(nome),
         "contexto": calcular_contexto(nome),
+        "rodada_chars": tamanho_rodada_atual(nome),
     }
 
 

@@ -25,6 +25,11 @@ def _caminho_temp(agente: str) -> str:
     return os.path.join(obter_pasta_agente(agente), "rodada_atual_temp.txt")
 
 
+def tamanho_rodada_atual(agente: str) -> int:
+    # Caracteres já gravados na rodada em andamento deste personagem (o que o historiador vai resumir).
+    return len(carregar_arquivo(_caminho_temp(agente)))
+
+
 def _anexar_temp(agente: str, linha: str):
     with open(_caminho_temp(agente), "a", encoding="utf-8") as f:
         f.write(linha + "\n")

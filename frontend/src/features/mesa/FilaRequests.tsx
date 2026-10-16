@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { AlertTriangle, Binary, Check, Dices, Loader2, Play, X } from 'lucide-react'
 import { Avatar } from '@/components/Avatar'
 import { Button } from '@/components/ui/button'
-import { filaOcupada, useAcao, useFila, useJogadores } from '@/hooks/queries'
+import { filaOcupada, useAcao, useConfig, useFila, useJogadores } from '@/hooks/queries'
 import { api } from '@/lib/api'
 import type { Fila, FilaItem } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -84,6 +84,7 @@ function Passos({ fila }: { fila: Fila }) {
 
 export function FilaRequests() {
   const { data: fila, dataUpdatedAt } = useFila()
+  const { data: config } = useConfig()
   const [agora, setAgora] = useState(() => Date.now())
   const continuar = useAcao(() => api.post('/fila/continuar'), [['fila']])
   const cancelar = useAcao(() => api.post('/fila/cancelar'), [['fila']])
@@ -120,7 +121,7 @@ export function FilaRequests() {
         )}
       </div>
 
-      {fila.limites_ativos && <Passos fila={fila} />}
+      {(fila.limites_ativos || config?.fila_sempre_visivel) && <Passos fila={fila} />}
 
       {esperando && (
         <p className="text-sm text-amber-500">

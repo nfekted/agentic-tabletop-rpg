@@ -585,7 +585,7 @@ caso:
 | `[acao]` | O personagem está realizando uma ação | A ação é considerada resolvida; ninguém reage automaticamente |
 | `[duvida]` | O personagem faz uma pergunta **ao mestre** | Aparece no balão e no histórico; você responde com uma nova fala dirigida a ele |
 | `[chamar]` | O personagem chama outro jogador: `[chamar]Nome: mensagem[/chamar]` | A fala dele é registrada e você decide se o chamado é acionado (veja abaixo) |
-| `[pensamento]` | Um pensamento interno que o personagem **não diz em voz alta** | Nunca é mostrado a outros jogadores nem entra no histórico compartilhado da cena — fica só na memória privada daquele personagem |
+| `[pensamento]` | Um pensamento interno que o personagem **não diz em voz alta** | Nunca é mostrado a outros jogadores nem entra no histórico compartilhado da cena — fica só na memória privada daquele personagem. Dentro da mesma rodada, o próprio personagem relê seus **3 últimos pensamentos** no prompt (zerados ao finalizar a rodada) |
 | *(nenhuma tag)* ou `[fala]` | Fala/reação social comum | Registrada na memória de quem presencia a cena |
 
 `[duvida]` não combina com `[acao]` nem `[chamar]`. O nome em `[chamar]` precisa
@@ -723,6 +723,11 @@ por vez**. A fila aparece entre os cards e a Ação do mestre, em passos:
   vermelho acima de 80%. O contador local de RPD zera à meia-noite; se o painel
   do provedor zera em outro horário, clique no anel **RPD** e informe o valor
   certo para ajustá-lo manualmente.
+- **Anel MEM** (sempre visível): tamanho, em caracteres, da **maior rodada em
+  andamento** entre os jogadores (o `rodada_atual_temp.txt` que o historiador vai
+  resumir), comparado a uma meta de 10 mil. É só referência: nada é bloqueado e
+  você pode seguir acima dela por conta própria, sabendo que o resumo comprime
+  mais e perde detalhes. O tooltip mostra o valor de cada jogador.
 - **Erro ou RPD esgotado**: a fila **para na vez atual** e mostra o motivo
   (429, 503, timeout...). Corrija o problema e use **Continuar de {nome}**
   (retoma sem repetir o que já foi feito) ou **Cancelar fila**. Enquanto há

@@ -271,7 +271,10 @@ def _processar_item(item: dict):
             gate=lambda etapa: _gate(item, previsao.prever_etapa(item["agente"], etapa), etapa),
         )
         return
-    previsto = previsao.prever_entrada(item["agente"], item["instrucao"], obter_sessao()["historico"], imagem)
+    previsto = previsao.prever_entrada(
+        item["agente"], item["instrucao"], obter_sessao()["historico"], imagem,
+        obter_sessao()["pensamentos"].get(item["agente"]),
+    )
     _gate(item, previsto)
     msg = mestre.responder(item["agente"], item["instrucao"], _estado["presentes"], _estado["rotulo"], imagem)
     if msg:
