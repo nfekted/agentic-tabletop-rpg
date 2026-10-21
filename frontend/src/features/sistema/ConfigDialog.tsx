@@ -37,7 +37,7 @@ function Form({ inicial, onFechar }: { inicial: Config; onFechar: () => void }) 
       gatilho_compressao_pct: c.gatilho_compressao_pct,
       alvo_reducao_pct: c.alvo_reducao_pct,
       limite_rpm: c.limite_rpm, limite_tpm: c.limite_tpm, limite_rpd: c.limite_rpd,
-      fila_sempre_visivel: c.fila_sempre_visivel,
+      fila_sempre_visivel: c.fila_sempre_visivel, limite_resumo_combate: c.limite_resumo_combate,
       api_key: chave ? chave : null, // vazio = manter a chave atual
     }),
     [['config'], ['jogadores'], ['limites']], 'Configurações salvas.',
@@ -138,6 +138,12 @@ function Form({ inicial, onFechar }: { inicial: Config; onFechar: () => void }) 
                 </span>
               </Label>
               <Switch id="fila-sempre" checked={c.fila_sempre_visivel} onCheckedChange={(v) => setC({ ...c, fila_sempre_visivel: v })} />
+            </div>
+            <div className="rounded-lg border p-3">
+              <Campo id="resumo-combate" rotulo="Sugerir resumo do combate a partir de (caracteres)"
+                dica="Quando a ordem de iniciativa volta ao primeiro e o combate passa desse tamanho, o resumo é oferecido. 0 = nunca abrir sozinho.">
+                <Input id="resumo-combate" type="number" min={0} className="max-w-40" value={c.limite_resumo_combate} onChange={num('limite_resumo_combate')} />
+              </Campo>
             </div>
           </TabsContent>
 

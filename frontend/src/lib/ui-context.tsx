@@ -8,6 +8,7 @@ export type Modal =
   | { tipo: 'excluir-jogador'; nome: string }
   | { tipo: 'novo-jogador' }
   | { tipo: 'regras' }
+  | { tipo: 'anotacoes' }
   | { tipo: 'padrao-ficha' }
   | { tipo: 'config' }
   | { tipo: 'mesas' }
@@ -20,6 +21,8 @@ type Ctx = {
   fechar: () => void
   view: View
   setView: (v: View) => void
+  textoMestre: string // rascunho da Ação do mestre: compartilhado para o "desfazer" devolver a fala ao campo
+  setTextoMestre: (t: string) => void
 }
 
 export const UiContext = createContext<Ctx>(null!)

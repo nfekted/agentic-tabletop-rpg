@@ -1,11 +1,14 @@
 from fastapi import APIRouter, HTTPException
+from typing import Literal
+
 from pydantic import BaseModel
 
 from api.deps import agente_valido
 from rpg.config import obter_modificadores_jogador, salvar_modificadores_jogador
+from services import mestre
 from rpg.fichas import (
     carregar_ficha, carregar_padrao, carregar_status_jogador, carregar_subarquivos_ficha,
-    padrao_configurado, salvar_padrao, salvar_status_jogador, salvar_subarquivos_ficha,
+    padrao_configurado, salvar_padrao, salvar_status_jogador, salvar_subarquivos_ficha, transferir_item,
 )
 
 router = APIRouter(tags=["fichas"])
@@ -65,9 +68,15 @@ class Personalidade(BaseModel):
     segredos_pessoais: str = ""
 
 
+class Situacao(BaseModel):
+    pct: int = 0
+    nome: str = ""
+
+
 class PadraoStatus(BaseModel):
     nome: str
     cor: str = "#DC143C"
+    situacoes: list[Situacao] = []
 
 
 class PadraoAtributo(BaseModel):
@@ -82,6 +91,13 @@ class PadraoIn(BaseModel):
 class AjusteStatus(BaseModel):
     nome: str
     delta: int
+
+
+class TransferenciaItem(BaseModel):
+    destino: str
+    zona: Literal["equipamento", "mochila"]
+    indice: int
+    nome: str
 
 
 class FichaIn(BaseModel):
@@ -126,6 +142,20 @@ def salvar(nome: str, body: FichaIn):
     salvar_subarquivos_ficha(nome, dados)
     salvar_modificadores_jogador(nome, body.modificadores)
     return _ficha(nome)
+
+
+@router.post("/fichas/{nome}/itens/transferir")
+def transferir(nome: str, body: TransferenciaItem):
+    # O item vai para a mochila do destino; as duas fichas são gravadas na hora.
+    origem, destino = agente_valido(nome), agente_valido(body.destino)
+    if origem == destino:
+        raise HTTPException(400, "Escolha outro personagem.")
+    try:
+        itens_origem, _ = transferir_item(origem, destino, body.zona, body.indice, body.nome)
+    except ValueError as e:
+        raise HTTPException(409, str(e))
+    mestre.registrar_transferencia(origem, destino, body.nome)
+    return {"itens": itens_origem, "destino": destino}
 
 
 @router.post("/fichas/{nome}/status/ajustar")

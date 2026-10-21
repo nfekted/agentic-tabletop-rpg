@@ -1,7 +1,8 @@
 # Tokens: inimigos, NPCs e itens
+import json
 import os
 import re
-from rpg.fichas import carregar_arquivo, salvar_arquivo
+from rpg.fichas import carregar_arquivo, ficha_do_padrao, salvar_arquivo, salvar_json
 from rpg.paths import TOKENS as PASTA_TOKENS
 
 CATEGORIAS = {
@@ -98,10 +99,33 @@ def salvar_imagem_token(categoria: str, nome_arquivo: str, nome_upload: str, con
     return caminho
 
 
+def caminho_ficha_token(categoria: str, nome_arquivo: str) -> str:
+    # status e atributos ficam num .json ao lado do .txt (goblin.txt -> goblin.json)
+    return os.path.splitext(caminho_token(categoria, nome_arquivo))[0] + ".json"
+
+
+def carregar_ficha_token(categoria: str, nome_arquivo: str) -> dict:
+    # Itens são só texto; os demais seguem o padrão de status e atributos da ficha.
+    if categoria == "item":
+        return {"status": [], "atributos": []}
+    try:
+        with open(caminho_ficha_token(categoria, nome_arquivo), "r", encoding="utf-8") as f:
+            dados = json.load(f)
+    except (OSError, ValueError):
+        dados = {}
+    return ficha_do_padrao(dados)
+
+
+def salvar_ficha_token(categoria: str, nome_arquivo: str, dados: dict):
+    salvar_json(caminho_ficha_token(categoria, nome_arquivo), ficha_do_padrao(dados))
+
+
 def excluir_token(categoria: str, nome_arquivo: str) -> bool:
     caminho = caminho_token(categoria, nome_arquivo)
     if os.path.exists(caminho):
         remover_imagem_token(categoria, nome_arquivo)
+        if os.path.exists(caminho_ficha_token(categoria, nome_arquivo)):
+            os.remove(caminho_ficha_token(categoria, nome_arquivo))
         os.remove(caminho)
         return True
     return False

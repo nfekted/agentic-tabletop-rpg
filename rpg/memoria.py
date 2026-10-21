@@ -297,7 +297,7 @@ class GerenciadorMemoriaRPG:
         print(f"\nCompilando {len(rodadas)} rodada(s) em CENA para {agente}...")
         conteudo_rodadas = "".join(f"\n--- {nome_arq} ---\n" + _ler(os.path.join(pasta, nome_arq)) for nome_arq in rodadas)
 
-        alvo_chars = min(7000, max(2000, int(len(conteudo_rodadas) * 0.4)))
+        alvo_chars = min(10000, max(2000, int(len(conteudo_rodadas) * 0.4)))
         prompt = f"""Você é o Historiador de uma mesa de RPG cooperativo. Sintetize estes resumos de rodadas, da perspectiva de {agente}, em uma narrativa fluida de CENA.
         Este texto substituirá as rodadas na memória do personagem, então NÃO PERCA FATOS.
 
@@ -337,7 +337,7 @@ class GerenciadorMemoriaRPG:
             return "", []
         conteudo_cenas = "".join(f"\n--- {os.path.basename(arq)} ---\n" + _ler(arq) for arq in caminhos)
 
-        alvo_chars = min(15000, max(4000, int(len(conteudo_cenas) * 0.4)))
+        alvo_chars = min(25000, max(4000, int(len(conteudo_cenas) * 0.4)))
         prompt = f"""Você é o Historiador de uma mesa de RPG cooperativo. Faça um resumo consolidado destas cenas para o histórico de longo prazo de {agente}.
         Este texto substituirá as cenas na memória do personagem, então NÃO PERCA FATOS.
 

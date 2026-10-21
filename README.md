@@ -56,7 +56,9 @@ uma API em Python (FastAPI), para quem não quer mexer em terminal.
   - [Escolha do modelo de IA](#escolha-do-modelo-de-ia)
   - [Cache de prompt (economia de tokens)](#cache-de-prompt-economia-de-tokens)
   - [Adicionando jogadores](#adicionando-jogadores)
+  - [Anotações do mestre](#anotações-do-mestre)
   - [Salvar / Restaurar Mesa](#salvar--restaurar-mesa)
+  - [Reiniciar e Resetar mesa](#reiniciar-e-resetar-mesa)
 - [Estrutura de pastas](#estrutura-de-pastas)
 - [Solução de problemas](#solução-de-problemas)
 
@@ -421,6 +423,11 @@ Regras do editor:
   padrão é 5 e você ajusta quando quiser; passar do limite só avisa.
 - Itens 100% iguais na mochila são **agrupados no prompt** (`2x Medalhão`); use o
   botão *duplicar* para repetir um item.
+- **Passar item para outro personagem:** o botão de envio (✈) no cartão do item abre a lista dos outros jogadores.
+  O item sai da ficha atual e vai para a **mochila** do escolhido, com todos os campos, e as duas fichas são
+  gravadas na hora. O botão fica desligado enquanto houver itens alterados e não salvos; salve a ficha antes.
+  Com rodada ativa, a troca também vira uma linha **privada** (só os dois a leem) no histórico e na memória da
+  rodada: `Mestre: Ana passou "Chaves" para Beto.`; o *Desfazer* remove essa linha, mas não devolve o item.
 
 **Como a ficha chega à IA.** As seções entram sempre nesta ordem: Base →
 Status → Atributos → Perícias → Habilidades (habilidades → poderes →
@@ -471,6 +478,15 @@ uma única vez no ícone **📋 Padrão de status e atributos** da barra lateral
 - **Atributos**: só o nome (ex.: Força, Inteligência). Cada personagem só
   preenche o valor.
 
+Cada status também tem **3 situações** opcionais, cada uma com um % e um nome
+(ex.: `0% = morto`, `25% = grave`, `50% = machucado`). A situação vale quando
+a barra está **igual ou abaixo** do %, e por barra vale só a de menor % que se
+aplica. As situações de barras diferentes são juntadas e aparecem como selos no
+card do jogador (ex.: `machucado, doido`). Situação em branco é ignorada e uma
+barra sem nenhuma situação não conta. Use a convenção "barra cheia = bom"
+(para loucura, use uma barra de Sanidade). A situação é calculada na hora, a
+partir da ficha; nada é gravado.
+
 Se você abrir a ficha de um personagem antes de existir um padrão, as abas
 Status e Atributos mostram um aviso com o botão **Configurar padrão**, que abre
 essa tela.
@@ -481,8 +497,11 @@ Detalhes:
   padrão apaga o valor dele nas fichas.
 - Na **primeira vez** que o padrão é salvo, status e atributos já preenchidos
   nas fichas são descartados (todos recomeçam do padrão).
-- Os status dos tokens do Modo por Turnos continuam livres, editados à mão em
-  cada token.
+- **Inimigos e NPCs** seguem o mesmo padrão: cada token tem os **status** e
+  **atributos** do padrão (valores guardados em um `.json` ao lado do `.txt`,
+  como a imagem) e, ao entrar no Modo por Turnos, a cópia já vem com esses
+  valores. Os selos de situação também aparecem nos tokens. **Itens** ficam só
+  com o texto.
 
 ### Conjuntos de regras (arquivos/regras/)
 
@@ -495,6 +514,11 @@ O arquivo **`base.txt`** guarda o que é comum a todos os conjuntos (regras gera
 atributos etc.). Ele é enviado **sempre, no começo**, e o conjunto ativo vem logo
 depois, como se fosse um texto só (`base` + ativo). Ele não pode ser excluído nem
 marcado como ativo, e não aparece no seletor do cabeçalho — só no painel de regras.
+
+No exemplo que acompanha o projeto, a `base.txt` traz também a seção **Tratamento com NPCs**: NPCs
+têm sentimentos e limites, o Mestre controla a disposição de cada um (de Prestativo a Hostil) e os jogadores
+não a veem, só percebem pelo tom e pelas decisões do NPC. A disposição muda aos poucos, para cima ou para baixo,
+conforme o grupo o trata, e desconfiar de estranhos não é hostilidade. Edite o texto à vontade.
 
 Pela interface você pode:
 - **Trocar rapidamente** o conjunto ativo no seletor 📜 do cabeçalho, sem abrir
@@ -520,7 +544,9 @@ As cenas são salvas em `arquivos/cenas/`.
 (subpastas `inimigo/`, `npc/` e `item/`), pelo ícone **💀 Inimigos, NPCs e itens**
 da barra lateral (uma aba por categoria). Cada token pode ter uma **imagem**
 opcional, guardada ao lado do `.txt` com o mesmo nome (`goblin.txt` +
-`goblin.png`) e usada no Modo por Turnos. Ajuda a ter tudo à mão sem buscar em
+`goblin.png`) e usada no Modo por Turnos. Inimigos e NPCs também guardam
+status e atributos no padrão da ficha (veja
+[Padrão de status e atributos](#padrão-de-status-e-atributos)). Ajuda a ter tudo à mão sem buscar em
 blocos de notas, e dá para deixar já em formato de prompt, para apenas
 copiar e colar na mensagem ou na ficha do personagem. Os tokens também são
 usados no [Modo por Turnos](#modo-por-turnos).
@@ -539,11 +565,33 @@ turnos** para abrir o painel de gestão de cenas e combate. O estado fica em
   participante aparece em formato compacto, com status, barra de contexto e
   balão de fala. Os botões **−** e **+** nas pontas das barras de status
   ajustam o valor atual de 1 em 1 (entre 0 e o máximo), inclusive nos tokens.
+- **Cards dos participantes**: o nome fica em uma linha própria (quebra em vez de cortar). Os personagens têm os
+  botões **Editar ficha** (✏️) e **Ver ficha** (👁️); os tokens, a ficha da cópia usada no combate e a exclusão.
 - **Ordem de iniciativa**: clique nos participantes "sem ordem" para colocá-los
   na fila e **arraste** para reordenar. O painel avisa empates e trava a
   ordem durante o combate.
 - **Iniciar combate / Próxima ação**: destaca de quem é a vez (🔥) e avança
   pela fila.
+- **Situação do combate no prompt**: com o combate em andamento, cada jogador
+  recebe, antes da instrução atual, um bloco `## SITUAÇÃO DO COMBATE` com quem
+  está em cada área (jogadores com a situação das barras, inimigos, NPCs e
+  `[Item: ...]`), recalculado a cada resposta e nunca gravado na memória.
+  Participantes na iniciativa sem área aparecem em "Sem área definida".
+- **Resumo do combate**: ao iniciar o combate com uma rodada ativa, a linha
+  `[INICIO COMBATE]` é gravada na memória da rodada dos participantes da
+  iniciativa e no histórico. Quando a ordem volta ao primeiro (e o combate já
+  passou do limite de caracteres definido em Configurações → Interface, padrão
+  2.500; 0 desliga) ou ao clicar em **Resumir combate**, abre o diálogo
+  **Contexto atual do combate**: à esquerda tudo desde a marca, à direita um
+  texto seu (ou **Sugerir resumo**, que faz uma chamada à LLM para você
+  revisar). Ao aplicar, o texto **substitui o trecho** na memória dos jogadores
+  e no histórico, e a marca desce para depois do resumo (o próximo resumo cobre
+  só o que veio depois). Em branco ou **Ignorar** mantém tudo. Se algum jogador
+  recebeu mensagem privada no trecho, ele aparece em uma aba separada (no histórico, esse resumo entra como
+  `Resumo do combate (na visão de X): ...`, visível só para quem está na aba). Os
+  pensamentos do trecho não são mantidos (os 3 últimos de cada jogador
+  continuam disponíveis). Ao **Encerrar modo**, o diálogo abre de novo para um
+  último resumo (se houver algo) e a marca some, deixando o texto corrido.
 - **Encerrar modo** volta à Mesa normal.
 - **Ação do mestre, pendências e histórico** ficam sempre visíveis abaixo do
   painel, para você falar com os jogadores e aprovar chamadas durante a
@@ -575,6 +623,23 @@ barra de rolagem. As respostas são aplicadas na hora, sem aprovação. A única
 mestre acontece quando um personagem quer **acionar outro jogador** (veja
 [Fluxo de aprovação](#fluxo-de-aprovação)).
 
+**Privacidade no prompt:** cada linha do histórico guarda quem a ouviu (internamente `@[A|B] Autor: texto`). O
+CONTEXTO RECENTE de cada jogador mostra só as linhas públicas e as dos grupos de que ele faz parte, então falas do
+mestre e respostas de uma cena privada não chegam aos demais. Para você, a tela mostra tudo, com 🔒 e os nomes nas
+linhas privadas.
+
+**Só registrar:** o interruptor ao lado do botão de envio grava a mensagem na memória (e no histórico) de quem a
+ouviria naquele modo, mas **ninguém responde** e nenhuma chamada à LLM é feita (não gasta RPM/TPM/RPD). Serve para
+informar algo que o jogador só vai usar na próxima ação (ex.: "a maçaneta quebra", ou uma descoberta que só um
+personagem tem). Vale para um envio e desliga sozinho; não aceita imagem de contexto.
+
+**Desfazer:** a última linha do histórico (fala do mestre ou resposta de um jogador) tem um botão
+**Desfazer**. Ele apaga a linha do histórico e da memória da rodada de todos que a receberam e restaura os
+pensamentos recentes e as chamadas pendentes de antes dela. Para voltar mais, desfaça uma a uma. Se a linha era uma
+fala sua, o texto volta para o campo de envio. Não é devolvido: o consumo de requests (RPM/TPM/RPD) e as métricas.
+Fica indisponível com a fila em andamento e, para as linhas anteriores, depois de recusar uma chamada ou
+aplicar o resumo de combate (que reescrevem a memória no meio).
+
 ### Tags de resposta: [fala], [acao], [duvida], [chamar] e [pensamento]
 
 O modelo é instruído a começar a resposta com uma dessas tags quando for o
@@ -583,7 +648,7 @@ caso:
 | Tag | O que significa | O que acontece depois |
 |---|---|---|
 | `[acao]` | O personagem está realizando uma ação | A ação é considerada resolvida; ninguém reage automaticamente |
-| `[duvida]` | O personagem faz uma pergunta **ao mestre** | Aparece no balão e no histórico; você responde com uma nova fala dirigida a ele |
+| `[duvida]` | O personagem faz uma pergunta **ao mestre** | Aparece no balão e no histórico; você responde com uma nova fala dirigida a ele. **Não consome o turno**: depois da sua resposta, a próxima resposta do personagem é a ação do turno |
 | `[chamar]` | O personagem chama outro jogador: `[chamar]Nome: mensagem[/chamar]` | A fala dele é registrada e você decide se o chamado é acionado (veja abaixo) |
 | `[pensamento]` | Um pensamento interno que o personagem **não diz em voz alta** | Nunca é mostrado a outros jogadores nem entra no histórico compartilhado da cena — fica só na memória privada daquele personagem. Dentro da mesma rodada, o próprio personagem relê seus **3 últimos pensamentos** no prompt (zerados ao finalizar a rodada) |
 | *(nenhuma tag)* ou `[fala]` | Fala/reação social comum | Registrada na memória de quem presencia a cena |
@@ -815,6 +880,12 @@ nada. A lixeira 🗑️ do card **exclui o personagem por completo**: ficha,
 memória (rodadas, cenas e mesa), foto e presença no modo por turnos. Não dá
 para desfazer, então salve a mesa antes se tiver dúvida.
 
+### Anotações do mestre
+
+O ícone **📝 Anotações do mestre** da barra lateral (abaixo de Tokens, disponível em qualquer tela) abre um bloco de texto
+para lembretes seus, como a fórmula de acerto contra defesa. Os jogadores não veem. O texto é salvo ao fechar (ou no
+botão Salvar), fica em `arquivos/anotacoes_mestre.txt` e entra no Salvar / Restaurar mesa.
+
 ### Salvar / Restaurar Mesa
 
 O ícone **💾 Salvar / restaurar mesa** da barra lateral abre um modal com
@@ -862,13 +933,15 @@ backup antes, não há como desfazer):
 ├── api/                    # API FastAPI
 │   ├── main.py             # App, CORS e serviço do front compilado
 │   ├── deps.py             # Validação de nomes e travas
-│   └── routers/            # Uma rota por assunto (fichas, regras, turno, mestre...)
+│   └── routers/            # Uma rota por assunto (fichas, regras, turno, mestre, anotações...)
 ├── services/               # Regras da mesa (antes viviam na interface)
 │   ├── sessao.py           # Estado da rodada, persistido em arquivos/sessao.json
 │   ├── fila.py             # Fila de requests à LLM (limites, espera, pausa e continuar)
 │   ├── mestre.py           # Ações do mestre, aprovações e dúvidas
 │   ├── compressao.py       # Quando oferecer a compressão de memória
 │   ├── personagens.py      # Exclusão total de um personagem
+│   ├── combate.py          # Marca, trechos e resumo do combate (memória + histórico)
+│   ├── desfazer.py         # Pontos de retorno do botão Desfazer
 │   └── eventos.py          # Eventos em tempo real (SSE)
 ├── frontend/               # Interface React (Vite + Tailwind + shadcn/ui + @dnd-kit)
 │   └── src/features/       # mesa, fichas, turno, tokens, sistema (config, regras, mesas)
@@ -889,6 +962,9 @@ backup antes, não há como desfazer):
 │   ├── cenas.py            # Cenas pré-cadastradas
 │   ├── tokens_manager.py   # Inimigos, NPCs e itens, com imagem (pasta tokens/)
 │   ├── turno.py            # Regras e persistência do Modo por Turnos
+│   ├── historico.py        # Audiência das linhas do histórico (@[A|B]) e o que cada jogador vê
+│   ├── resumo_combate.py   # Marca [INICIO COMBATE], trechos por grupo e resumo
+│   ├── situacao.py         # Bloco SITUAÇÃO DO COMBATE do prompt
 │   └── mesas_manager.py    # Salvar/restaurar mesa em .zip
 ├── requirements.txt
 ├── .venv/                  # Ambiente virtual (não versionar)
@@ -904,6 +980,8 @@ backup antes, não há como desfazer):
     ├── padrao_ficha.json       # Padrão de status e atributos (nome e cor)
     ├── turno.json              # Estado do Modo por Turnos (se ativo)
     ├── sessao.json             # Rodada em andamento: histórico, falas, chamadas pendentes
+    ├── desfazer.json           # Pontos de retorno do botão Desfazer
+    ├── anotacoes_mestre.txt    # Anotações do mestre (os jogadores não veem)
     ├── fila.json               # Fila de requests em andamento ou pausada
     ├── limites.json            # Uso da janela de RPM/TPM e contador diário (RPD)
     ├── regras/                 # Conjuntos de regras (um arquivo por cenário)

@@ -12,6 +12,7 @@ import type { PadraoFicha } from '@/lib/types'
 import { Carregando } from '@/components/Carregando'
 import { patchAt, removeAt } from '@/lib/utils'
 import { InputCor } from '@/components/InputCor'
+import { NumInput } from '@/features/fichas/ValoresPadrao'
 
 type Dados = Pick<PadraoFicha, 'status' | 'atributos'>
 
@@ -28,17 +29,35 @@ function Form({ inicial, onFechar }: { inicial: PadraoFicha; onFechar: () => voi
           Ao salvar o padrão pela primeira vez, os status e atributos já preenchidos nas fichas são descartados.
         </p>
       )}
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-[2fr_1fr]">
         <section className="space-y-2 rounded-xl border p-3">
           <h3 className="text-sm font-semibold">Status (atual / máximo)</h3>
           {d.status.map((s, i) => (
-            <div key={i} className="grid grid-cols-[1fr_2.5rem_2rem] items-center gap-2">
-              <Input value={s.nome} placeholder="Ex.: Vida" aria-label="Nome do status" onChange={(e) => setStatus(i, { nome: e.target.value })} />
-              <InputCor value={s.cor} onChange={(cor) => setStatus(i, { cor })} />
-              <Button variant="ghost" size="icon-sm" aria-label="Remover" onClick={() => setD({ ...d, status: removeAt(d.status, i) })}><Trash2 /></Button>
+            <div key={i} className="space-y-1.5 border-b pb-2 last:border-b-0">
+              <div className="grid grid-cols-[1fr_2.5rem_2rem] items-center gap-2">
+                <Input value={s.nome} placeholder="Ex.: Vida" aria-label="Nome do status" onChange={(e) => setStatus(i, { nome: e.target.value })} />
+                <InputCor value={s.cor} onChange={(cor) => setStatus(i, { cor })} />
+                <Button variant="ghost" size="icon-sm" aria-label="Remover" onClick={() => setD({ ...d, status: removeAt(d.status, i) })}><Trash2 /></Button>
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {s.situacoes.map((n, k) => (
+                  <div key={k} className="flex items-center gap-1">
+                    <div className="w-14 shrink-0">
+                      <NumInput valor={n.pct} rotulo={`${s.nome || 'Status'}: situação ${k + 1} (%)`}
+                        onChange={(pct) => setStatus(i, { situacoes: patchAt(s.situacoes, k, { pct: Math.max(0, Math.min(100, pct)) }) })} />
+                    </div>
+                    <span className="text-xs text-muted-foreground">%</span>
+                    <Input value={n.nome} placeholder="situação" aria-label={`${s.nome || 'Status'}: nome da situação ${k + 1}`}
+                      onChange={(e) => setStatus(i, { situacoes: patchAt(s.situacoes, k, { nome: e.target.value }) })} />
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
-          <Button variant="outline" size="sm" onClick={() => setD({ ...d, status: [...d.status, { nome: '', cor: '#DC143C' }] })}><Plus /> Status</Button>
+          <p className="text-xs text-muted-foreground">
+            Situações: valem quando a barra está igual ou abaixo do %. Vale a de menor %; em branco = ignora. Barra cheia = bom.
+          </p>
+          <Button variant="outline" size="sm" onClick={() => setD({ ...d, status: [...d.status, { nome: '', cor: '#DC143C', situacoes: [{ pct: 0, nome: '' }, { pct: 25, nome: '' }, { pct: 50, nome: '' }] }] })}><Plus /> Status</Button>
         </section>
         <section className="space-y-2 rounded-xl border p-3">
           <h3 className="text-sm font-semibold">Atributos</h3>
@@ -65,7 +84,7 @@ export function PadraoFichaDialog({ onFechar }: { onFechar: () => void }) {
   const { data } = usePadraoFicha()
   return (
     <DialogAberto onFechar={onFechar}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>Padrão de status e atributos</DialogTitle>
           <DialogDescription>Todos os personagens recebem estes status e atributos; na ficha, só falta preencher os valores.</DialogDescription>

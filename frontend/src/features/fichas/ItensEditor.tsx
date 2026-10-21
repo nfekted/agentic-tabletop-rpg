@@ -3,8 +3,9 @@ import {
   DndContext, DragOverlay, PointerSensor, useDraggable, useDroppable, useSensor, useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core'
-import { ArrowLeftRight, Copy, GripVertical, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeftRight, Copy, GripVertical, Plus, Send, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { Item, Itens } from '@/lib/types'
@@ -21,6 +22,9 @@ const itemVazio = (): Item => ({
   nome: '', maos: null, peso: null, alcance: '', dano: '',
   porcentagem_crit: null, multiplicador_critico: null, descricao: '',
 })
+// Passar o item para a mochila de outro personagem; `bloqueio` explica por que o botão está desligado.
+export type Transferencia = { outros: string[]; bloqueio: string | null; onEscolher: (zona: Zona, indice: number, destino: string) => void }
+
 const numero = (v: string) => (v === '' ? null : Number(v))
 const arredondar = (n: number) => Math.round(n * 100) / 100
 
@@ -34,9 +38,9 @@ function Campo({ rotulo, children, className }: { rotulo: string; children: Reac
 }
 
 function Cartao({
-  item, zona, indice, destinoMover, onChange, onMover, onDuplicar, onRemover,
+  item, zona, indice, destinoMover, transferencia, onChange, onMover, onDuplicar, onRemover,
 }: {
-  item: Item; zona: Zona; indice: number; destinoMover: string
+  item: Item; zona: Zona; indice: number; destinoMover: string; transferencia?: Transferencia
   onChange: (patch: Partial<Item>) => void
   onMover: () => void; onDuplicar: () => void; onRemover: () => void
 }) {
@@ -50,6 +54,21 @@ function Cartao({
         <Input value={item.nome} placeholder="Nome do item (obrigatório)" aria-label="Nome do item" aria-invalid={!item.nome.trim()}
           onChange={(e) => onChange({ nome: e.target.value })} className="flex-1" />
         <Button variant="ghost" size="icon-sm" onClick={onMover} aria-label={destinoMover} title={destinoMover}><ArrowLeftRight /></Button>
+        {transferencia && transferencia.outros.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger render={
+              <Button variant="ghost" size="icon-sm" disabled={!!transferencia.bloqueio} aria-label="Passar para outro personagem"
+                title={transferencia.bloqueio ?? 'Passar para outro personagem'} />
+            }>
+              <Send />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {transferencia.outros.map((o) => (
+                <DropdownMenuItem key={o} onClick={() => transferencia.onEscolher(zona, indice, o)}>Passar para {o}</DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
         <Button variant="ghost" size="icon-sm" onClick={onDuplicar} aria-label="Duplicar item" title="Duplicar item"><Copy /></Button>
         <Button variant="ghost" size="icon-sm" onClick={onRemover} aria-label="Remover item" className="hover:text-destructive"><Trash2 /></Button>
       </div>
@@ -84,7 +103,7 @@ function Painel({ id, titulo, vazio, rodape, children }: {
 }
 
 // Equipamento e Mochila: arraste os itens entre os painéis (ou use o botão de mover).
-export function ItensEditor({ valor, onChange }: { valor: Itens; onChange: (i: Itens) => void }) {
+export function ItensEditor({ valor, onChange, transferencia }: { valor: Itens; onChange: (i: Itens) => void; transferencia?: Transferencia }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
   const [arrastando, setArrastando] = useState<Item | null>(null)
   const [tamanhoTexto, setTamanhoTexto] = useState<string | null>(null) // permite apagar o campo enquanto digita
@@ -136,7 +155,7 @@ export function ItensEditor({ valor, onChange }: { valor: Itens; onChange: (i: I
                 </Button>
               }>
               {valor[z.id].map((item, i) => (
-                <Cartao key={i} item={item} zona={z.id} indice={i} destinoMover={z.mover}
+                <Cartao key={i} item={item} zona={z.id} indice={i} destinoMover={z.mover} transferencia={transferencia}
                   onChange={(patch) => setLista(z.id, patchAt(valor[z.id], i, patch))}
                   onMover={() => mover(z.id, i)}
                   onDuplicar={() => setLista(z.id, [...valor[z.id].slice(0, i + 1), { ...item }, ...valor[z.id].slice(i + 1)])}

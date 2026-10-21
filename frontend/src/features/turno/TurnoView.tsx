@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Play, Plus, Swords, Square, StepForward } from 'lucide-react'
+import { AlertTriangle, FileText, Play, Plus, Swords, Square, StepForward } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Carregando } from '@/components/Carregando'
@@ -14,12 +14,13 @@ import { AcaoMestre } from '@/features/mesa/AcaoMestre'
 import { FilaRequests } from '@/features/mesa/FilaRequests'
 import { Historico } from '@/features/mesa/Historico'
 import { Pendencias } from '@/features/mesa/Pendencias'
-import { StatusEditor } from '@/features/fichas/StatusEditor'
+import { AtributosValores, StatusValores } from '@/features/fichas/ValoresPadrao'
 import { useJogadores, useSessao, useTokens, useTurno } from '@/hooks/queries'
 import { api } from '@/lib/api'
 import type { TurnoEstado, TurnoToken } from '@/lib/types'
 import { semTxt } from '@/lib/utils'
 import { Areas } from './Areas'
+import { ResumoCombateDialog } from './ResumoCombateDialog'
 import { FilaIniciativa } from './FilaIniciativa'
 import type { Part } from './Participante'
 
@@ -35,7 +36,15 @@ function FichaTokenDialog({ token, onFechar, onSalvar }: {
           <DialogDescription>Cópia usada neste combate — editar aqui não altera o token original.</DialogDescription>
         </DialogHeader>
         <Textarea rows={10} value={f.conteudo} onChange={(e) => setF({ ...f, conteudo: e.target.value })} className="font-mono text-[13px]" />
-        <StatusEditor status={f.status} onChange={(status) => setF({ ...f, status })} />
+        {token.categoria !== 'item' && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <section className="space-y-2 rounded-xl border p-3">
+              <h3 className="text-sm font-semibold">Status</h3>
+              <StatusValores status={f.status} onChange={(status) => setF({ ...f, status })} />
+            </section>
+            <AtributosValores atributos={f.atributos ?? []} onChange={(atributos) => setF({ ...f, atributos })} />
+          </div>
+        )}
         <DialogFooter>
           <Button variant="outline" onClick={onFechar}>Cancelar</Button>
           <Button onClick={() => { onSalvar(f); onFechar() }}>Salvar</Button>
@@ -45,7 +54,7 @@ function FichaTokenDialog({ token, onFechar, onSalvar }: {
   )
 }
 
-type AcaoTurno = () => Promise<TurnoEstado & { ok?: boolean; mensagem?: string }>
+type AcaoTurno = () => Promise<TurnoEstado & { ok?: boolean; mensagem?: string; combate?: { sugerir: boolean } }>
 
 export function TurnoView() {
   const qc = useQueryClient()
@@ -56,6 +65,7 @@ export function TurnoView() {
   const [cat, setCat] = useState<string>('')
   const [arq, setArq] = useState<string>('')
   const [fichaToken, setFichaToken] = useState<string | null>(null)
+  const [resumo, setResumo] = useState<'ciclo' | 'encerrar' | null>(null)
 
   // toda ação do turno devolve o estado completo (ou { ok, mensagem, ...estado })
   const acao = useMutation({
@@ -63,6 +73,7 @@ export function TurnoView() {
     onSuccess: (r) => {
       qc.setQueryData(['turno'], { ativo: r.ativo, turno: r.turno, empates: r.empates })
       if (r.mensagem) (r.ok === false ? toast.warning : toast)(r.mensagem.replaceAll('**', ''))
+      if (r.combate?.sugerir) setResumo('ciclo')
     },
   })
   const run = (fn: AcaoTurno) => acao.mutate(fn)
@@ -102,7 +113,8 @@ export function TurnoView() {
         <Button disabled={estado.empates.length > 0 || acao.isPending} onClick={() => run(() => api.post('/turno/proxima'))}>
           {t.em_andamento ? <StepForward /> : <Play />} {t.em_andamento ? 'Próxima ação' : 'Iniciar combate'}
         </Button>
-        <Button variant="outline" onClick={() => run(() => api.del('/turno'))}><Square /> Encerrar modo</Button>
+        {t.em_andamento && <Button variant="outline" onClick={() => setResumo('ciclo')}><FileText /> Resumir combate</Button>}
+        <Button variant="outline" onClick={() => (t.em_andamento ? setResumo('encerrar') : run(() => api.del('/turno')))}><Square /> Encerrar modo</Button>
       </div>
       {estado.empates.length > 0 && (
         <p className="flex items-center gap-2 rounded-lg border border-amber-400/50 bg-amber-400/10 p-2 text-sm text-amber-200">
@@ -162,6 +174,12 @@ export function TurnoView() {
         <Historico />
       </div>
 
+      {resumo && (
+        <ResumoCombateDialog
+          encerrar={resumo === 'encerrar'} onFechar={() => setResumo(null)}
+          onConcluir={() => { const encerrar = resumo === 'encerrar'; setResumo(null); if (encerrar) run(() => api.del('/turno')) }}
+        />
+      )}
       {token && (
         <FichaTokenDialog
           key={token.id} token={token} onFechar={() => setFichaToken(null)}

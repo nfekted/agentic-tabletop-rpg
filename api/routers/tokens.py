@@ -6,12 +6,14 @@ from api.deps import nome_arquivo_valido
 from rpg.tokens_manager import (
     CATEGORIAS,
     caminho_imagem_token,
+    carregar_ficha_token,
     carregar_token,
     criar_token,
     excluir_token,
     garantir_estrutura_tokens,
     listar_tokens,
     remover_imagem_token,
+    salvar_ficha_token,
     salvar_imagem_token,
     salvar_token,
 )
@@ -28,6 +30,11 @@ class NovoToken(BaseModel):
 
 class ConteudoIn(BaseModel):
     conteudo: str
+
+
+class FichaIn(BaseModel):
+    status: list[dict] = []
+    atributos: list[dict] = []
 
 
 def _cat(categoria: str) -> str:
@@ -76,6 +83,19 @@ def ler(categoria: str, arquivo: str):
 def salvar(categoria: str, arquivo: str, body: ConteudoIn):
     salvar_token(categoria, _existente(categoria, arquivo), body.conteudo)
     return {"ok": True}
+
+
+@router.get("/tokens/{categoria}/{arquivo}/ficha")
+def ler_ficha(categoria: str, arquivo: str):
+    return carregar_ficha_token(_cat(categoria), _existente(categoria, arquivo))
+
+
+@router.put("/tokens/{categoria}/{arquivo}/ficha")
+def salvar_ficha(categoria: str, arquivo: str, body: FichaIn):
+    if _cat(categoria) == "item":
+        raise HTTPException(400, "Itens não têm status nem atributos.")
+    salvar_ficha_token(categoria, _existente(categoria, arquivo), body.model_dump())
+    return carregar_ficha_token(categoria, arquivo)
 
 
 @router.delete("/tokens/{categoria}/{arquivo}")

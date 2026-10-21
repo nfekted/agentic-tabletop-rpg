@@ -3,6 +3,7 @@ import random
 import uuid
 
 from rpg.config import carregar_agentes
+from rpg.historico import com_audiencia
 from rpg.memoria import GerenciadorMemoriaRPG
 from rpg.agentes import gerar_resposta_agente
 from rpg.tags import (
@@ -13,7 +14,7 @@ from rpg.tags import (
     separar_chamada,
 )
 
-from services import eventos
+from services import combate, desfazer, eventos
 from services.sessao import (
     ErroNegocio,
     obter,
@@ -43,9 +44,9 @@ def _gerar(agente: str, instrucao: str, caminho_imagem=None) -> str:
         eventos.publicar("agente_pronto", agente=agente)
 
 
-def salvar_pensamento_privado(agente: str, resposta: str):
+def salvar_pensamento_privado(agente: str, resposta: str, na_rodada: bool = True):
     s = obter()
-    if s["rodada_ativa"]:
+    if s["rodada_ativa"] and na_rodada:
         GerenciadorMemoriaRPG.salvar_log_rodada_atual(
             f"{agente} (pensamento): {resposta}", [agente]
         )
@@ -59,9 +60,10 @@ def _fala_do_mestre(tags: dict, publico: str) -> str:
     return f"[pensamento]{pensamento}[/pensamento]\n{publico}" if pensamento else publico
 
 
-def _pensamento_de(agente: str, tags: dict):
+def _pensamento_de(agente: str, tags: dict, na_rodada: bool = True):
+    # na_rodada=False: a linha completa do autor (com o pensamento) já vai para a rodada, sem duplicar
     if tags.get("pensamento"):
-        salvar_pensamento_privado(agente, f"[pensamento]{tags['pensamento']}[/pensamento]")
+        salvar_pensamento_privado(agente, f"[pensamento]{tags['pensamento']}[/pensamento]", na_rodada)
         recentes = obter()["pensamentos"].setdefault(agente, [])
         recentes.append(tags["pensamento"])
         del recentes[:-MAX_PENSAMENTOS]
@@ -93,6 +95,7 @@ def cancelar_rodada(motivo: str) -> str:
         raise ErroNegocio("Nenhuma rodada ativa para cancelar.")
 
     GerenciadorMemoriaRPG.cancelar_rodada(motivo)
+    desfazer.invalidar()
 
     s["rodada_ativa"] = False
     s["envolvidos"] = []
@@ -111,6 +114,7 @@ def preparar_finalizar() -> list[str]:
         raise ErroNegocio("Inicie a rodada antes de finalizar.")
 
     alvos = list(s["envolvidos"]) if s["envolvidos"] else carregar_agentes()
+    combate.limpar_marca()  # a marca do combate não vai para o historiador
     GerenciadorMemoriaRPG.salvar_log_rodada_atual("--- FIM DA RODADA ---", alvos)
     return alvos
 
@@ -122,6 +126,7 @@ def fechar_rodada(alvos: list[str]) -> str:
     if nao_envolvidos:
         GerenciadorMemoriaRPG.limpar_temp_nao_envolvidos(nao_envolvidos)
 
+    desfazer.invalidar()
     s["rodada_ativa"] = False
     s["envolvidos"] = []
     s["historico"] = []
@@ -154,18 +159,22 @@ def _processar_resposta(agente: str, resposta: str, presentes: list[str], rotulo
     s = obter()
     resposta, tags, chamada = _preparar_resposta(agente, resposta)
     publico = formatar_conteudo_publico(tags)
+    ouvintes = list(presentes) if agente in presentes else [*presentes, agente]  # o autor sempre lê o que disse
+    if publico or not tags.get("pensamento"):
+        desfazer.registrar()  # só respostas que entram no histórico
 
-    _pensamento_de(agente, tags)
+    # com parte pública, salvar_resposta_agente grava a versão completa do autor (pensamento incluso)
+    _pensamento_de(agente, tags, na_rodada=not (publico and s["rodada_ativa"] and agente in presentes))
 
     autor = f"{agente} ({rotulo})" if rotulo else agente
     if publico:
-        s["historico"].append(f"{autor}: {publico}")
+        s["historico"].append(com_audiencia(f"{autor}: {publico}", ouvintes, carregar_agentes()))
         registrar_fala(agente, _fala_do_mestre(tags, publico), aprovada=True, privado=False)
         if s["rodada_ativa"]:
             GerenciadorMemoriaRPG.salvar_resposta_agente(agente, resposta, presentes)
     elif not tags.get("pensamento"):
         log_ag = f"{autor}: {resposta}"
-        s["historico"].append(log_ag)
+        s["historico"].append(com_audiencia(log_ag, ouvintes, carregar_agentes()))
         registrar_fala(agente, resposta, aprovada=True, privado=False)
         if s["rodada_ativa"]:
             GerenciadorMemoriaRPG.salvar_log_rodada_atual(log_ag, presentes)
@@ -194,6 +203,7 @@ def preparar_falar_todos(comando: str) -> tuple[list[str], list[dict]]:
     if not presentes:
         raise ErroNegocio("Não há jogadores na mesa.")
 
+    desfazer.registrar()
     log_mestre = f"Mestre (para {', '.join(presentes)}): {comando}"
     s["historico"].append(log_mestre)
     for p in presentes:
@@ -216,17 +226,30 @@ def preparar_falar_direcionado(presentes: list[str], is_privado: bool, comando: 
         raise ErroNegocio("Selecione ao menos um jogador.")
 
     agentes_alvo_log = presentes if is_privado else carregar_agentes()
+    desfazer.registrar()
     for p in agentes_alvo_log:
         _envolver(p)
 
     log_mestre = f"Mestre (para {', '.join(presentes)}): {comando}"
-    s["historico"].append(log_mestre)
+    s["historico"].append(com_audiencia(log_mestre, agentes_alvo_log, carregar_agentes()))
     if s["rodada_ativa"]:
         GerenciadorMemoriaRPG.salvar_log_rodada_atual(log_mestre, agentes_alvo_log)
     salvar()
 
     instrucao = f"O mestre direcionou a você: '{comando}'. Responda usando as tags {_TAGS}."
     return agentes_alvo_log, [{"agente": alvo, "instrucao": instrucao} for alvo in presentes]
+
+
+def registrar_transferencia(origem: str, destino: str, item: str):
+    # Passagem de item entre fichas: com rodada ativa, só os dois ficam sabendo (histórico e memória da rodada).
+    s = obter()
+    if not s["rodada_ativa"]:
+        return
+    desfazer.registrar()
+    linha = f'Mestre: {origem} passou "{item}" para {destino}.'
+    s["historico"].append(com_audiencia(linha, [origem, destino], carregar_agentes()))
+    GerenciadorMemoriaRPG.salvar_log_rodada_atual(linha, [origem, destino])
+    salvar()
 
 
 def _tirar_chamada(chamada_id: str) -> dict:
@@ -278,4 +301,5 @@ def descartar_chamada(chamada_id: str):
             fala["texto"] = fala["texto"].replace(trecho, novo)
         if s["rodada_ativa"]:
             GerenciadorMemoriaRPG.substituir_trecho_temp(trecho, novo, c["presentes"])
+            desfazer.invalidar()  # o arquivo mudou de tamanho no meio
     salvar()

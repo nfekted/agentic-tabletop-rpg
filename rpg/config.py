@@ -25,6 +25,7 @@ CONFIG_PADRAO = {
     "limite_tpm": 0,
     "limite_rpd": 0,
     "fila_sempre_visivel": False,  # mostra os passos da fila mesmo sem RPM/TPM
+    "limite_resumo_combate": 2500,  # caracteres do combate a partir dos quais o resumo é sugerido (0 = nunca)
 }
 
 

@@ -59,6 +59,11 @@ export function JogadorCard({ jogador: j, fala }: { jogador: Jogador; fala?: Fal
           {mods.map((m) => <Badge key={m} variant="secondary">{m}</Badge>)}
         </div>
       )}
+      {j.situacao && (
+        <div className="flex flex-wrap gap-1">
+          {j.situacao.split(', ').map((s) => <Badge key={s} variant="outline" className="border-destructive/50 text-destructive">{s}</Badge>)}
+        </div>
+      )}
       <StatusBars status={j.status} urlAjuste={`/fichas/${j.nome}/status/ajustar`} />
       <ContextoBarra ctx={j.contexto} />
       <div className="-mx-1 mt-auto flex items-center justify-between border-t pt-2">

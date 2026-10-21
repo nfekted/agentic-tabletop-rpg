@@ -21,6 +21,7 @@ class ConfigIn(BaseModel):
     limite_tpm: int = 0
     limite_rpd: int = 0
     fila_sempre_visivel: bool = False
+    limite_resumo_combate: int = Field(2500, ge=0)
 
 
 def _publica(cfg: dict) -> dict:

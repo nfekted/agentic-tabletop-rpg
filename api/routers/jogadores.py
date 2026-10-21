@@ -11,7 +11,7 @@ from rpg.config import (
     obter_modificadores_jogador,
     salvar_modificadores_jogador,
 )
-from rpg.fichas import carregar_status_jogador
+from rpg.fichas import calcular_situacao, carregar_status_jogador
 from rpg.imagens import caminho_avatar, remover_avatar_jogador, salvar_avatar_jogador
 from rpg.memoria import tamanho_rodada_atual
 from rpg.metricas import calcular_contexto
@@ -32,11 +32,13 @@ class Modificadores(BaseModel):
 
 def _card(nome: str) -> dict:
     av = caminho_avatar(nome)
+    status = carregar_status_jogador(nome)
     return {
         "nome": nome,
         "modificadores": obter_modificadores_jogador(nome),
         "avatar_v": int(os.path.getmtime(av)) if av else None,
-        "status": carregar_status_jogador(nome),
+        "status": status,
+        "situacao": calcular_situacao(status),
         "contexto": calcular_contexto(nome),
         "rodada_chars": tamanho_rodada_atual(nome),
     }

@@ -1,8 +1,15 @@
 export type Status = { nome: string; valor_atual: number; valor_max: number; cor: string }
 
+export type Situacao = { pct: number; nome: string }
+
+export type FichaToken = { status: Status[]; atributos: ParNomeValor[] }
+
+export type GrupoCombate = { agentes: string[]; texto: string; chars: number }
+export type TrechosCombate = { marcado: boolean; grupos: GrupoCombate[] }
+
 export type PadraoFicha = {
   configurado: boolean
-  status: { nome: string; cor: string }[]
+  status: { nome: string; cor: string; situacoes: Situacao[] }[]
   atributos: { nome: string }[]
 }
 
@@ -21,6 +28,7 @@ export type Jogador = {
   modificadores: string
   avatar_v: number | null
   status: Status[]
+  situacao: string
   contexto: Contexto | null
   rodada_chars: number
 }
@@ -40,9 +48,10 @@ export type Sessao = {
   rodada_ativa: boolean
   pending_chamadas: PendingChamada[]
   ultima_fala: Record<string, Fala>
+  pode_desfazer: boolean
 }
 
-export type AcaoResposta = { mensagem: string | null; sessao: Sessao }
+export type AcaoResposta = { mensagem: string | null; sessao: Sessao; texto?: string | null }
 
 export type FilaItem = {
   agente: string
@@ -79,6 +88,7 @@ export type Config = {
   limite_tpm: number
   limite_rpd: number
   fila_sempre_visivel: boolean
+  limite_resumo_combate: number
   api_key_definida: boolean
   tipos_api: { id: string; nome: string }[]
 }
@@ -135,7 +145,8 @@ export type TurnoToken = {
   arquivo?: string
   tipo_icone: string
   ordem: number | null
-  ficha_dados: { conteudo: string; status: Status[] }
+  situacao?: string
+  ficha_dados: { conteudo: string; status: Status[]; atributos?: ParNomeValor[] }
 }
 export type TurnoArea = { id: string; nome: string; participantes: string[] }
 type TurnoDados = {

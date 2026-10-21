@@ -4,15 +4,21 @@ import json
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
-from services import compressao, eventos
+from services import compressao, desfazer, eventos
 from services.sessao import obter
 
 router = APIRouter(tags=["sessao"])
 
 
+def sessao_publica() -> dict:
+    # pode_desfazer é derivado (não é gravado na sessão): a última linha do histórico tem como ser desfeita
+    s = obter()
+    return {**s, "pode_desfazer": s["rodada_ativa"] and desfazer.possivel()}
+
+
 @router.get("/sessao")
 def sessao():
-    return obter()
+    return sessao_publica()
 
 
 @router.get("/compressao/pendente")

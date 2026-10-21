@@ -7,9 +7,9 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useAcao, useFicha, usePadraoFicha } from '@/hooks/queries'
+import { useAcao, useFicha, useJogadores, usePadraoFicha } from '@/hooks/queries'
 import { api } from '@/lib/api'
-import type { Ficha } from '@/lib/types'
+import type { Ficha, Itens } from '@/lib/types'
 import { CamposFixos, type Campo } from './CamposFixos'
 import { HabilidadesEditor } from './HabilidadesEditor'
 import { ItensEditor } from './ItensEditor'
@@ -37,6 +37,16 @@ function Form({ inicial, nome, onFechar }: { inicial: Ficha; nome: string; onFec
     () => api.put<Ficha>(`/fichas/${nome}`, f),
     [['jogadores'], ['ficha', nome], ['ficha-md', nome]],
     'Ficha salva.',
+  )
+  // a transferência grava as duas fichas na hora, então os itens do rascunho precisam estar iguais aos salvos
+  const [itensSalvos, setItensSalvos] = useState<Itens>(inicial.itens)
+  const outros = (useJogadores().data ?? []).map((j) => j.nome).filter((n) => n !== nome)
+  const itensAlterados = JSON.stringify(f.itens) !== JSON.stringify(itensSalvos)
+  const transferir = useAcao(
+    (v: { zona: 'equipamento' | 'mochila'; indice: number; destino: string }) =>
+      api.post<{ itens: Itens; destino: string }>(`/fichas/${nome}/itens/transferir`, { ...v, nome: f.itens[v.zona][v.indice].nome }),
+    [['ficha', nome], ['ficha-md', nome], ['sessao']],
+    (r) => `Item passado para ${r.destino}.`,
   )
 
   return (
@@ -71,7 +81,13 @@ function Form({ inicial, nome, onFechar }: { inicial: Ficha; nome: string; onFec
           <HabilidadesEditor valor={f.habilidades} onChange={(habilidades) => setF({ ...f, habilidades })} />
         </TabsContent>
         <TabsContent value="itens" className="pt-2">
-          <ItensEditor valor={f.itens} onChange={(itens) => setF({ ...f, itens })} />
+          <ItensEditor valor={f.itens} onChange={(itens) => setF({ ...f, itens })}
+            transferencia={{
+              outros, bloqueio: itensAlterados ? 'Salve a ficha antes de passar itens' : transferir.isPending ? 'Aguarde…' : null,
+              onEscolher: (zona, indice, destino) => transferir.mutate({ zona, indice, destino }, {
+                onSuccess: (r) => { setItensSalvos(r.itens); setF((x) => ({ ...x, itens: r.itens })) },
+              }),
+            }} />
         </TabsContent>
         <TabsContent value="personalidade" className="pt-2">
           <CamposFixos multilinha campos={CAMPOS_PERSONALIDADE} valores={f.personalidade}
@@ -80,7 +96,7 @@ function Form({ inicial, nome, onFechar }: { inicial: Ficha; nome: string; onFec
       </Tabs>
       <DialogFooter>
         <Button variant="outline" onClick={onFechar}>Fechar</Button>
-        <Button disabled={salvar.isPending} onClick={() => salvar.mutate()}>Salvar ficha</Button>
+        <Button disabled={salvar.isPending} onClick={() => salvar.mutate(undefined, { onSuccess: (r) => { setItensSalvos(r.itens); setF((x) => ({ ...x, itens: r.itens })) } })}>Salvar ficha</Button>
       </DialogFooter>
     </>
   )

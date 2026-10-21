@@ -5,6 +5,7 @@ import { FichaView } from '@/features/fichas/FichaView'
 import { MemoriaDialog } from '@/features/fichas/MemoriaDialog'
 import { Mesa } from '@/features/mesa/Mesa'
 import { Cabecalho } from '@/features/sistema/Cabecalho'
+import { AnotacoesDialog } from '@/features/sistema/AnotacoesDialog'
 import { CompressaoWatcher } from '@/features/sistema/CompressaoWatcher'
 import { FilaAviso } from '@/features/sistema/FilaAviso'
 import { ConfigDialog } from '@/features/sistema/ConfigDialog'
@@ -26,6 +27,7 @@ function Modais({ modal, fechar }: { modal: Modal | null; fechar: () => void }) 
     case 'avatar': return <AvatarDialog nome={modal.nome} onFechar={fechar} />
     case 'excluir-jogador': return <ExcluirJogadorDialog nome={modal.nome} onFechar={fechar} />
     case 'novo-jogador': return <NovoJogadorDialog onFechar={fechar} />
+    case 'anotacoes': return <AnotacoesDialog onFechar={fechar} />
     case 'regras': return <RegrasDialog onFechar={fechar} />
     case 'padrao-ficha': return <PadraoFichaDialog onFechar={fechar} />
     case 'config': return <ConfigDialog onFechar={fechar} />
@@ -37,7 +39,11 @@ function Modais({ modal, fechar }: { modal: Modal | null; fechar: () => void }) 
 export default function App() {
   const [modal, setModal] = useState<Modal | null>(null)
   const [view, setView] = useState<View>('mesa')
-  const ctx = useMemo(() => ({ abrir: setModal, fechar: () => setModal(null), view, setView }), [view])
+  const [textoMestre, setTextoMestre] = useState('')
+  const ctx = useMemo(
+    () => ({ abrir: setModal, fechar: () => setModal(null), view, setView, textoMestre, setTextoMestre }),
+    [view, textoMestre],
+  )
 
   return (
     <UiContext.Provider value={ctx}>

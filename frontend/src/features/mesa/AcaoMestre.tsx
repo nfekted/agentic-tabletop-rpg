@@ -1,12 +1,14 @@
 import { useRef, useState } from 'react'
 import { ImagePlus, Library, Loader2, Send, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { filaOcupada, useAcaoMestre, useFila, useJogadores } from '@/hooks/queries'
 import { usePensando } from '@/hooks/eventos'
 import { api } from '@/lib/api'
 import type { AcaoResposta } from '@/lib/types'
 import { CenasDialog } from './CenasDialog'
+import { useUi } from '@/lib/ui-context'
 import { IMAGENS_ACEITAS, cn } from '@/lib/utils'
 
 type Modo = 'todos' | 'especificos' | 'privada'
@@ -16,9 +18,10 @@ const MODOS: { id: Modo; rotulo: string; dica: string }[] = [
   { id: 'privada', rotulo: 'Cena privada', dica: 'Só os selecionados ouvem, lembram e respondem.' },
 ]
 
-async function enviar(modo: Modo, texto: string, alvos: string[], imagem: File | null) {
+async function enviar(modo: Modo, texto: string, alvos: string[], imagem: File | null, silencioso: boolean) {
   const fd = new FormData()
   fd.append('comando', texto)
+  if (silencioso) fd.append('silencioso', 'true')
   if (imagem) fd.append('imagem', imagem)
   if (modo === 'todos') return api.post<AcaoResposta>('/mestre/falar-todos', fd)
   alvos.forEach((a) => fd.append('alvos', a))
@@ -33,12 +36,13 @@ export function AcaoMestre() {
   const emFila = filaOcupada(fila)
   const [modo, setModo] = useState<Modo>('todos')
   const [alvos, setAlvos] = useState<string[]>([])
-  const [texto, setTexto] = useState('')
+  const { textoMestre: texto, setTextoMestre: setTexto } = useUi()
   const [imagem, setImagem] = useState<File | null>(null)
   const [cenas, setCenas] = useState(false)
+  const [silencioso, setSilencioso] = useState(false) // vale para um envio só
   const inputImg = useRef<HTMLInputElement>(null)
 
-  const envio = useAcaoMestre(() => enviar(modo, texto.trim(), alvos, imagem))
+  const envio = useAcaoMestre(() => enviar(modo, texto.trim(), alvos, imagem, silencioso))
   const podeEnviar = texto.trim() && (modo === 'todos' || alvos.length > 0) && !envio.isPending && !emFila
 
   // A ordem dos cliques é a ordem das respostas (jogadores específicos e cena privada).
@@ -47,7 +51,7 @@ export function AcaoMestre() {
     setImagem(null)
     if (inputImg.current) inputImg.current.value = ''
   }
-  const enviarAgora = () => envio.mutate(undefined, { onSuccess: () => { setTexto(''); limparImagem() } })
+  const enviarAgora = () => envio.mutate(undefined, { onSuccess: () => { setTexto(''); limparImagem(); setSilencioso(false) } })
 
   return (
     <section className="space-y-3 rounded-2xl border bg-card p-4">
@@ -111,7 +115,7 @@ export function AcaoMestre() {
           hidden
           onChange={(e) => setImagem(e.target.files?.[0] ?? null)}
         />
-        <Button variant="outline" size="sm" onClick={() => inputImg.current?.click()}>
+        <Button variant="outline" size="sm" disabled={silencioso} onClick={() => inputImg.current?.click()}>
           <ImagePlus /> Imagem de contexto
         </Button>
         {imagem && (
@@ -125,9 +129,16 @@ export function AcaoMestre() {
         <Button variant="outline" size="sm" onClick={() => setCenas(true)}>
           <Library /> Cenas
         </Button>
-        <Button className="ml-auto" disabled={!podeEnviar} onClick={enviarAgora}>
+        <label
+          className="ml-auto flex items-center gap-2 text-sm"
+          title="Grava a mensagem na memória de quem a ouviria, mas ninguém responde (sem chamada à LLM). Desliga sozinho após o envio."
+        >
+          <Switch checked={silencioso} onCheckedChange={(v) => { setSilencioso(v); if (v) limparImagem() }} />
+          Só registrar
+        </label>
+        <Button disabled={!podeEnviar} onClick={enviarAgora}>
           {envio.isPending || fila?.status === 'rodando' || fila?.status === 'aguardando_limite' ? <Loader2 className="animate-spin" /> : <Send />}
-          {envio.isPending ? 'Enviando…' : emFila ? 'Fila em andamento' : 'Enviar'}
+          {envio.isPending ? 'Enviando…' : emFila ? 'Fila em andamento' : silencioso ? 'Registrar' : 'Enviar'}
         </Button>
       </div>
       {pensando.size > 0 && (

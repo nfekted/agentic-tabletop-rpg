@@ -6,7 +6,7 @@ import uuid
 from collections import Counter
 
 from rpg.fichas import salvar_json
-from rpg.tokens_manager import carregar_token
+from rpg.tokens_manager import carregar_ficha_token, carregar_token
 from rpg.paths import ARQUIVOS
 
 CAMINHO_TURNO = os.path.join(ARQUIVOS, "turno.json")
@@ -205,10 +205,7 @@ def adicionar_token_ao_turno(categoria: str, nome_arquivo: str) -> dict | None:
         "arquivo": nome_arquivo,
         "tipo_icone": icone,
         "ordem": ordem_inicial,
-        "ficha_dados": {
-            "conteudo": conteudo,
-            "status": [],
-        },
+        "ficha_dados": {"conteudo": conteudo, **carregar_ficha_token(categoria, nome_arquivo)},
     }
     dados["tokens"].append(novo_token)
     salvar_turno(dados)
@@ -302,27 +299,28 @@ def obter_participante_por_ordem(turno_dados: dict, ordem: int | None) -> dict |
     return None
 
 
-def avancar_proxima_acao(turno_dados: dict) -> tuple[bool, str]:
+def avancar_proxima_acao(turno_dados: dict) -> tuple[bool, str, str | None]:
+    # Devolve (ok, mensagem, evento): evento é "inicio" (combate começou) ou "nova_rodada" (a ordem voltou ao primeiro).
     empates = verificar_empates(turno_dados)
     if empates:
-        return False, f"⚠️ Empate detectado na(s) ordem(ns): {', '.join(map(str, empates))}. Defina ordens distintas!"
+        return False, f"⚠️ Empate detectado na(s) ordem(ns): {', '.join(map(str, empates))}. Defina ordens distintas!", None
 
     fila = obter_fila_ordens(turno_dados)
     if not fila:
-        return False, "⚠️ Nenhum participante possui uma ordem definida (mínimo 1)."
+        return False, "⚠️ Nenhum participante possui uma ordem definida (mínimo 1).", None
 
-    def passar_para(ordem: int, prefixo: str) -> tuple[bool, str]:
+    def passar_para(ordem: int, prefixo: str, evento: str | None) -> tuple[bool, str, str | None]:
         turno_dados["ordem_atual"] = ordem
         salvar_turno(turno_dados)
         participante = obter_participante_por_ordem(turno_dados, ordem)
         nome = participante.get("nome") or participante.get("nome_exibicao", "Participante")
-        return True, f"{prefixo}Turno de **{nome}** (Ordem #{ordem})."
+        return True, f"{prefixo}Turno de **{nome}** (Ordem #{ordem}).", evento
 
     if not turno_dados.get("em_andamento"):
         turno_dados["em_andamento"] = True
-        return passar_para(fila[0], "⚔️ Combate iniciado! ")
+        return passar_para(fila[0], "⚔️ Combate iniciado! ", "inicio")
 
     ordem_atual = turno_dados.get("ordem_atual")
     if ordem_atual is None or ordem_atual not in fila or ordem_atual >= fila[-1]:
-        return passar_para(fila[0], "🔄 Nova Rodada iniciada! ")
-    return passar_para(fila[fila.index(ordem_atual) + 1], "")
+        return passar_para(fila[0], "🔄 Nova Rodada iniciada! ", "nova_rodada")
+    return passar_para(fila[fila.index(ordem_atual) + 1], "", None)

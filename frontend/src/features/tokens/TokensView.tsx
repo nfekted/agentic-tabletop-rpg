@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
-import { useAcao, useTokens } from '@/hooks/queries'
+import { useAcao, usePadraoFicha, useTokens } from '@/hooks/queries'
 import { api, tokenImagemUrl } from '@/lib/api'
-import type { TokenCategoria } from '@/lib/types'
+import type { FichaToken, TokenCategoria } from '@/lib/types'
+import { AtributosValores, AvisoSemPadrao, StatusValores } from '@/features/fichas/ValoresPadrao'
 import { Carregando } from '@/components/Carregando'
 import { IMAGENS_ACEITAS, cn, semTxt } from '@/lib/utils'
 
@@ -25,10 +26,21 @@ function Editor({ categoria, arquivo, temImagem }: { categoria: string; arquivo:
   const url = `/tokens/${categoria}/${encodeURIComponent(arquivo)}`
   const { data } = useQuery({ queryKey: ['token', categoria, arquivo], gcTime: 0, queryFn: () => api.get<{ conteudo: string }>(url) })
   const [texto, setTexto] = useState<string | null>(null)
+  const [ficha, setFicha] = useState<FichaToken | null>(null)
   const [bust, setBust] = useState(0)
+  const { data: padrao } = usePadraoFicha()
+  const comFicha = categoria !== 'item'
+  const { data: fichaSalva } = useQuery({
+    queryKey: ['token-ficha', categoria, arquivo], gcTime: 0, enabled: comFicha,
+    queryFn: () => api.get<FichaToken>(`${url}/ficha`),
+  })
+  const f = ficha ?? fichaSalva
   const input = useRef<HTMLInputElement>(null)
 
-  const salvar = useAcao(() => api.put(url, { conteudo: texto ?? data?.conteudo ?? '' }), [['token', categoria, arquivo]], 'Token salvo.')
+  const salvar = useAcao(async () => {
+    if (texto !== null) await api.put(url, { conteudo: texto })
+    if (ficha) await api.put(`${url}/ficha`, ficha)
+  }, [['token', categoria, arquivo], ['token-ficha', categoria, arquivo]], 'Token salvo.')
   const excluir = useAcao(() => api.del(url), [['tokens']], 'Token excluído.')
   const enviarImg = useAcao((f: File) => { const fd = new FormData(); fd.append('imagem', f); return api.post(`${url}/imagem`, fd) },
     [['tokens']], () => { setBust(Date.now()); return 'Imagem atualizada.' })
@@ -52,8 +64,17 @@ function Editor({ categoria, arquivo, temImagem }: { categoria: string; arquivo:
       </div>
       <Textarea value={texto ?? data?.conteudo ?? ''} onChange={(e) => setTexto(e.target.value)} rows={14}
         className="min-h-60 flex-1 font-mono text-[13px]" disabled={!data} placeholder="Anotações, ficha ou prompt pronto para copiar…" />
+      {comFicha && (padrao && !padrao.configurado ? <AvisoSemPadrao /> : f && (
+        <div className="grid gap-3 md:grid-cols-2">
+          <section className="space-y-2 rounded-xl border p-3">
+            <h3 className="text-sm font-semibold">Status</h3>
+            <StatusValores status={f.status} onChange={(status) => setFicha({ ...f, status })} />
+          </section>
+          <AtributosValores atributos={f.atributos} onChange={(atributos) => setFicha({ ...f, atributos })} />
+        </div>
+      ))}
       <div className="flex gap-2">
-        <Button disabled={texto === null || salvar.isPending} onClick={() => salvar.mutate()}>Salvar</Button>
+        <Button disabled={(texto === null && ficha === null) || salvar.isPending} onClick={() => salvar.mutate()}>Salvar</Button>
         <Button variant="outline" className="ml-auto" onClick={() => excluir.mutate()}><Trash2 /> Excluir</Button>
       </div>
     </div>

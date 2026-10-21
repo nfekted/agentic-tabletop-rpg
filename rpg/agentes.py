@@ -3,9 +3,11 @@ from typing import List
 from langchain_core.messages import SystemMessage, HumanMessage
 
 from rpg.config import carregar_agentes, identidade_llm, obter_llm
+from rpg.historico import visivel_para
 from rpg.fichas import carregar_ficha, carregar_regras, lembrete_recursos
 from rpg.memoria import carregar_memoria_longo_prazo, texto_resposta
 from rpg.limites import invocar
+from rpg.situacao import situacao_combate
 from rpg.metricas import registrar_chamada
 from rpg.imagens import carregar_imagem_base64, obter_mimetype_imagem
 
@@ -29,6 +31,7 @@ Você está em um RPG de mesa cooperativo.
    - **Não repita os outros:** se alguém acabou de dizer ou fazer algo, acrescente algo novo (outra ação, outro local, outra pergunta) em vez de ir junto ou repetir. Exceto se deseja ajuda-lo naquela ação.
    - **Mude quando não rende:** se o que você tentou não deu resultado, troque de alvo ou de abordagem. Não fique preso ao mesmo elemento da cena.
    - **Reaja ao que há na cena:** todo jogador, NPC ou criatura, e quem está com você, merecem uma reação.
+   - **Entenda o ponto de vista do NPC:** antes de reagir a um NPC desconfiado ou hostil, pergunte-se o que ELE vê: quem são vocês, o que estão fazendo, onde estão e se faria sentido desconfiar. Desconfiança, interrogatório e ameaça de um guarda, dono, autoridade ou morador diante de estranhos em lugar indevido são reações normais, não prova de que ele é inimigo ou culpado. Responda com cooperação, explicação ou cautela, e use a força ou acusações só se houver prova clara ou perigo real. Lembre também das consequências: atacar ou ameaçar quem tem poder ou apoio ali costuma piorar a situação do grupo.
    - **Use sua ficha:** habilidades, poderes, itens e perícias existem para serem usados. Leia o que fazem e use quando ajudarem, em vez de repetir sempre a ação básica. Ferido ou em perigo, priorize recuar, se curar ou pedir ajuda aos aliados.
 
 4. **TAMANHO DA RESPOSTA (REGRA DE COMPRIMENTO):**
@@ -42,7 +45,7 @@ Você está em um RPG de mesa cooperativo.
    - **[pensamento]...[/pensamento]**: Pensamentos internos, suspeitas ou planos. Sintético (1-2 frases). Não é ouvido pelos outros personagens.
    - **[fala]...[/fala]**: O que o personagem efetivamente diz em voz alta. Pessoas próximas podem ouvir.
    - **[acao]...[/acao]**: Movimento físico ou ação conclusiva do turno.
-   - **[duvida]...[/duvida]**: Pergunta ao Mestre (só ao Mestre) quando algo ficou ambíguo ou não foi descrito: o que seu personagem perceberia ou alcançaria, se um item ou habilidade pode ser usado de certo jeito, o que o local permite. Ex.: `[duvida]Consigo ver mais alguma coisa daqui?[/duvida]` ou `[duvida]Posso usar a corda para travar essa porta?[/duvida]`. NÃO use para pedir respostas que seu personagem não teria (ex.: "quem é o rasurado na carta?"): isso se descobre agindo.
+   - **[duvida]...[/duvida]**: Pergunta ao Mestre (só ao Mestre) quando você não sabe o que pode fazer ou o que perceberia: opções de perícia ou habilidade para algo, se um item serve para certo uso, o que o local permite, o que seu personagem alcançaria ver. Ex.: `[duvida]Consigo ver mais alguma coisa daqui?[/duvida]`, `[duvida]Posso usar a corda para travar essa porta?[/duvida]` ou `[duvida]Quais perícias posso usar neste telefone?[/duvida]`. Em vez de chutar uma perícia ou uma possibilidade, pergunte. NÃO use para pedir respostas que seu personagem não teria (ex.: "quem é o rasurado na carta?"): isso se descobre agindo.
    - **[chamar]NomeExato: o que você diz a ele[/chamar]**: Traz para a cena um jogador que NÃO está nela, por estar em outro lugar (ex.: `[chamar]Fulano: Venha até o porão, achei uma pista![/chamar]`). Use SOMENTE um destes nomes, escritos exatamente assim: {jogadores}. Nunca chame a si mesmo. Quem é chamado decide se vai ou recusa (ex.: está ocupado).
      - **Quem já está na cena NÃO deve ser chamado:** quem aparece no CONTEXTO RECENTE ou foi citado pelo mestre como destinatário (ex.: "Mestre (para A, B)") já te ouve. Para falar com essa pessoa ou pedir ajuda a ela, use `[fala]` citando o nome dela.
      - Não use [chamar] para dar ordens ou responder a quem falou com você. Use [chamar] só quando precisar mesmo de alguém que está longe (ex.: ferido e sozinho, ou com uma descoberta importante).
@@ -52,7 +55,8 @@ Você está em um RPG de mesa cooperativo.
    - **Descobertas úteis ao grupo** (algo que você viu ou achou, inclusive em cena privada) devem ser contadas assim que houver oportunidade, a menos que seu personagem tenha um motivo para escondê-las.
 
 7. **REGRA DE EXCLUSIVIDADE ([acao] / [duvida] / [chamar]):**
-   - NUNCA use `[duvida]` junto com `[acao]` ou `[chamar]` na mesma resposta. Fazer uma `[duvida]` JÁ É sua ação: depois dela, aguarde a resposta do Mestre.
+   - NUNCA use `[duvida]` junto com `[acao]` ou `[chamar]` na mesma resposta: com uma dúvida, envie só ela e aguarde a resposta do Mestre.
+   - `[duvida]` **não consome o seu turno**: é só um esclarecimento. Depois da resposta do Mestre, a sua próxima resposta é a ação do turno.
    - `[chamar]` pode acompanhar `[fala]` e `[acao]`.
    - Não é obrigatório usar todas as tags: você pode só falar, só agir, só pensar, só perguntar ou só chamar.
 
@@ -110,10 +114,12 @@ def montar_prompt(
     ]
 
     lembrete = lembrete_recursos(nome_agente)
+    situacao = situacao_combate()
     texto_turno = (
-        f"## CONTEXTO RECENTE\n{historico_recente}\n\n"
+        f"## CONTEXTO RECENTE\n" + "\n".join(visivel_para(historico_recente, nome_agente)) + "\n\n"
         + (f"## SEUS ÚLTIMOS PENSAMENTOS (só você os ouviu)\n" + "\n".join(f"- {p}" for p in pensamentos) + "\n\n" if pensamentos else "")
         + (f"## SEUS RECURSOS (lembrete)\n{lembrete}\n\n" if lembrete else "")
+        + (f"## SITUAÇÃO DO COMBATE\n{situacao}\n\n" if situacao else "")
         + f"## INSTRUÇÃO ATUAL\n{instrucao}"
     )
 

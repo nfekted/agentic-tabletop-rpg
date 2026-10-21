@@ -249,10 +249,25 @@ def _normalizar_itens(dados) -> dict:
 
 # --- Padrão global de status e atributos: a ficha guarda só os valores ---
 
+LIMIARES_SITUACAO = (0, 25, 50)  # % iniciais dos 3 níveis de situação de cada status
+
+
+def _normalizar_situacoes(lista) -> list:
+    # sempre 3 níveis {pct, nome}; nome vazio = nível ignorado
+    itens = _dicts(lista)
+    saida = []
+    for k, padrao in enumerate(LIMIARES_SITUACAO):
+        item = itens[k] if k < len(itens) else {}
+        pct = _numero(item.get("pct"), inteiro=True)
+        saida.append({"pct": padrao if pct is None else max(0, min(100, pct)), "nome": _linha(item.get("nome"))})
+    return saida
+
+
 def _normalizar_padrao(dados) -> dict:
     dados = dados if isinstance(dados, dict) else {}
+    brutos = {_texto(i.get("nome")): i for i in _dicts(dados.get("status"))}
     status = [
-        {"nome": i["nome"], "cor": i["cor"]}
+        {"nome": i["nome"], "cor": i["cor"], "situacoes": _normalizar_situacoes(brutos.get(i["nome"], {}).get("situacoes"))}
         for i in _normalizar_status(dados.get("status"))
     ]
     atributos = [{"nome": i["nome"]} for i in _normalizar_pares(dados.get("atributos"))]
@@ -293,6 +308,31 @@ def _aplicar_padrao_status(salvos: list) -> list:
         }
         for p in carregar_padrao()["status"]
     ]
+
+
+def ficha_do_padrao(dados) -> dict:
+    # Status e atributos de qualquer entidade (ex.: token) ajustados ao padrão: só os nomes do padrão, com os valores salvos.
+    dados = dados if isinstance(dados, dict) else {}
+    return {
+        "status": _aplicar_padrao_status(_normalizar_status(dados.get("status"))),
+        "atributos": _aplicar_padrao_atributos(_normalizar_pares(dados.get("atributos"))),
+    }
+
+
+def calcular_situacao(status_lista: list) -> str:
+    # Situação do personagem a partir das barras: por barra vale o nível de menor limiar atingido
+    # (atual/max em % <= limiar); barras diferentes são juntadas. Níveis sem nome são ignorados.
+    por_nome = {s["nome"]: s for s in status_lista}
+    partes = []
+    for p in carregar_padrao()["status"]:
+        s = por_nome.get(p["nome"])
+        if not s or s["valor_max"] <= 0:
+            continue
+        pct = s["valor_atual"] / s["valor_max"] * 100
+        atingidos = [n for n in p["situacoes"] if n["nome"] and pct <= n["pct"]]
+        if atingidos:
+            partes.append(min(atingidos, key=lambda n: n["pct"])["nome"])
+    return ", ".join(partes)
 
 
 def _aplicar_padrao_atributos(salvos: list) -> list:
@@ -445,6 +485,20 @@ def carregar_secao(agente: str, secao: str):
 def salvar_secao(agente: str, secao: str, dados):
     _, normalizar, _ = _SECOES[secao]
     salvar_json(caminhos_subarquivos(agente)[secao], normalizar(dados))
+
+
+def transferir_item(origem: str, destino: str, zona: str, indice: int, nome: str) -> tuple[dict, dict]:
+    # Tira o item de `zona` da origem e o põe na mochila do destino; `nome` confere que o índice não ficou velho.
+    itens_origem = carregar_secao(origem, "itens")
+    lista = itens_origem[zona]
+    if not 0 <= indice < len(lista) or lista[indice]["nome"] != nome:
+        raise ValueError("O item mudou na ficha. Salve a ficha e tente de novo.")
+    itens_destino = carregar_secao(destino, "itens")
+    itens_destino["mochila"].append(lista.pop(indice))
+    # destino primeiro: se algo falhar no meio, o item fica repetido em vez de perdido
+    salvar_secao(destino, "itens", itens_destino)
+    salvar_secao(origem, "itens", itens_origem)
+    return itens_origem, itens_destino
 
 
 def inicializar_ficha_agente(agente: str):

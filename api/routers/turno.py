@@ -1,10 +1,12 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from api.deps import nome_arquivo_valido, trava_turno
+from api.deps import agente_valido, checar_limites, nome_arquivo_valido, trava_mestre, trava_turno
 from rpg.config import carregar_agentes
+from rpg.fichas import calcular_situacao
 from rpg.tokens_manager import CATEGORIAS, listar_tokens
 from rpg import turno as t
+from services import combate
 
 router = APIRouter(tags=["turno"])
 
@@ -35,15 +37,31 @@ class AjusteStatusIn(BaseModel):
     delta: int
 
 
+class GrupoResumoIn(BaseModel):
+    agentes: list[str]
+    resumo: str = ""
+
+
+class ResumoCombateIn(BaseModel):
+    grupos: list[GrupoResumoIn]
+
+
+class SugerirIn(BaseModel):
+    agente: str
+
+
 class FichaTokenIn(BaseModel):
     conteudo: str
     status: list[dict] = []
+    atributos: list[dict] = []
 
 
 def _estado() -> dict:
     if not t.turno_ativo():
         return {"ativo": False, "turno": None, "empates": []}
     dados = t.sincronizar_personagens(carregar_agentes())
+    for k in dados["tokens"]:  # situação calculada na hora, nunca gravada
+        k["situacao"] = calcular_situacao(k["ficha_dados"].get("status", []))
     return {"ativo": True, "turno": dados, "empates": t.verificar_empates(dados)}
 
 
@@ -71,6 +89,7 @@ def iniciar():
 @router.delete("/turno")
 def encerrar():
     with trava_turno():
+        combate.limpar_marca()
         t.encerrar_turno()
         return _estado()
 
@@ -78,8 +97,32 @@ def encerrar():
 @router.post("/turno/proxima")
 def proxima():
     with trava_turno():
-        ok, msg = t.avancar_proxima_acao(_exigir_ativo())
-        return {"ok": ok, "mensagem": msg, **_estado()}
+        ok, msg, evento = t.avancar_proxima_acao(_exigir_ativo())
+        if ok and evento == "inicio":
+            combate.marcar_inicio()
+        sugerir = ok and evento == "nova_rodada" and combate.deve_sugerir()
+        return {"ok": ok, "mensagem": msg, "combate": {"sugerir": sugerir}, **_estado()}
+
+
+@router.get("/turno/combate/trechos")
+def trechos_combate():
+    return combate.trechos()
+
+
+@router.post("/turno/combate/resumo")
+def resumir_combate(body: ResumoCombateIn):
+    grupos = [{"agentes": [agente_valido(a) for a in g.agentes], "resumo": g.resumo} for g in body.grupos]
+    with trava_mestre():
+        combate.aplicar(grupos)
+    return combate.trechos()
+
+
+@router.post("/turno/combate/sugerir")
+def sugerir_resumo(body: SugerirIn):
+    agente = agente_valido(body.agente)
+    checar_limites(1)
+    with trava_mestre():
+        return {"resumo": combate.sugerir(agente)}
 
 
 @router.post("/turno/areas", status_code=201)

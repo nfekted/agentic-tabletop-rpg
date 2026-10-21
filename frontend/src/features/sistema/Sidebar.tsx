@@ -1,4 +1,4 @@
-import { Dices, ListChecks, Save, ScrollText, Settings, Skull, Swords } from 'lucide-react'
+import { Dices, ListChecks, NotebookPen, Save, ScrollText, Settings, Skull, Swords } from 'lucide-react'
 import { LimitesSidebar } from '@/components/LimitesSidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useTurno } from '@/hooks/queries'
@@ -46,6 +46,7 @@ export function Sidebar() {
       {nav('mesa', Dices, 'Mesa')}
       {nav('turnos', Swords, 'Modo por turnos', turno?.ativo)}
       {nav('tokens', Skull, 'Inimigos, NPCs e itens')}
+      <Item icone={NotebookPen} rotulo="Anotações do mestre" onClick={() => abrir({ tipo: 'anotacoes' })} />
       <div className="hidden flex-1 md:block" />
       <LimitesSidebar />
       <Item icone={ScrollText} rotulo="Regras" onClick={() => abrir({ tipo: 'regras' })} />
