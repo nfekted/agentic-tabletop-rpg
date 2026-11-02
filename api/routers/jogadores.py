@@ -12,7 +12,7 @@ from rpg.config import (
     obter_modificadores_jogador,
     salvar_modificadores_jogador,
 )
-from rpg.fichas import calcular_situacao, carregar_status_jogador
+from rpg.fichas import calcular_situacao, carregar_secao, carregar_status_jogador
 from rpg.imagens import caminho_avatar, remover_avatar_jogador, salvar_avatar_jogador
 from rpg.memoria import tamanho_rodada_atual
 from rpg.metricas import calcular_contexto
@@ -45,6 +45,7 @@ def _card(nome: str) -> dict:
         "avatar_v": int(os.path.getmtime(av)) if av else None,
         "status": status,
         "situacao": calcular_situacao(status),
+        "equipados": [i["nome"] for i in carregar_secao(nome, "itens")["equipamento"]],
         "contexto": calcular_contexto(nome),
         "rodada_chars": tamanho_rodada_atual(nome),
     }

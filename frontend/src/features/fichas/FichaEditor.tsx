@@ -29,7 +29,7 @@ const CAMPOS_PERSONALIDADE: Campo[] = [
   { chave: 'segredos_pessoais', rotulo: 'Segredos pessoais', dica: 'Informações confidenciais de background' },
 ]
 
-function Form({ inicial, nome, onFechar }: { inicial: Ficha; nome: string; onFechar: () => void }) {
+function Form({ inicial, nome, aba, onFechar }: { inicial: Ficha; nome: string; aba?: string; onFechar: () => void }) {
   const [f, setF] = useState<Ficha>(inicial)
   const { data: padrao } = usePadraoFicha()
   const semPadrao = padrao && !padrao.configurado
@@ -55,7 +55,7 @@ function Form({ inicial, nome, onFechar }: { inicial: Ficha; nome: string; onFec
         <Label htmlFor="mods">Modificadores (separados por vírgula)</Label>
         <Input id="mods" value={f.modificadores} onChange={(e) => setF({ ...f, modificadores: e.target.value })} placeholder="Envenenado, +2 Força" />
       </div>
-      <Tabs defaultValue="base">
+      <Tabs defaultValue={aba ?? 'base'}>
         <TabsList className="flex-wrap">
           <TabsTrigger value="base">Base</TabsTrigger>
           <TabsTrigger value="status">Status</TabsTrigger>
@@ -102,7 +102,7 @@ function Form({ inicial, nome, onFechar }: { inicial: Ficha; nome: string; onFec
   )
 }
 
-export function FichaEditor({ nome, onFechar }: { nome: string; onFechar: () => void }) {
+export function FichaEditor({ nome, aba, onFechar }: { nome: string; aba?: string; onFechar: () => void }) {
   const { data, isLoading } = useFicha(nome)
   return (
     <DialogAberto onFechar={onFechar}>
@@ -111,7 +111,7 @@ export function FichaEditor({ nome, onFechar }: { nome: string; onFechar: () => 
           <DialogTitle>Ficha de {nome}</DialogTitle>
           <DialogDescription>Preencha os campos; o que ficar em branco não vai para o prompt do agente.</DialogDescription>
         </DialogHeader>
-        {isLoading || !data ? <Carregando /> : <Form inicial={data} nome={nome} onFechar={onFechar} />}
+        {isLoading || !data ? <Carregando /> : <Form inicial={data} nome={nome} aba={aba} onFechar={onFechar} />}
       </DialogContent>
     </DialogAberto>
   )

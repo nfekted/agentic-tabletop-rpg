@@ -44,7 +44,7 @@ export function CardParticipante({
       suaVez && 'border-primary ring-2 ring-primary/50',
       sobreposto && 'rotate-1 shadow-xl',
     )}>
-      {p.tipo === 'personagem' && <Balao fala={p.fala} compacto />}
+      {p.tipo === 'personagem' && <Balao fala={p.fala} nome={p.nome} compacto />}
       <p className="flex items-start gap-1 break-words font-medium">
         {suaVez && <Flame className="mt-0.5 size-4 shrink-0 text-primary" />}{p.nome}
       </p>

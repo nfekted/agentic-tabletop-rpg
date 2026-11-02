@@ -30,6 +30,7 @@ export type Jogador = {
   avatar_v: number | null
   status: Status[]
   situacao: string
+  equipados: string[]
   contexto: Contexto | null
   rodada_chars: number
 }

@@ -9,7 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { Item, Itens } from '@/lib/types'
-import { cn, patchAt, removeAt } from '@/lib/utils'
+import { cn, patchAt, removeAt, semAcento } from '@/lib/utils'
 
 type Zona = 'equipamento' | 'mochila'
 
@@ -107,6 +107,8 @@ export function ItensEditor({ valor, onChange, transferencia }: { valor: Itens; 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
   const [arrastando, setArrastando] = useState<Item | null>(null)
   const [tamanhoTexto, setTamanhoTexto] = useState<string | null>(null) // permite apagar o campo enquanto digita
+  const [busca, setBusca] = useState('')
+  const termo = semAcento(busca.trim())
 
   const setLista = (z: Zona, l: Item[]) => onChange({ ...valor, [z]: l })
   const mover = (de: Zona, i: number) => {
@@ -140,6 +142,8 @@ export function ItensEditor({ valor, onChange, transferencia }: { valor: Itens; 
         <p className={cn('pb-1.5 text-sm', livre < 0 ? 'font-medium text-destructive' : 'text-muted-foreground')}>
           Peso carregado: {carregado} · <b>{livre}</b> de {valor.tamanho_mochila} livres{livre < 0 && ' (sobrecarregado)'}
         </p>
+        <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar item" aria-label="Buscar item"
+          className="ml-auto h-7 w-36" />
       </div>
 
       <DndContext sensors={sensors} onDragStart={(e) => {
@@ -155,7 +159,7 @@ export function ItensEditor({ valor, onChange, transferencia }: { valor: Itens; 
                 </Button>
               }>
               {valor[z.id].map((item, i) => (
-                <Cartao key={i} item={item} zona={z.id} indice={i} destinoMover={z.mover} transferencia={transferencia}
+                termo && !semAcento(item.nome).includes(termo) ? null : <Cartao key={i} item={item} zona={z.id} indice={i} destinoMover={z.mover} transferencia={transferencia}
                   onChange={(patch) => setLista(z.id, patchAt(valor[z.id], i, patch))}
                   onMover={() => mover(z.id, i)}
                   onDuplicar={() => setLista(z.id, [...valor[z.id].slice(0, i + 1), { ...item }, ...valor[z.id].slice(i + 1)])}

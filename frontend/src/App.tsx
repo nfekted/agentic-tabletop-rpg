@@ -21,7 +21,7 @@ import { UiContext, type Modal, type View } from '@/lib/ui-context'
 function Modais({ modal, fechar }: { modal: Modal | null; fechar: () => void }) {
   if (!modal) return null
   switch (modal.tipo) {
-    case 'ficha-editar': return <FichaEditor nome={modal.nome} onFechar={fechar} />
+    case 'ficha-editar': return <FichaEditor nome={modal.nome} aba={modal.aba} onFechar={fechar} />
     case 'ficha-ver': return <FichaView nome={modal.nome} onFechar={fechar} />
     case 'memoria': return <MemoriaDialog nome={modal.nome} onFechar={fechar} />
     case 'avatar': return <AvatarDialog nome={modal.nome} onFechar={fechar} />

@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react'
 
 export type Modal =
-  | { tipo: 'ficha-editar'; nome: string }
+  | { tipo: 'ficha-editar'; nome: string; aba?: string }
   | { tipo: 'ficha-ver'; nome: string }
   | { tipo: 'memoria'; nome: string }
   | { tipo: 'avatar'; nome: string }

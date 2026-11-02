@@ -882,6 +882,17 @@ nada. A lixeira 🗑️ do card **exclui o personagem por completo**: ficha,
 memória (rodadas, cenas e mesa), foto e presença no modo por turnos. Não dá
 para desfazer, então salve a mesa antes se tiver dúvida.
 
+### Equipado, mochila e detalhes de habilidades e itens
+
+- **Equipado**: o card mostra, em badges, o nome de tudo o que o personagem tem em *Equipamento*, sem abrir a ficha.
+- **🎒 Ver mochila**: abre a ficha direto na aba **Itens**. O campo **Buscar item** (canto da aba) esconde
+  os itens cujo nome não contém o texto (sem diferenciar acento ou maiúsculas); apagar o texto mostra tudo de novo.
+- **ℹ️ Detalhar** (balão da última fala, ao lado do ✖): procura na fala os nomes das habilidades, poderes,
+  passivas e itens (equipados ou na mochila) da ficha do autor e mostra os dados de cada um. Se nada for
+  encontrado, avisa que nenhum item foi identificado. A busca ignora acento e maiúsculas e aceita plural simples
+  ("granadas"); nomes com menos de 3 letras são ignorados.
+- Os **modificadores** são só do mestre: aparecem no card e na ficha, mas nunca entram no prompt dos jogadores.
+
 ### Personagem morto
 
 O botão 💀 do card marca o personagem como **Morto**. O card fica esmaecido, vai para o
@@ -890,8 +901,8 @@ aparece como destinatário de mensagens direcionadas ou privadas (a API também 
 responde, não é perguntado sobre compressão de memória e deixa o modo por turnos. A ficha, a
 memória e o inventário continuam acessíveis, então dá para **transferir os itens** dele para
 outros personagens (a passagem só entra na memória de quem está vivo). Pelo mesmo botão (agora
-💓) o personagem pode ser **revivido**. Um morto pode ser **excluído de vez** pela lixeira 🗑️
-(ficha, memórias, foto), como qualquer outro jogador. O estado fica em `arquivos/jogadores.json`
+💓) o personagem pode ser **revivido**. A lixeira 🗑️ só aparece enquanto o personagem está morto:
+**excluir de vez** apaga ficha, memórias e foto. O estado fica em `arquivos/jogadores.json`
 (`"morto": true`).
 
 ### Anotações do mestre

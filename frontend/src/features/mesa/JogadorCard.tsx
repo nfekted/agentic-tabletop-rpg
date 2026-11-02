@@ -1,4 +1,4 @@
-import { BookOpen, Camera, Eye, HeartPulse, Loader2, Pencil, Skull, Trash2 } from 'lucide-react'
+import { Backpack, BookOpen, Camera, Eye, HeartPulse, Loader2, Pencil, Skull, Trash2 } from 'lucide-react'
 import { Avatar } from '@/components/Avatar'
 import { Balao } from '@/components/Balao'
 import { ContextoBarra } from '@/components/ContextoBarra'
@@ -48,7 +48,7 @@ export function JogadorCard({ jogador: j, fala }: { jogador: Jogador; fala?: Fal
 
   return (
     <article className={cn('flex flex-col gap-3 rounded-2xl border bg-card p-4 shadow-sm', j.morto && 'opacity-60')}>
-      <Balao fala={fala} />
+      <Balao fala={fala} nome={j.nome} />
       <div className="flex items-center gap-3">
         <Avatar nome={j.nome} v={j.avatar_v} />
         <div className="min-w-0 flex-1">
@@ -69,6 +69,12 @@ export function JogadorCard({ jogador: j, fala }: { jogador: Jogador; fala?: Fal
           {mods.map((m) => <Badge key={m} variant="secondary">{m}</Badge>)}
         </div>
       )}
+      {j.equipados.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1">
+          <span className="text-[10px] uppercase text-muted-foreground">Equipado</span>
+          {j.equipados.map((e, i) => <Badge key={i} variant="outline">{e}</Badge>)}
+        </div>
+      )}
       {j.situacao && (
         <div className="flex flex-wrap gap-1">
           {j.situacao.split(', ').map((s) => <Badge key={s} variant="outline" className="border-destructive/50 text-destructive">{s}</Badge>)}
@@ -80,6 +86,7 @@ export function JogadorCard({ jogador: j, fala }: { jogador: Jogador; fala?: Fal
         <div className="flex">
           <Acao icone={Pencil} rotulo="Editar ficha" onClick={() => abrir({ tipo: 'ficha-editar', nome: j.nome })} />
           <Acao icone={Eye} rotulo="Ver ficha" onClick={() => abrir({ tipo: 'ficha-ver', nome: j.nome })} />
+          <Acao icone={Backpack} rotulo="Ver mochila" onClick={() => abrir({ tipo: 'ficha-editar', nome: j.nome, aba: 'itens' })} />
           <Acao icone={BookOpen} rotulo="Memória" onClick={() => abrir({ tipo: 'memoria', nome: j.nome })} />
           <Acao icone={Camera} rotulo="Foto" onClick={() => abrir({ tipo: 'avatar', nome: j.nome })} />
         </div>
@@ -90,7 +97,7 @@ export function JogadorCard({ jogador: j, fala }: { jogador: Jogador; fala?: Fal
             perigo={!j.morto}
             onClick={() => alternarMorto.mutate()}
           />
-          <Acao icone={Trash2} rotulo="Excluir jogador" perigo onClick={() => abrir({ tipo: 'excluir-jogador', nome: j.nome })} />
+          {j.morto && <Acao icone={Trash2} rotulo="Excluir jogador" perigo onClick={() => abrir({ tipo: 'excluir-jogador', nome: j.nome })} />}
         </div>
       </div>
     </article>
