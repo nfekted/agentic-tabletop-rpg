@@ -31,6 +31,7 @@ async function enviar(modo: Modo, texto: string, alvos: string[], imagem: File |
 
 export function AcaoMestre() {
   const { data: jogadores = [] } = useJogadores()
+  const vivos = jogadores.filter((j) => !j.morto)
   const pensando = usePensando()
   const { data: fila } = useFila()
   const emFila = filaOcupada(fila)
@@ -78,7 +79,7 @@ export function AcaoMestre() {
 
       {modo !== 'todos' && (
         <div className="flex flex-wrap gap-1.5">
-          {jogadores.map((j) => {
+          {vivos.map((j) => {
             const idx = alvos.indexOf(j.nome)
             return (
               <button
@@ -94,7 +95,7 @@ export function AcaoMestre() {
               </button>
             )
           })}
-          {jogadores.length === 0 && <p className="text-sm text-muted-foreground">Adicione jogadores primeiro.</p>}
+          {vivos.length === 0 && <p className="text-sm text-muted-foreground">Adicione jogadores primeiro.</p>}
         </div>
       )}
 

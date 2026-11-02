@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
-from api.deps import agente_valido, exigir_fila_livre, trava_mestre
+from api.deps import agente_vivo, exigir_fila_livre, trava_mestre
 from rpg.historico import separar
 from rpg.imagens import salvar_imagem_upload
 from api.routers.sessao import sessao_publica
@@ -99,7 +99,7 @@ def falar_direcionado(
     imagem: Annotated[UploadFile | None, File()] = None,
 ):
     comando = _texto(comando)
-    presentes = [agente_valido(a) for a in alvos]
+    presentes = [agente_vivo(a) for a in alvos]
     if silencioso:
         with trava_mestre():
             mestre.preparar_falar_direcionado(presentes, privado, comando)

@@ -882,6 +882,18 @@ nada. A lixeira 🗑️ do card **exclui o personagem por completo**: ficha,
 memória (rodadas, cenas e mesa), foto e presença no modo por turnos. Não dá
 para desfazer, então salve a mesa antes se tiver dúvida.
 
+### Personagem morto
+
+O botão 💀 do card marca o personagem como **Morto**. O card fica esmaecido, vai para o
+**fim da lista** e o personagem sai da cena: não recebe mais as mensagens do "geral", não
+aparece como destinatário de mensagens direcionadas ou privadas (a API também recusa), não
+responde, não é perguntado sobre compressão de memória e deixa o modo por turnos. A ficha, a
+memória e o inventário continuam acessíveis, então dá para **transferir os itens** dele para
+outros personagens (a passagem só entra na memória de quem está vivo). Pelo mesmo botão (agora
+💓) o personagem pode ser **revivido**. Um morto pode ser **excluído de vez** pela lixeira 🗑️
+(ficha, memórias, foto), como qualquer outro jogador. O estado fica em `arquivos/jogadores.json`
+(`"morto": true`).
+
 ### Anotações do mestre
 
 O ícone **📝 Anotações do mestre** da barra lateral (abaixo de Tokens, disponível em qualquer tela) abre um bloco de texto

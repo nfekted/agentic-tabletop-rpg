@@ -259,8 +259,11 @@ def registrar_transferencia(origem: str, destino: str, item: str):
         return
     desfazer.registrar()
     linha = f'Mestre: {origem} passou "{item}" para {destino}.'
-    s["historico"].append(com_audiencia(linha, [origem, destino], carregar_agentes()))
-    GerenciadorMemoriaRPG.salvar_log_rodada_atual(linha, [origem, destino])
+    vivos = [n for n in (origem, destino) if n in carregar_agentes()]  # personagem morto não recebe nada
+    if not vivos:
+        return
+    s["historico"].append(com_audiencia(linha, vivos, carregar_agentes()))
+    GerenciadorMemoriaRPG.salvar_log_rodada_atual(linha, vivos)
     salvar()
 
 

@@ -116,10 +116,13 @@ def carregar_dados_jogadores() -> list:
                 precisa_salvar = False
                 for item in dados:
                     if isinstance(item, dict) and "nome" in item:
-                        lista_normalizada.append({
+                        jogador = {
                             "nome": str(item["nome"]).strip(),
                             "modificadores": str(item.get("modificadores", "")).strip(),
-                        })
+                        }
+                        if item.get("morto"):
+                            jogador["morto"] = True
+                        lista_normalizada.append(jogador)
                     elif isinstance(item, str) and item.strip():
                         lista_normalizada.append({
                             "nome": item.strip(),
@@ -139,12 +142,36 @@ def salvar_dados_jogadores(dados: list):
 
 
 def carregar_agentes() -> list:
+    # Só os personagens vivos: são eles que ouvem o mestre, participam da cena e respondem.
     dados = carregar_dados_jogadores()
-    return [j["nome"] for j in dados if j.get("nome")]
+    return [j["nome"] for j in dados if j.get("nome") and not j.get("morto")]
+
+
+def carregar_todos_agentes() -> list:
+    # Vivos primeiro, mortos no fim (ficam na mesa só para consulta e transferência de itens).
+    dados = carregar_dados_jogadores()
+    return [j["nome"] for j in sorted(dados, key=lambda j: bool(j.get("morto"))) if j.get("nome")]
 
 
 def _achar_jogador(dados: list, nome: str) -> dict | None:
     return next((j for j in dados if j.get("nome", "").lower() == nome.lower()), None)
+
+
+def esta_morto(nome: str) -> bool:
+    jogador = _achar_jogador(carregar_dados_jogadores(), nome)
+    return bool(jogador and jogador.get("morto"))
+
+
+def definir_morto(nome: str, morto: bool):
+    dados = carregar_dados_jogadores()
+    jogador = _achar_jogador(dados, nome)
+    if not jogador:
+        return
+    if morto:
+        jogador["morto"] = True
+    else:
+        jogador.pop("morto", None)
+    salvar_dados_jogadores(dados)
 
 
 def obter_modificadores_jogador(nome: str) -> str:
@@ -164,7 +191,7 @@ def adicionar_agente(nome: str) -> bool:
     nome = nome.strip()
     if not nome or not nome.isidentifier():
         return False
-    agentes_atuais = carregar_agentes()
+    agentes_atuais = carregar_todos_agentes()
     if nome.lower() in [a.lower() for a in agentes_atuais]:
         return False
 

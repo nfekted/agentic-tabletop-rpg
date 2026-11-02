@@ -25,6 +25,7 @@ export type Contexto = {
 
 export type Jogador = {
   nome: string
+  morto: boolean
   modificadores: string
   avatar_v: number | null
   status: Status[]

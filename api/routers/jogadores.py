@@ -7,7 +7,8 @@ from pydantic import BaseModel
 from api.deps import agente_valido, trava_mestre
 from rpg.config import (
     adicionar_agente,
-    carregar_agentes,
+    carregar_todos_agentes,
+    esta_morto,
     obter_modificadores_jogador,
     salvar_modificadores_jogador,
 )
@@ -15,7 +16,7 @@ from rpg.fichas import calcular_situacao, carregar_status_jogador
 from rpg.imagens import caminho_avatar, remover_avatar_jogador, salvar_avatar_jogador
 from rpg.memoria import tamanho_rodada_atual
 from rpg.metricas import calcular_contexto
-from services.personagens import excluir_personagem
+from services.personagens import excluir_personagem, marcar_morto
 
 router = APIRouter(tags=["jogadores"])
 
@@ -30,11 +31,16 @@ class Modificadores(BaseModel):
     modificadores: str
 
 
+class Morto(BaseModel):
+    morto: bool
+
+
 def _card(nome: str) -> dict:
     av = caminho_avatar(nome)
     status = carregar_status_jogador(nome)
     return {
         "nome": nome,
+        "morto": esta_morto(nome),
         "modificadores": obter_modificadores_jogador(nome),
         "avatar_v": int(os.path.getmtime(av)) if av else None,
         "status": status,
@@ -46,7 +52,7 @@ def _card(nome: str) -> dict:
 
 @router.get("/jogadores")
 def listar():
-    return [_card(n) for n in carregar_agentes()]
+    return [_card(n) for n in carregar_todos_agentes()]
 
 
 @router.post("/jogadores", status_code=201)
@@ -62,6 +68,14 @@ def excluir(nome: str):
     with trava_mestre():
         excluir_personagem(nome)
     return {"ok": True}
+
+
+@router.put("/jogadores/{nome}/morto")
+def morto(nome: str, body: Morto):
+    nome = agente_valido(nome)
+    with trava_mestre():
+        marcar_morto(nome, body.morto)
+    return _card(nome)
 
 
 @router.put("/jogadores/{nome}/modificadores")

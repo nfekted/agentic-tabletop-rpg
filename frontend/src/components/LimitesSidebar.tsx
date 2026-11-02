@@ -104,7 +104,7 @@ const META_MEM = 10000 // meta de caracteres por rodada; é só referência, o m
 // Maior rodada em andamento (em caracteres) entre os jogadores.
 function AnelMem() {
   const { data } = useJogadores()
-  const lista = [...(data ?? [])].sort((a, b) => b.rodada_chars - a.rodada_chars)
+  const lista = (data ?? []).filter((j) => !j.morto).sort((a, b) => b.rodada_chars - a.rodada_chars)
   const maior = lista[0]?.rodada_chars ?? 0
   return (
     <AnelBase sigla="mem" pct={(maior / META_MEM) * 100} valor={fmtNum(maior)}>

@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from fastapi import HTTPException
 
 from rpg import limites
-from rpg.config import carregar_agentes
+from rpg.config import carregar_todos_agentes, esta_morto
 from services import fila
 from services.sessao import LOCK_MESTRE, LOCK_TURNO
 
@@ -13,11 +13,19 @@ _NOME_ARQUIVO = re.compile(r"^[\w\-][\w\-. ]*$", re.UNICODE)
 
 
 def agente_valido(nome: str) -> str:
-    # Devolve o nome canônico do jogador (como está em jogadores.json) ou 404.
-    for ag in carregar_agentes():
+    # Devolve o nome canônico do jogador (como está em jogadores.json, vivo ou morto) ou 404.
+    for ag in carregar_todos_agentes():
         if ag.lower() == nome.lower():
             return ag
     raise HTTPException(404, f"Jogador '{nome}' não encontrado.")
+
+
+def agente_vivo(nome: str) -> str:
+    # Para quem vai ouvir ou responder o mestre: personagem morto fica de fora.
+    nome = agente_valido(nome)
+    if esta_morto(nome):
+        raise HTTPException(400, f"{nome} está morto e não recebe mensagens.")
+    return nome
 
 
 def nome_arquivo_valido(nome: str) -> str:
