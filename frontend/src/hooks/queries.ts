@@ -41,6 +41,8 @@ export const useRegras = () =>
   useQuery({ queryKey: ['regras'], queryFn: () => api.get<{ base: string; arquivos: string[]; ativa: string | null }>('/regras') })
 export const useMesasSalvas = () =>
   useQuery({ queryKey: ['mesas'], queryFn: () => api.get<MesaSalva[]>('/mesas'), gcTime: 0 })
+export const useMesaAtual = () =>
+  useQuery({ queryKey: ['mesa'], queryFn: () => api.get<{ nome: string }>('/mesa') })
 export const useTurno = () =>
   useQuery({ queryKey: ['turno'], queryFn: () => api.get<TurnoEstado>('/turno') })
 

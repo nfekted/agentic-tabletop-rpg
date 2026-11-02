@@ -5,7 +5,7 @@ import {
   DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { useAcao, useAcaoMestre } from '@/hooks/queries'
+import { useAcao, useAcaoMestre, useMesaAtual } from '@/hooks/queries'
 import { api } from '@/lib/api'
 import type { AcaoResposta } from '@/lib/types'
 
@@ -24,6 +24,35 @@ export function NovoJogadorDialog({ onFechar }: { onFechar: () => void }) {
         <DialogFooter>
           <Button variant="outline" onClick={onFechar}>Cancelar</Button>
           <Button disabled={!nome.trim() || criar.isPending} onClick={enviar}>Adicionar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </DialogAberto>
+  )
+}
+
+export function NomeMesaDialog({ iniciar, onFechar }: { iniciar?: boolean; onFechar: () => void }) {
+  const { data: atual } = useMesaAtual()
+  const [nome, setNome] = useState<string | null>(null)
+  const valor = nome ?? atual?.nome ?? ''
+  const definir = useAcao(() => api.put('/mesa', { nome: valor }), [['mesa']], 'Nome da mesa salvo.')
+  const comecar = useAcaoMestre(() => api.post<AcaoResposta>('/rodada/iniciar'))
+  const enviar = () => valor.trim() && definir.mutate(undefined, {
+    onSuccess: () => { if (iniciar) comecar.mutate(); onFechar() },
+  })
+  return (
+    <DialogAberto onFechar={onFechar}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Nome da mesa</DialogTitle>
+          <DialogDescription>
+            {iniciar ? 'Dê um nome à mesa para iniciar a primeira rodada. ' : ''}
+            Os backups usam esse nome como prefixo (<b>nome_backup.zip</b>). Use letras, números, espaço, - ou _.
+          </DialogDescription>
+        </DialogHeader>
+        <Input autoFocus placeholder="Nome da mesa" value={valor} onChange={(e) => setNome(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && enviar()} />
+        <DialogFooter>
+          <Button variant="outline" onClick={onFechar}>Cancelar</Button>
+          <Button disabled={!valor.trim() || definir.isPending} onClick={enviar}>{iniciar ? 'Salvar e iniciar rodada' : 'Salvar'}</Button>
         </DialogFooter>
       </DialogContent>
     </DialogAberto>

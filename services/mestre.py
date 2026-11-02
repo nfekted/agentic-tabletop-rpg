@@ -5,6 +5,7 @@ import uuid
 from rpg.config import carregar_agentes
 from rpg.historico import com_audiencia
 from rpg.memoria import GerenciadorMemoriaRPG
+from rpg.mesas_manager import nome_mesa_atual, salvar_autosave
 from rpg.agentes import gerar_resposta_agente
 from rpg.tags import (
     extrair_tags_resposta,
@@ -70,6 +71,8 @@ def _pensamento_de(agente: str, tags: dict, na_rodada: bool = True):
 
 
 def iniciar_rodada() -> str:
+    if not nome_mesa_atual():
+        raise ErroNegocio("Dê um nome à mesa antes de iniciar a primeira rodada.")
     s = obter()
     s["rodada_ativa"] = True
     s["envolvidos"] = []
@@ -134,7 +137,16 @@ def fechar_rodada(alvos: list[str]) -> str:
     # ultima_fala fica: é só referência visual dos balões (não entra em nenhum prompt) e cada nova fala a substitui
     _limpar_pendencias(s)
     salvar()
-    return "⏹️ Rodada finalizada e memória consolidada."
+    return "⏹️ Rodada finalizada e memória consolidada." + _autosave()
+
+
+def _autosave() -> str:
+    # Roda depois de toda a compilação (rodada e, quando a cascata dispara, cena e mesa). Falhar aqui não desfaz a finalização.
+    try:
+        ok, resultado = salvar_autosave()
+    except Exception as e:
+        ok, resultado = False, str(e)
+    return f"\n💾 Autosave: {resultado}." if ok else f"\n⚠️ Autosave não gerado: {resultado}."
 
 
 _TAGS = "[pensamento], [fala], [acao], [duvida] ou [chamar]"

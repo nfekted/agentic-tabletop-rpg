@@ -158,4 +158,4 @@ type TurnoDados = {
 }
 export type TurnoEstado = { ativo: boolean; turno: TurnoDados | null; empates: number[] }
 
-export type MesaSalva = { nome: string; atualizada_em: string; tamanho: number }
+export type MesaSalva = { nome: string; atualizada_em: string; tamanho: number; autosave: boolean }

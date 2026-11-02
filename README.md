@@ -602,6 +602,8 @@ turnos** para abrir o painel de gestão de cenas e combate. O estado fica em
 - Os botões de rodada ficam no cabeçalho da página.
 - **Iniciar Rodada** — abre uma rodada de jogo; a partir daqui, tudo que
   acontece é registrado na memória temporária de cada jogador envolvido.
+  A mesa precisa ter um **nome** antes de iniciar a primeira rodada: se ainda não tiver, o botão pede o nome
+  (ele também aparece no cabeçalho, onde pode ser alterado a qualquer momento).
 - **Cancelar Rodada** - Rever a rodada iniciada, movendo todas memórias para uma pasta de logs junto a um motivo.
 - **Finalizar Rodada** — fecha a rodada atual e manda o conteúdo para o
   "historiador" resumir (ver [Sistema de memória](#sistema-de-memória-rodada--cena--mesa)).
@@ -891,12 +893,23 @@ botão Salvar), fica em `arquivos/anotacoes_mestre.txt` e entra no Salvar / Rest
 O ícone **💾 Salvar / restaurar mesa** da barra lateral abre um modal com
 duas partes:
 
-- **Salvar mesa** (direita): digite um nome e clique em Salvar. O jogo gera
-  `mesas/{nome}.zip` com `arquivos/` e `tokens/` (fichas, regras, cenas,
-  imagens, memórias, jogadores e o estado do combate).
+- **Salvar mesa** (direita): digite o nome do backup e clique em Salvar. O jogo gera
+  `mesas/{mesa}_{nome}.zip`, em que `{mesa}` é o nome da mesa atual (sem nome, não salva), com `arquivos/` e
+  `tokens/` (fichas, regras, cenas, imagens, memórias, jogadores e o estado do combate). Assim, ao guardar
+  várias mesas em paralelo, cada backup mostra a qual pertence. O nome da mesa fica em `arquivos/mesa.json` e
+  entra no zip: **restaurar** volta para a mesa do backup (um backup antigo, sem nome, deixa a mesa sem nome e
+  pede um novo antes da próxima rodada).
 - **Restaurar mesa** (esquerda): escolha um `.zip` de `mesas/`, clique em
   Restaurar e confirme. `arquivos/` e `tokens/` atuais são **substituídos**
   pelo conteúdo do zip e a tela recarrega sozinha.
+- **Excluir backup**: com um backup selecionado na lista, o botão da lixeira ao lado de Restaurar apaga o `.zip` de
+  `mesas/` (com confirmação; não dá para recuperar).
+- **Autosave**: ao **finalizar uma rodada**, depois de toda a compilação da memória (a rodada em `rodada_N.txt` e,
+  se a cascata disparar, também a cena e a mesa), o jogo gera sozinho `mesas/{mesa}_autosave_{AAAA-MM-DD_HH-MM-SS}.zip`.
+  Só existe **um autosave por mesa**: o anterior é apagado quando o novo fica pronto. Ele aparece na lista com o
+  selo *autosave*, pode ser restaurado como qualquer backup, mas **não pode ser excluído** pela tela, e o nome
+  `autosave_...` é reservado. Se a mesa não tiver nome ou a gravação falhar, a rodada termina normalmente e o aviso
+  informa que o autosave não foi gerado.
 
 Detalhes importantes:
 - O `config.json` **não entra no zip** (ele guarda a API Key). Ao restaurar,
@@ -920,9 +933,10 @@ backup antes, não há como desfazer):
 - **Reiniciar mesa**: recomeça a campanha **mantendo o cenário**. Fichas,
   personagens, avatares, regras, cenas e tokens ficam. Apaga só as memórias
   (rodadas, cenas, mesa, rascunho da rodada e métricas dos personagens), a rodada em
-  andamento, o histórico e a fila. Útil para repetir o mesmo cenário com outro modelo.
+  andamento, o histórico e a fila. Útil para repetir o mesmo cenário com outro modelo. O nome da mesa é mantido.
 - **Resetar mesa**: apaga tudo em `arquivos/` e `tokens/`, mantendo só a
-  configuração e o uso da LLM e os arquivos de exemplo (`default.txt`, `base.txt`).
+  configuração e o uso da LLM e os arquivos de exemplo (`default.txt`, `base.txt`). O nome da mesa também é
+  apagado e precisa ser definido de novo.
 
 ---
 
@@ -982,6 +996,7 @@ backup antes, não há como desfazer):
     ├── sessao.json             # Rodada em andamento: histórico, falas, chamadas pendentes
     ├── desfazer.json           # Pontos de retorno do botão Desfazer
     ├── anotacoes_mestre.txt    # Anotações do mestre (os jogadores não veem)
+    ├── mesa.json               # Nome da mesa atual (prefixo dos backups)
     ├── fila.json               # Fila de requests em andamento ou pausada
     ├── limites.json            # Uso da janela de RPM/TPM e contador diário (RPD)
     ├── regras/                 # Conjuntos de regras (um arquivo por cenário)

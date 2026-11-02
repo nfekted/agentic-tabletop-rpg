@@ -2,7 +2,7 @@ import { Loader2, Play, Square, XCircle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { filaOcupada, useAcao, useAcaoMestre, useFila, useRegras, useSessao } from '@/hooks/queries'
+import { filaOcupada, useAcao, useAcaoMestre, useFila, useMesaAtual, useRegras, useSessao } from '@/hooks/queries'
 import { api } from '@/lib/api'
 import type { AcaoResposta } from '@/lib/types'
 import { useUi } from '@/lib/ui-context'
@@ -12,6 +12,7 @@ export function Cabecalho() {
   const { abrir } = useUi()
   const { data: s } = useSessao()
   const { data: regras } = useRegras()
+  const { data: mesa } = useMesaAtual()
   const iniciar = useAcaoMestre(() => api.post<AcaoResposta>('/rodada/iniciar'))
   const finalizar = useAcaoMestre(() => api.post<AcaoResposta>('/rodada/finalizar'))
   const ativar = useAcao((n: string) => api.put('/regras/ativa', { nome: n }), [['regras']], 'Conjunto de regras trocado.')
@@ -24,6 +25,9 @@ export function Cabecalho() {
     <header className="sticky top-0 z-30 flex flex-wrap items-center gap-2 border-b bg-background/85 px-4 py-2.5 backdrop-blur">
       <h1 className="mr-1 text-lg font-semibold">🎲 Mesa de RPG</h1>
       <Badge variant={ativa ? 'default' : 'secondary'}>{ativa ? '● Rodada em andamento' : 'Sem rodada'}</Badge>
+      <Button variant="ghost" size="sm" title="Nome da mesa" className="max-w-52 text-muted-foreground" onClick={() => abrir({ tipo: 'nome-mesa' })}>
+        <span className="truncate">{mesa?.nome ? `Mesa: ${mesa.nome}` : 'Sem nome da mesa'}</span>
+      </Button>
 
       <div className="ml-auto flex flex-wrap items-center gap-2">
         {regras?.ativa && (
@@ -35,7 +39,8 @@ export function Cabecalho() {
           </Select>
         )}
         {!ativa ? (
-          <Button size="sm" disabled={iniciar.isPending || emFila} onClick={() => iniciar.mutate()}><Play /> Iniciar rodada</Button>
+          <Button size="sm" disabled={iniciar.isPending || emFila || !mesa}
+            onClick={() => (mesa?.nome ? iniciar.mutate() : abrir({ tipo: 'nome-mesa', iniciar: true }))}><Play /> Iniciar rodada</Button>
         ) : (
           <>
             <Button size="sm" disabled={finalizar.isPending || emFila} onClick={() => finalizar.mutate()}>

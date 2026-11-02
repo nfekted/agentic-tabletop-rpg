@@ -12,6 +12,7 @@ export type Modal =
   | { tipo: 'padrao-ficha' }
   | { tipo: 'config' }
   | { tipo: 'mesas' }
+  | { tipo: 'nome-mesa'; iniciar?: boolean }
   | { tipo: 'cancelar-rodada' }
 
 export type View = 'mesa' | 'turnos' | 'tokens'

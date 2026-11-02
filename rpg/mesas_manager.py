@@ -1,9 +1,11 @@
 # Salvar e restaurar a mesa (arquivos/ + tokens/) como .zip em mesas/
 import glob
+import json
 import os
 import re
 import shutil
 import zipfile
+from datetime import datetime
 from rpg.paths import RAIZ as _PASTA_RAIZ, MESAS as PASTA_MESAS
 
 _PASTA_STAGING = os.path.join(PASTA_MESAS, ".restore_tmp")
@@ -14,6 +16,12 @@ _PRESERVAR = (_CONFIG_LLM, os.path.join("arquivos", "limites.json"))  # configur
 _IGNORAR_ARQUIVOS = {"fila.json"}  # a fila de requests não é restaurada: uma ação pela metade não faz sentido
 _IGNORAR_PASTAS = {"__pycache__"}
 _NOME_VALIDO = re.compile(r"^[\w\- ]+$", re.UNICODE)
+_SUFIXO_AUTOSAVE = r"_autosave_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}"
+_RE_AUTOSAVE = re.compile(_SUFIXO_AUTOSAVE + "$")
+
+
+def eh_autosave(nome: str) -> bool:
+    return bool(_RE_AUTOSAVE.search(nome))
 
 
 def nome_valido(nome: str):
@@ -21,6 +29,30 @@ def nome_valido(nome: str):
     if not nome or not _NOME_VALIDO.match(nome):
         return None
     return nome
+
+
+def _caminho_nome_mesa() -> str:
+    return os.path.join(_PASTA_RAIZ, "arquivos", "mesa.json")  # entra no backup: restaurar volta para a mesa do zip
+
+
+def nome_mesa_atual() -> str:
+    # "" = a mesa ainda não tem nome (não dá para iniciar rodada nem salvar backup)
+    try:
+        with open(_caminho_nome_mesa(), "r", encoding="utf-8") as f:
+            return (json.load(f).get("nome") or "").strip()
+    except (OSError, ValueError, AttributeError):
+        return ""
+
+
+def definir_nome_mesa(nome: str):
+    limpo = nome_valido(nome)
+    if not limpo:
+        return False, "Nome inválido. Use apenas letras, números, espaço, '-' e '_'."
+    caminho = _caminho_nome_mesa()
+    os.makedirs(os.path.dirname(caminho), exist_ok=True)
+    with open(caminho, "w", encoding="utf-8") as f:
+        json.dump({"nome": limpo}, f, ensure_ascii=False)
+    return True, limpo
 
 
 def _caminho_mesa(nome: str) -> str:
@@ -34,6 +66,19 @@ def listar_mesas() -> list[str]:
     return [f[:-4] for f in arquivos]
 
 
+def excluir_mesa(nome: str):
+    # só apaga o que está listado em mesas/ (o nome vem da URL: nunca vira caminho solto)
+    if nome not in listar_mesas():
+        return False, "Backup não encontrado."
+    if eh_autosave(nome):
+        return False, "O autosave não pode ser excluído: ele é substituído a cada rodada finalizada."
+    try:
+        os.remove(_caminho_mesa(nome))
+    except OSError as e:
+        return False, f"Não foi possível excluir o backup: {e}"
+    return True, f"Backup '{nome}' excluído."
+
+
 def mesa_existe(nome: str) -> bool:
     return os.path.isfile(_caminho_mesa(nome))
 
@@ -45,10 +90,38 @@ def info_mesa(nome: str) -> tuple[float, int]:
 
 
 def salvar_mesa(nome: str):
+    mesa = nome_mesa_atual()
+    if not mesa:
+        return False, "Dê um nome à mesa antes de salvar o backup."
     limpo = nome_valido(nome)
     if not limpo:
         return False, "Nome inválido. Use apenas letras, números, espaço, '-' e '_'."
+    limpo = f"{mesa}_{limpo}"  # o arquivo sempre começa pelo nome da mesa
+    if eh_autosave(limpo):
+        return False, "Esse nome é reservado para o autosave."
+    return _gravar_zip(limpo)
 
+
+def salvar_autosave():
+    # Backup automático depois de finalizar a rodada: um por mesa. O anterior só é apagado depois que o novo existe.
+    mesa = nome_mesa_atual()
+    if not mesa:
+        return False, "a mesa não tem nome"
+    novo = f"{mesa}_autosave_{datetime.now():%Y-%m-%d_%H-%M-%S}"
+    ok, msg = _gravar_zip(novo)
+    if not ok:
+        return False, msg
+    anteriores = re.compile("^" + re.escape(mesa) + _SUFIXO_AUTOSAVE + "$")
+    for antigo in listar_mesas():
+        if antigo != novo and anteriores.match(antigo):
+            try:
+                os.remove(_caminho_mesa(antigo))
+            except OSError:
+                pass
+    return True, novo
+
+
+def _gravar_zip(limpo: str):
     os.makedirs(PASTA_MESAS, exist_ok=True)
     destino = _caminho_mesa(limpo)
     tmp = destino + ".tmp"

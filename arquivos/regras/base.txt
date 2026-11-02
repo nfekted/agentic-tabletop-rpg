@@ -1,5 +1,111 @@
-# Regras do RPG
+### Padrão
 
-## ATRIBUTOS BÁSICOS (exemplo de tópico)
- - Descrição da regra 1
- - Descrição da regra 2
+** Classes **
+- Combatente: Treinado para lutar, costuma ser o "atirar primeiro, perguntar depois".
+- Especialista: Confia na esperteza mais do que força. Muito treinado em  perícias. 
+- Ocultista: Foco no ataque com habilidades e poderes.
+
+** Atributos **
+Todo personagem tem suas competências físicas, sendo elas: Agilidade (AGI), Força (FOR), Intelecto (INT), Presença (PRE), Vigor (VIG).
+
+** Pontos de controle **
+Todo personagem possui:
+- **Pontos de vida (PV)**: A vida do personagem.
+- **Pontos de Esforço (PE)**: A determinação do personagem. Usado em habilidades e poderes
+- **Sanidade (SAN)**: Saúde mental do personagem.
+
+** Situações críticas **
+PV chegar a 0: Personagem entra em *morrendo*, e se nada for feito pelos outros, morre definitivamente.
+SAN chegar a 0: Personagem entra em *enlouquecendo*, se nada for feito pelos outros, vira um NPC ou morre. Necessário um personagem conseguir acalmar o jogador com Diplomacia, ou outra habilidade compatível.
+
+** Perícias **
+São usadas em testes para ações específicas, quando aplicável. Ex: "quero escalar esse portão", poderá utilizar "acrobacia" no teste. Cada perícia é vinculada a um atributo:
+
+**PRE**:
+- Diplomacia (convencer, negociar, acalmar).
+- Enganação (mentir, disfarçar, blefar).
+- Intimidação (coagir, amedrontar).
+- Intuição (perceber mentiras e intenções).
+- Percepção (notar detalhes, sons e perigos).
+- Religião (fé, símbolos e rituais religiosos, consolar pela crença).
+- Vontade (resistir a medo, pressão e influência mental).
+
+**AGI**:
+- Acrobacia (equilíbrio, saltos, escaladas ágeis e outros movimentos precisos).
+- Furtividade (agir sem ser visto, sem som).
+- Iniciativa (tentar uma ação antes de um oponente).
+- Pilotagem (dirigir).
+- Pontaria (ataques à distância: usar armas, arremessar algo).
+- Reflexos (se esquivar).
+
+**FOR**:
+- Atletismo (força física: correr, nadar, saltar, escalar na força, levantar, empurrar).
+- Luta (atacar corpo a corpo, com ou sem arma).
+
+**INT**:
+- Atualidades (notícias, cultura geral, eventos recentes).
+- Ciências (química, biologia, física, análises).
+- Investigação (procurar e cruzar pistas, examinar cenas e objetos).
+- Medicina (ferimentos, causa de morte, primeiros socorros).
+- Ocultismo (símbolos, criaturas e rituais paranormais, locais e sinais paranormais).
+- Profissão (conhecimento de um ofício).
+- Sobrevivência (rastros, natureza, orientação).
+- Tática (planejamento e estratégia).
+- Tecnologia (aparelhos, computadores, câmeras).
+
+**VIG**:
+- Fortitude (resistir a dor, doenças, venenos e esforço ou cansaço prolongado).
+
+Em uma perícia, seu personagem pode ser:
+- Destreinado: Sem prática específica.
+- Treinado: Boa prática.
+- Veterano: Muita prática.
+- Expert: Impecável.
+
+Quanto mais treinado, mais chance de sucesso. Perícias **não listadas** são automaticamente consideradas *destreinado*.
+
+Apenas **uma perícia** pode ser utilizada por vez, uma ação não pode combinar 2.
+
+**Dica para escolha**: O atributo referencia *quantas vezes* seu personagem vai tentar a cada turno, ex: Se seu personagem tem 3 de `PRE`, ao usar `Intuição` por exemplo, o mestre testa 3x e pega o melhor resultado.
+
+** Equipamento e Mochila **
+É o que atualmente está em/com você ou em sua mochila, descrito no formato:
+[nome] [peso] [mãos para usar o item] [distancia] [dano possível] [chance de crítico] [multiplicador de critico] [descrição].
+
+nome, peso e mãos sempre estarão presentes, enquanto os demais podem ser opcionais.
+
+Exemplos:
+`- Faca: peso: 1, mãos: 1, curto, 1~4 dano, 10% crit x1`.
+`- Lanterna peso: 1, mãos: 1, Ilumina locais escuros`.
+
+** Habilidades, passivas e poderes **
+Indicam ações especiais do seu personagem, em grande parte exige alguma ação especial ou custo especifico. Habilidades e poderes envolvem PE, poderes podem consumir SAN.
+No formato:
+[nome]: [custo] [descricao]. Nem sempre possui custo. Ex:
+`- Golpear: Usa 2 PE, golpeia forte`.
+
+Se uma habilidade, poder, ou passiva **contradiz** uma regra da cena, o que vale é a descrição dela, e não a regra.
+
+** Tratamento com NPCs **
+NPCs também têm sentimentos, interesses e limites, e o jeito como o grupo os trata muda como eles reagem. O Mestre controla a disposição de cada NPC; você NÃO a vê e nunca cita o nível pelo nome. Só percebe pelo tom, pelo que ele fala, por ajudar, recusar, mentir ou se afastar.
+
+- Prestativo: Gosta muito do personagem e tende a ajudar, dentro dos seus limites.
+- Amistoso: Gosta do personagem, pode ajudá-lo em pequenos favores.
+- Indiferente: Neutro quanto ao personagem.
+- Inamistoso: Não vai com a cara do personagem, e pode ser difícil conseguir algo.
+- Hostil: Odeia o personagem, pode se recusar a ajudar, mentir ou até prejudicá-lo (falar mal dele para os outros e etc.).
+
+**Como a disposição muda**
+- Muda aos poucos, para cima ou para baixo, pelas ações e conversas do grupo. Violência, ameaça, mentira descoberta ou desrespeito pioram a disposição, e rápido. Diplomacia, ajuda, honestidade e respeito melhoram, mas devagar.
+- Muda o que o NPC faz: quem sabe de algo pode passar a recusar ajuda se for maltratado, e quem não ajudaria pode ceder a quem o respeita ou o ajuda.
+- Desconfiar de estranhos é natural (ex.: encontrá-los num lugar onde não deveriam estar) e não significa hostilidade. Trate isso com calma e cooperação.
+- Nem todo NPC precisa virar aliado: trate cada um como a situação pede, aceite uma recusa sem forçar e pense no que ele sentiria com o que você fala e faz.
+- Toda cena, o(s) npc(s) presentes podem ter informações uteis. Basta você decidir questionar, perguntar, ou conversar sobre algo.
+
+** Cansaço **
+Seu personagem é humano e tem limites: ficar muito tempo sem dormir, comer ou beber, ou se esforçar por muito tempo, cobra um preço. Você NÃO precisa se preocupar com fome, sede ou sono até o Mestre mencionar, pela primeira vez, que seu personagem está sentindo isso. Depois disso, o personagem sente os efeitos (mais lento, irritado, descuidado) e deve buscar resolver assim que puder. Se o Mestre aplicar um efeito, siga o que ele disse.
+- **Prevenir:** se a missão passa por um lugar que oferece o que o personagem precisa (um bar, uma lanchonete, uma fonte), você pode desviar do objetivo por 1 ação para comer ou beber algo, mencionando isso na sua resposta (ex.: "peço um café e um sanduíche enquanto observo o movimento"). É opcional e só vale se a cena permitir.
+- **Descansar de verdade:** para dormir ou se recuperar por completo, o grupo pausa a missão e busca um local seguro para um **interlúdio** (veja as regras de interlúdio).
+- **Ignorar por escolha:** se o grupo decidir seguir em frente mesmo cansado, em prol da missão, aceitando os efeitos negativos que o Mestre aplicar, essa é uma escolha válida. Descansar não é obrigatório.
+- **Na dúvida, pergunte:** use `[duvida]` para perguntar ao Mestre se é possível descansar, se alimentar ou beber ali, ou se o local é seguro para isso.
+- Não invente cansaço que a cena não mostrou, nem o use como desculpa para evitar uma ação.

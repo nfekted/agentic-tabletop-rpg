@@ -4,7 +4,10 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from api.deps import trava_mestre, trava_turno
-from rpg.mesas_manager import info_mesa, listar_mesas, mesa_existe, reiniciar_mesa, resetar_mesa, restaurar_mesa, salvar_mesa
+from rpg.mesas_manager import (
+    definir_nome_mesa, eh_autosave, excluir_mesa, info_mesa, listar_mesas, mesa_existe, nome_mesa_atual, reiniciar_mesa, resetar_mesa,
+    restaurar_mesa, salvar_mesa,
+)
 from services import fila, sessao
 
 router = APIRouter(tags=["mesas"])
@@ -23,8 +26,22 @@ def listar():
             "nome": nome,
             "atualizada_em": datetime.fromtimestamp(mtime).isoformat(timespec="seconds"),
             "tamanho": tamanho,
+            "autosave": eh_autosave(nome),
         })
     return saida
+
+
+@router.get("/mesa")
+def mesa_atual():
+    return {"nome": nome_mesa_atual()}
+
+
+@router.put("/mesa")
+def definir_mesa(body: NomeIn):
+    ok, resultado = definir_nome_mesa(body.nome)
+    if not ok:
+        raise HTTPException(400, resultado)
+    return {"nome": resultado}
 
 
 @router.post("/mesas")
@@ -46,6 +63,15 @@ def restaurar(nome: str):
             raise HTTPException(400, msg)
         sessao.recarregar()  # a sessão vem do backup; mesas antigas, sem ela, começam do zero
         fila.resetar()
+    return {"mensagem": msg}
+
+
+@router.delete("/mesas/{nome}")
+def excluir(nome: str):
+    with trava_mestre(), trava_turno():
+        ok, msg = excluir_mesa(nome)
+        if not ok:
+            raise HTTPException(404 if "não encontrado" in msg else 400, msg)
     return {"mensagem": msg}
 
 
