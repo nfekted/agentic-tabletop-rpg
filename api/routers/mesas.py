@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from api.deps import trava_mestre, trava_turno
 from rpg.mesas_manager import (
-    definir_nome_mesa, eh_autosave, excluir_mesa, info_mesa, listar_mesas, mesa_existe, nome_mesa_atual, reiniciar_mesa, resetar_mesa,
+    definir_nome_mesa, eh_autosave, excluir_mesa, importar_base, info_mesa, listar_mesas, mesa_existe, nome_mesa_atual, reiniciar_mesa, resetar_mesa,
     restaurar_mesa, salvar_mesa,
 )
 from services import fila, sessao
@@ -14,6 +14,12 @@ router = APIRouter(tags=["mesas"])
 
 
 class NomeIn(BaseModel):
+    nome: str
+
+
+class ImportarBaseIn(BaseModel):
+    backup: str
+    categorias: list[str]
     nome: str
 
 
@@ -72,6 +78,17 @@ def excluir(nome: str):
         ok, msg = excluir_mesa(nome)
         if not ok:
             raise HTTPException(404 if "não encontrado" in msg else 400, msg)
+    return {"mensagem": msg}
+
+
+@router.post("/mesas/importar-base")
+def importar(body: ImportarBaseIn):
+    with trava_mestre(), trava_turno():
+        ok, msg = importar_base(body.backup, body.categorias, body.nome)
+        if not ok:
+            raise HTTPException(400, msg)
+        sessao.resetar()
+        fila.resetar()
     return {"mensagem": msg}
 
 

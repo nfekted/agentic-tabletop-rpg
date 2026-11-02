@@ -228,6 +228,93 @@ def resetar_mesa():
     return True, "Mesa resetada."
 
 
+# Partes de um backup que "Importar base" sabe trazer para uma mesa nova (personagens tem tratamento próprio).
+CATEGORIAS_BASE = {
+    "regras": "arquivos/regras/",
+    "padrao": "arquivos/padrao_ficha.json",
+    "anotacoes": "arquivos/anotacoes_mestre.txt",
+    "inimigos": "tokens/inimigo/",
+    "npcs": "tokens/npc/",
+    "itens": "tokens/item/",
+}
+
+
+def _vivos_do_backup(zf: zipfile.ZipFile) -> list[str]:
+    try:
+        dados = json.loads(zf.read("arquivos/jogadores.json").decode("utf-8"))
+    except (KeyError, ValueError):
+        return []
+    return [j["nome"] for j in dados if isinstance(j, dict) and j.get("nome") and not j.get("morto")]
+
+
+def _membro_da_base(rel: str, categorias: set, vivos: list[str]) -> bool:
+    for cat, alvo in CATEGORIAS_BASE.items():
+        if cat in categorias and (rel == alvo or (alvo.endswith("/") and rel.startswith(alvo))):
+            return True
+    if "personagens" not in categorias:
+        return False
+    if rel == "arquivos/jogadores.json":
+        return True
+    for nome in vivos:
+        if rel.startswith(f"arquivos/fichas/{nome.lower()}_") or re.fullmatch(rf"arquivos/memoria_{re.escape(nome)}/avatar\.[^/]+", rel):
+            return True
+    return False
+
+
+def importar_base(backup: str, categorias: list[str], nome_nova: str):
+    # Começa uma mesa NOVA: apaga tudo e traz do backup só as partes escolhidas (nada é mesclado).
+    # Personagens: só os vivos, com ficha e foto; a memória deles começa vazia.
+    escolhidas = set(categorias)
+    if not escolhidas or not escolhidas <= {*CATEGORIAS_BASE, "personagens"}:
+        return False, "Escolha ao menos uma parte da base para importar."
+    nome = nome_valido(nome_nova)
+    if not nome:
+        return False, "Nome da nova mesa inválido. Use apenas letras, números, espaço, '-' e '_'."
+    if not backup or not mesa_existe(backup):
+        return False, "Backup não encontrado."
+
+    # extrai só o escolhido para staging, antes de apagar qualquer coisa
+    shutil.rmtree(_PASTA_STAGING, ignore_errors=True)
+    try:
+        with zipfile.ZipFile(_caminho_mesa(backup)) as zf:
+            _validar_zip(zf)
+            vivos = _vivos_do_backup(zf) if "personagens" in escolhidas else []
+            for membro in zf.namelist():
+                rel = membro.replace("\\", "/")
+                if not rel.endswith("/") and _membro_da_base(rel, escolhidas, vivos):
+                    zf.extract(membro, _PASTA_STAGING)
+        jogadores = os.path.join(_PASTA_STAGING, "arquivos", "jogadores.json")
+        if "personagens" in escolhidas and os.path.isfile(jogadores):
+            with open(jogadores, "r", encoding="utf-8") as f:
+                lista = [j for j in json.load(f) if isinstance(j, dict) and j.get("nome") and not j.get("morto")]
+            with open(jogadores, "w", encoding="utf-8") as f:
+                json.dump(lista, f, ensure_ascii=False)
+            for j in lista:
+                os.makedirs(os.path.join(_PASTA_STAGING, "arquivos", f"memoria_{j['nome']}"), exist_ok=True)
+    except Exception as e:
+        shutil.rmtree(_PASTA_STAGING, ignore_errors=True)
+        return False, f"Não foi possível importar: {e}"
+
+    ok, msg = resetar_mesa()
+    if not ok:
+        shutil.rmtree(_PASTA_STAGING, ignore_errors=True)
+        return False, msg
+    try:
+        for raiz in _RAIZES:
+            base = os.path.join(_PASTA_STAGING, raiz)
+            for pasta, _, arquivos in os.walk(base):
+                destino = os.path.join(_PASTA_RAIZ, os.path.relpath(pasta, _PASTA_STAGING))
+                os.makedirs(destino, exist_ok=True)
+                for arq in arquivos:
+                    shutil.copy2(os.path.join(pasta, arq), os.path.join(destino, arq))
+    except Exception as e:
+        return False, f"A importação falhou no meio (a mesa foi limpa): {e}"
+    finally:
+        shutil.rmtree(_PASTA_STAGING, ignore_errors=True)
+    definir_nome_mesa(nome)
+    return True, f"Nova mesa '{nome}' criada com a base de '{backup}'."
+
+
 def reiniciar_mesa():
     # Recomeça a campanha do zero mantendo o cenário: só apaga a memória dos personagens (rodadas, cenas, mesa,
     # rascunho da rodada e métricas); avatares, fichas, regras, cenas, tokens e configuração da LLM ficam.

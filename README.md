@@ -950,13 +950,20 @@ Detalhes importantes:
 
 ### Reiniciar e Resetar mesa
 
-Na tela de configurações (⚙️) há dois botões, ambos com confirmação (faça um
+Na tela de configurações (⚙️) há botões de ação, todos com confirmação (faça um
 backup antes, não há como desfazer):
 
 - **Reiniciar mesa**: recomeça a campanha **mantendo o cenário**. Fichas,
   personagens, avatares, regras, cenas e tokens ficam. Apaga só as memórias
   (rodadas, cenas, mesa, rascunho da rodada e métricas dos personagens), a rodada em
   andamento, o histórico e a fila. Útil para repetir o mesmo cenário com outro modelo. O nome da mesa é mantido.
+- **Importar base**: começa uma **mesa nova** usando um backup (manual ou autosave) só como ponto de partida, por
+  exemplo para seguir com os sobreviventes de uma campanha em outra missão. Você escolhe o backup, marca o que quer
+  trazer e dá o nome da nova mesa. Tudo o que está na mesa atual é apagado antes (nada é mesclado) e só entra o marcado:
+  *Personagens* (apenas os vivos, com ficha, modificadores e foto; a memória deles começa vazia), *Regras definidas*
+  (todos os conjuntos e o ativo), *Padrão de status e atributos*, *Anotações do mestre*, *Inimigos*, *NPCs* e *Itens*
+  (os tokens). Cenas, memórias, rodadas e combate não são trazidos; incluir na ficha os eventos marcantes da missão
+  anterior fica a cargo do mestre. O backup de origem não é alterado e a configuração da LLM é mantida.
 - **Resetar mesa**: apaga tudo em `arquivos/` e `tokens/`, mantendo só a
   configuração e o uso da LLM e os arquivos de exemplo (`default.txt`, `base.txt`). O nome da mesa também é
   apagado e precisa ser definido de novo.

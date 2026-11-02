@@ -6,6 +6,7 @@ import { DialogAberto } from '@/components/DialogAberto'
 import { DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { useAcao, useMesaAtual, useMesasSalvas } from '@/hooks/queries'
+import { ImportarBase } from './ImportarBase'
 import { api } from '@/lib/api'
 import { useUi } from '@/lib/ui-context'
 import { cn } from '@/lib/utils'
@@ -20,7 +21,7 @@ export function MesasDialog({ onFechar }: { onFechar: () => void }) {
   const selAutosave = mesas.find((m) => m.nome === sel)?.autosave ?? false
   const [confirmar, setConfirmar] = useState(false)
   const [excluindo, setExcluindo] = useState(false)
-  const [perigo, setPerigo] = useState<'reiniciar' | 'resetar' | null>(null)
+  const [perigo, setPerigo] = useState<'reiniciar' | 'resetar' | 'importar' | null>(null)
 
   const existe = mesas.some((m) => m.nome === `${mesa}_${nome.trim()}`)
   const salvar = useAcao(
@@ -136,12 +137,21 @@ export function MesasDialog({ onFechar }: { onFechar: () => void }) {
               </div>
               <div className="flex items-start justify-between gap-3 border-t pt-3">
                 <p className="text-sm">
+                  <b>Importar base</b>
+                  <span className="block text-xs text-muted-foreground">Começa uma mesa nova a partir de um backup, trazendo só o que você escolher (personagens, regras, inimigos...).</span>
+                </p>
+                <Button variant="outline" size="sm" onClick={() => setPerigo('importar')}>Importar</Button>
+              </div>
+              <div className="flex items-start justify-between gap-3 border-t pt-3">
+                <p className="text-sm">
                   <b>Resetar mesa</b>
                   <span className="block text-xs text-muted-foreground">Apaga tudo: personagens, memórias, cenas, tokens, itens e inimigos.</span>
                 </p>
                 <Button variant="destructive" size="sm" onClick={() => setPerigo('resetar')}>Resetar</Button>
               </div>
             </div>
+          ) : perigo === 'importar' ? (
+            <ImportarBase onCancelar={() => setPerigo(null)} onFeito={onFechar} />
           ) : (
             <div className="space-y-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm">
               {perigo === 'reiniciar' ? (
