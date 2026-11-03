@@ -58,6 +58,7 @@ uma API em Python (FastAPI), para quem não quer mexer em terminal.
   - [Adicionando jogadores](#adicionando-jogadores)
   - [Anotações do mestre](#anotações-do-mestre)
   - [Salvar / Restaurar Mesa](#salvar--restaurar-mesa)
+  - [Encerrar mesa (fim de missão)](#encerrar-mesa-fim-de-missão)
   - [Reiniciar e Resetar mesa](#reiniciar-e-resetar-mesa)
 - [Estrutura de pastas](#estrutura-de-pastas)
 - [Solução de problemas](#solução-de-problemas)
@@ -406,7 +407,7 @@ criado, cada arquivo que faltar nasce a partir de um modelo.
 
 | Aba | O que tem |
 |---|---|
-| **Base** | Nome, Classe, Passado/Origem (3 campos de texto) |
+| **Base** | Nome, Classe, Passado/Origem, Detalhes adicionais e Missões anteriores (esta última é preenchida pelo [Encerrar mesa](#encerrar-mesa-fim-de-missão), mas você pode editar à mão) |
 | **Status** | Os status do [padrão global](#padrão-de-status-e-atributos) (vida, mana...), só com *atual* e *máximo* para preencher (viram barras no card) |
 | **Atributos e perícias** | Atributos vêm do padrão global (só o valor é preenchido); perícias são uma lista livre de *nome + valor* (ex.: Espada — Treinado) |
 | **Habilidades** | Três blocos — Habilidades, Poderes e Passivas — com *nome, custo e descrição* |
@@ -947,6 +948,21 @@ Detalhes importantes:
   restaurar fica bloqueado enquanto há fila ativa ou pausada.
 - O zip é validado antes de qualquer alteração e a troca é feita com
   rollback: se algo falhar, os dados atuais permanecem.
+
+### Encerrar mesa (fim de missão)
+
+Em 💾 Salvar / Restaurar mesa, o botão **Encerrar** fecha uma missão **sem apagar nada**. Só está disponível sem
+rodada em andamento e vale para os personagens **vivos**:
+
+1. Para cada um, as rodadas viram cena e as cenas entram no `mesa.txt` (as mesmas etapas da memória, forçadas agora).
+2. Com **Gerar resumo da mesa** marcado, a LLM lê o `mesa.txt` e escreve a missão como o *passado* do personagem
+   (só os acontecimentos principais, em 3ª pessoa e no passado). Custa uma chamada a mais por personagem.
+3. Um diálogo mostra cada resumo para você **revisar e editar**; ao confirmar, ele é acrescentado ao fim do campo
+   **Missões anteriores** da aba Base da ficha (com o título da missão, se você deu um). O que já estava lá é mantido.
+
+Esse campo fica separado do *Passado/Origem* (que é escrito à mão) e entra no prompt do personagem. Como a ficha
+viaja no **Importar base**, o resumo acompanha o personagem para a mesa seguinte, cuja memória começa vazia.
+Se algo falhar no meio, quem já terminou fica compilado e a ação pode ser repetida.
 
 ### Reiniciar e Resetar mesa
 

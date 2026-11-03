@@ -126,6 +126,7 @@ CAMPOS_BASE = (
     ("classe", "Classe"),
     ("passado_origem", "Passado/Origem"),
     ("detalhes_adicionais", "Detalhes adicionais"),
+    ("missoes_anteriores", "Missões anteriores"),
 )
 CAMPOS_PERSONALIDADE = (
     ("tratamento_personalidade", "Tratamento/Personalidade"),
@@ -347,12 +348,17 @@ def _bloco(titulo: str, linhas: list) -> str:
 
 
 def formatar_base_markdown(base: dict) -> str:
-    # os detalhes adicionais entram como texto simples, logo após o passado/origem
-    linhas = [
-        _texto(base.get(chave)) if chave == "detalhes_adicionais" else f"- **{rotulo}:** {_linha(base.get(chave))}"
-        for chave, rotulo in CAMPOS_BASE
-        if _linha(base.get(chave))
-    ]
+    # detalhes adicionais e missões anteriores são textos longos: entram sem achatar as quebras de linha
+    linhas = []
+    for chave, rotulo in CAMPOS_BASE:
+        if not _linha(base.get(chave)):
+            continue
+        if chave == "detalhes_adicionais":
+            linhas.append(_texto(base.get(chave)))
+        elif chave == "missoes_anteriores":
+            linhas.append(f"- **{rotulo}:**\n{_texto(base.get(chave))}")
+        else:
+            linhas.append(f"- **{rotulo}:** {_linha(base.get(chave))}")
     return _bloco("## INFORMAÇÕES BÁSICAS", linhas)
 
 
@@ -450,7 +456,7 @@ def formatar_personalidade_markdown(personalidade: dict) -> str:
 # --- Registro das seções: modelo inicial, normalização e formatação de cada uma ---
 
 _SECOES = {
-    "base": (lambda ag: {"nome": ag, "classe": "", "passado_origem": "", "detalhes_adicionais": ""}, _normalizar_base, formatar_base_markdown),
+    "base": (lambda ag: {"nome": ag, "classe": "", "passado_origem": "", "detalhes_adicionais": "", "missoes_anteriores": ""}, _normalizar_base, formatar_base_markdown),
     "status": (lambda ag: [], _normalizar_status, formatar_status_markdown),
     "atributos": (lambda ag: [], _normalizar_pares, formatar_atributos_markdown),
     "pericias": (lambda ag: [], _normalizar_pares, formatar_pericias_markdown),
@@ -499,6 +505,17 @@ def transferir_item(origem: str, destino: str, zona: str, indice: int, nome: str
     salvar_secao(destino, "itens", itens_destino)
     salvar_secao(origem, "itens", itens_origem)
     return itens_origem, itens_destino
+
+
+def anexar_missao(agente: str, texto: str, titulo: str = ""):
+    # Acrescenta o resumo de uma missão ao fim de "Missões anteriores" (as anteriores ficam como estão).
+    texto, titulo = _texto(texto), _linha(titulo)
+    if not texto:
+        raise ValueError("O resumo da missão está vazio.")
+    base = carregar_secao(agente, "base")
+    entrada = f"[{titulo}]\n{texto}" if titulo else texto
+    base["missoes_anteriores"] = f"{base['missoes_anteriores']}\n\n{entrada}" if base["missoes_anteriores"] else entrada
+    salvar_secao(agente, "base", base)
 
 
 def inicializar_ficha_agente(agente: str):

@@ -7,7 +7,7 @@ from api.deps import agente_valido
 from rpg.config import obter_modificadores_jogador, salvar_modificadores_jogador
 from services import mestre
 from rpg.fichas import (
-    carregar_ficha, carregar_padrao, carregar_status_jogador, carregar_subarquivos_ficha,
+    anexar_missao, carregar_ficha, carregar_padrao, carregar_status_jogador, carregar_subarquivos_ficha,
     padrao_configurado, salvar_padrao, salvar_status_jogador, salvar_subarquivos_ficha, transferir_item,
 )
 
@@ -19,6 +19,7 @@ class Base(BaseModel):
     classe: str = ""
     passado_origem: str = ""
     detalhes_adicionais: str = ""
+    missoes_anteriores: str = ""
 
 
 class Status(BaseModel):
@@ -93,6 +94,11 @@ class AjusteStatus(BaseModel):
     delta: int
 
 
+class MissaoIn(BaseModel):
+    texto: str
+    titulo: str = ""
+
+
 class TransferenciaItem(BaseModel):
     destino: str
     zona: Literal["equipamento", "mochila"]
@@ -156,6 +162,15 @@ def transferir(nome: str, body: TransferenciaItem):
         raise HTTPException(409, str(e))
     mestre.registrar_transferencia(origem, destino, body.nome)
     return {"itens": itens_origem, "destino": destino}
+
+
+@router.post("/fichas/{nome}/missao")
+def registrar_missao(nome: str, body: MissaoIn):
+    try:
+        anexar_missao(agente_valido(nome), body.texto, body.titulo)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True}
 
 
 @router.post("/fichas/{nome}/status/ajustar")

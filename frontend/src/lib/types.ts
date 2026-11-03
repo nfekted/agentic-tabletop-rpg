@@ -95,7 +95,7 @@ export type Config = {
   tipos_api: { id: string; nome: string }[]
 }
 
-type FichaBase = { nome: string; classe: string; passado_origem: string; detalhes_adicionais: string }
+type FichaBase = { nome: string; classe: string; passado_origem: string; detalhes_adicionais: string; missoes_anteriores: string }
 export type ParNomeValor = { nome: string; valor: string }
 export type Habilidade = { nome: string; custo: string; descricao: string }
 export type Habilidades = { habilidades: Habilidade[]; poderes: Habilidade[]; passivas: Habilidade[] }

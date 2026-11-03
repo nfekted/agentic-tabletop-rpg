@@ -7,6 +7,7 @@ import { Mesa } from '@/features/mesa/Mesa'
 import { Cabecalho } from '@/features/sistema/Cabecalho'
 import { AnotacoesDialog } from '@/features/sistema/AnotacoesDialog'
 import { CompressaoWatcher } from '@/features/sistema/CompressaoWatcher'
+import { EncerrarMesa } from '@/features/sistema/EncerrarMesa'
 import { FilaAviso } from '@/features/sistema/FilaAviso'
 import { ConfigDialog } from '@/features/sistema/ConfigDialog'
 import { CancelarRodadaDialog, ExcluirJogadorDialog, NomeMesaDialog, NovoJogadorDialog } from '@/features/sistema/Dialogos'
@@ -32,6 +33,7 @@ function Modais({ modal, fechar }: { modal: Modal | null; fechar: () => void }) 
     case 'padrao-ficha': return <PadraoFichaDialog onFechar={fechar} />
     case 'config': return <ConfigDialog onFechar={fechar} />
     case 'mesas': return <MesasDialog onFechar={fechar} />
+    case 'encerrar-mesa': return <EncerrarMesa onFechar={fechar} />
     case 'nome-mesa': return <NomeMesaDialog iniciar={modal.iniciar} onFechar={fechar} />
     case 'cancelar-rodada': return <CancelarRodadaDialog onFechar={fechar} />
   }

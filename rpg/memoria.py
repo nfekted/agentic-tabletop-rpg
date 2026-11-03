@@ -375,6 +375,36 @@ class GerenciadorMemoriaRPG:
         print(f"Histórico 'mesa.txt' de {agente} atualizado!")
 
     @staticmethod
+    def encerrar_memoria(agente: str):
+        # Fim de missão: rodadas -> cena -> mesa.txt (cada passo só roda se houver o que compilar).
+        pasta = obter_pasta_agente(agente)
+        if _arquivos_numerados(pasta, "rodada"):
+            GerenciadorMemoriaRPG.compilar_cenas(agente, encadear=False)
+        if _arquivos_numerados(pasta, "cena"):
+            GerenciadorMemoriaRPG.compilar_mesa(agente)
+
+    @staticmethod
+    def resumir_missao(agente: str) -> str:
+        # Resumo da missão como "passado do personagem", a partir do mesa.txt. Vazio se não há histórico.
+        pasta = obter_pasta_agente(agente)
+        mesa = carregar_arquivo(os.path.join(pasta, "mesa.txt"), "").strip()
+        if not mesa:
+            return ""
+        alvo_chars = min(2500, max(600, int(len(mesa) * 0.15)))
+        prompt = f"""Você é o Historiador de uma mesa de RPG cooperativo. A missão de {agente} terminou. Escreva o que ficará na ficha dele como PASSADO: um resumo da missão do ponto de vista dele.
+
+        ## O QUE ENTRA
+        Só os acontecimentos principais: onde e por que a missão começou, o objetivo, as grandes reviravoltas, quem morreu ou se perdeu, o que foi descoberto (ex.: o ponto fraco de um inimigo), o que os inimigos planejavam, como terminou e o que ficou em aberto.
+        Mantenha os nomes próprios (pessoas, locais, organizações). Corte detalhes, diálogos e cenas sem consequência.
+
+        ## FORMATO
+        Prosa corrida em terceira pessoa, em tempo passado, como a lembrança de algo que já aconteceu. Cerca de {alvo_chars} caracteres, no máximo. Sem tags, listas, títulos ou marcações. Não invente nada que não esteja no histórico.
+
+        HISTÓRICO DA MISSÃO:
+        {mesa}"""
+        return limpar_tags(texto_resposta(_invocar(obter_llm(temperature=0.3), prompt)))
+
+    @staticmethod
     def _reduzir_mesa(agente: str, mesa: str, alvo_chars: int) -> str:
         llm_historiador = obter_llm(temperature=0.3)
 

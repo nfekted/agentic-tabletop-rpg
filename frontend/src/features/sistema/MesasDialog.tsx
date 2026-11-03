@@ -124,6 +124,13 @@ export function MesasDialog({ onFechar }: { onFechar: () => void }) {
             </p>
           </section>
         </div>
+        <div className="flex items-start justify-between gap-3 rounded-lg border p-3">
+          <p className="text-sm">
+            <b>Encerrar mesa</b>
+            <span className="block text-xs text-muted-foreground">Fim de missão: compila a memória de cada personagem e, se quiser, gera o resumo da missão para a ficha. Não apaga nada.</span>
+          </p>
+          <Button variant="outline" size="sm" onClick={() => abrir({ tipo: 'encerrar-mesa' })}>Encerrar</Button>
+        </div>
         <div className="space-y-3 rounded-lg border border-destructive/40 p-3">
           <p className="text-xs font-medium uppercase tracking-wide text-destructive">Zona de perigo</p>
           {!perigo ? (
