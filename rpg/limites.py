@@ -19,11 +19,15 @@ JANELA_S = 60
 FOLGA_S = 5  # segundos a mais ao esperar a janela liberar (relógios do provedor e local não batem)
 _CAMINHO = os.path.join(ARQUIVOS, "limites.json")
 _LOCK = threading.RLock()
-_recentes: list[int] = []  # tokens das últimas chamadas, para estimar o custo de uma ação
+_recentes: list[int] = (
+    []
+)  # tokens das últimas chamadas, para estimar o custo de uma ação
 _MAX_RECENTES = 20
 
 _agora = time.time  # trocável nos testes
-ouvintes: list = []  # callbacks sem argumentos, chamados quando o uso muda (a API publica o evento SSE)
+ouvintes: list = (
+    []
+)  # callbacks sem argumentos, chamados quando o uso muda (a API publica o evento SSE)
 
 
 @dataclass
@@ -60,7 +64,9 @@ def _carregar() -> dict:
         dados["rpd"] = 0
     dados["rpd"] = int(dados.get("rpd") or 0)
     eventos = dados.get("eventos")
-    dados["eventos"] = [e for e in eventos if isinstance(e, dict)] if isinstance(eventos, list) else []
+    dados["eventos"] = (
+        [e for e in eventos if isinstance(e, dict)] if isinstance(eventos, list) else []
+    )
     return dados
 
 
@@ -98,7 +104,9 @@ def _tokens_da_resposta(prompt, resp) -> int:
     uso = _usage(resp)
     tokens = int(uso.get("input_tokens") or 0) + int(uso.get("output_tokens") or 0)
     if not tokens:
-        tokens = round((len(_texto(prompt)) + len(_texto(resp))) / CHARS_POR_TOKEN_PADRAO)
+        tokens = round(
+            (len(_texto(prompt)) + len(_texto(resp))) / CHARS_POR_TOKEN_PADRAO
+        )
     return tokens
 
 
@@ -108,10 +116,15 @@ def reservar(tokens_previstos: int) -> str:
         agora = _agora()
         dados = _carregar_podado(agora)
         id_ = uuid.uuid4().hex[:10]
-        dados["eventos"].append({
-            "id": id_, "ts": round(agora, 3), "libera_em": round(agora + JANELA_S, 3),
-            "tokens": max(0, int(tokens_previstos)), "previsto": True,
-        })
+        dados["eventos"].append(
+            {
+                "id": id_,
+                "ts": round(agora, 3),
+                "libera_em": round(agora + JANELA_S, 3),
+                "tokens": max(0, int(tokens_previstos)),
+                "previsto": True,
+            }
+        )
         dados["rpd"] += 1
         _gravar(dados)
     _avisar()
@@ -168,9 +181,24 @@ def estado() -> dict:
     libera = restante(ev[0]["libera_em"]) if ev else 0
     meia_noite = _segundos_ate_meia_noite()
     return {
-        "rpm": {"limite": lim["rpm"], "usado": len(ev), "zera_em": zera, "libera_em": libera},
-        "tpm": {"limite": lim["tpm"], "usado": sum(int(e["tokens"]) for e in ev), "zera_em": zera, "libera_em": libera},
-        "rpd": {"limite": lim["rpd"], "usado": dados["rpd"], "zera_em": meia_noite, "libera_em": meia_noite},
+        "rpm": {
+            "limite": lim["rpm"],
+            "usado": len(ev),
+            "zera_em": zera,
+            "libera_em": libera,
+        },
+        "tpm": {
+            "limite": lim["tpm"],
+            "usado": sum(int(e["tokens"]) for e in ev),
+            "zera_em": zera,
+            "libera_em": libera,
+        },
+        "rpd": {
+            "limite": lim["rpd"],
+            "usado": dados["rpd"],
+            "zera_em": meia_noite,
+            "libera_em": meia_noite,
+        },
     }
 
 
@@ -196,14 +224,16 @@ def espera_necessaria(tokens_previstos: int) -> Bloqueio | None:
 
     if lim["rpd"] and dados["rpd"] + 1 > lim["rpd"]:
         return Bloqueio(
-            "pausa", _segundos_ate_meia_noite(),
+            "pausa",
+            _segundos_ate_meia_noite(),
             f"Limite diário atingido (RPD {dados['rpd']}/{lim['rpd']}). Reinicia à meia-noite "
             f"(em {_fmt(_segundos_ate_meia_noite())}); continue a fila depois.",
         )
 
     if lim["tpm"] and tokens_previstos > lim["tpm"]:
         return Bloqueio(
-            "pausa", 0,
+            "pausa",
+            0,
             f"Esta chamada deve usar ~{tokens_previstos} tokens, mais que o TPM configurado ({lim['tpm']}). "
             "Aumente o limite ou reduza a memória/ficha.",
         )
@@ -211,7 +241,10 @@ def espera_necessaria(tokens_previstos: int) -> Bloqueio | None:
     def cabe(restantes: list) -> bool:
         if lim["rpm"] and len(restantes) + 1 > lim["rpm"]:
             return False
-        if lim["tpm"] and sum(int(e["tokens"]) for e in restantes) + tokens_previstos > lim["tpm"]:
+        if (
+            lim["tpm"]
+            and sum(int(e["tokens"]) for e in restantes) + tokens_previstos > lim["tpm"]
+        ):
             return False
         return True
 
@@ -219,13 +252,18 @@ def espera_necessaria(tokens_previstos: int) -> Bloqueio | None:
         return None
     # ev está ordenado por libera_em: tira os eventos que expiram primeiro até caber
     for i, e in enumerate(ev):
-        if cabe(ev[i + 1:]):
+        if cabe(ev[i + 1 :]):
             espera = max(1, int(e["libera_em"] - agora + 0.999))
             return Bloqueio(
-                "espera", espera + FOLGA_S,
+                "espera",
+                espera + FOLGA_S,
                 f"Aguardando liberar o limite de RPM/TPM (~{_fmt(espera + FOLGA_S)}).",
             )
-    return Bloqueio("pausa", 0, "Não há como encaixar esta chamada nos limites de RPM/TPM configurados.")
+    return Bloqueio(
+        "pausa",
+        0,
+        "Não há como encaixar esta chamada nos limites de RPM/TPM configurados.",
+    )
 
 
 def verificar(chamadas: int) -> str | None:
@@ -242,8 +280,10 @@ def verificar(chamadas: int) -> str | None:
     rpd = dados["rpd"]
 
     if lim["rpd"] and rpd + chamadas > lim["rpd"]:
-        return (f"Limite diário (RPD {rpd}/{lim['rpd']}): esta ação precisa de ~{chamadas} chamadas. "
-                f"Reinicia à meia-noite (em {_fmt(_segundos_ate_meia_noite())}).")
+        return (
+            f"Limite diário (RPD {rpd}/{lim['rpd']}): esta ação precisa de ~{chamadas} chamadas. "
+            f"Reinicia à meia-noite (em {_fmt(_segundos_ate_meia_noite())})."
+        )
 
     if lim["rpm"]:
         if chamadas > lim["rpm"]:

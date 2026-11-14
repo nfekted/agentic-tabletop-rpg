@@ -16,7 +16,7 @@ def separar(linha: str) -> tuple[list[str] | None, str]:
     m = _PREFIXO.match(linha)
     if not m:
         return None, linha
-    return m.group(1).split("|"), linha[m.end():]
+    return m.group(1).split("|"), linha[m.end() :]
 
 
 def visivel_para(linhas: list[str], agente: str) -> list[str]:

@@ -11,7 +11,11 @@ from rpg.config import carregar_configuracao, obter_llm
 from rpg.fichas import carregar_arquivo
 from rpg.limites import invocar
 from rpg.metricas import atualizar_apos_compressao
-from rpg.tags import extrair_tags_resposta, formatar_conteudo_publico, formatar_para_autor
+from rpg.tags import (
+    extrair_tags_resposta,
+    formatar_conteudo_publico,
+    formatar_para_autor,
+)
 from rpg.paths import ARQUIVOS
 
 
@@ -38,7 +42,9 @@ def _anexar_temp(agente: str, linha: str):
 def _arquivos_numerados(pasta: str, prefixo: str) -> List[str]:
     # Lista "<prefixo>_N.txt" ordenada numericamente (rodada_2 antes de rodada_10).
     padrao = re.compile(rf"^{prefixo}_(\d+)\.txt$")
-    achados = [(int(m.group(1)), f) for f in os.listdir(pasta) if (m := padrao.match(f))]
+    achados = [
+        (int(m.group(1)), f) for f in os.listdir(pasta) if (m := padrao.match(f))
+    ]
     return [f for _, f in sorted(achados)]
 
 
@@ -56,14 +62,24 @@ def texto_resposta(resp) -> str:
     conteudo = getattr(resp, "content", resp)
     if isinstance(conteudo, list):
         partes = [
-            p if isinstance(p, str) else p.get("text", "") if isinstance(p, dict) and p.get("type", "text") == "text" else ""
+            (
+                p
+                if isinstance(p, str)
+                else (
+                    p.get("text", "")
+                    if isinstance(p, dict) and p.get("type", "text") == "text"
+                    else ""
+                )
+            )
             for p in conteudo
         ]
         conteudo = "".join(partes)
     return str(conteudo).strip()
 
 
-_RE_TAG_ABERTA = re.compile(r"\[/?(?:pensamento|fala|acao|duvida|chamar)\]", re.IGNORECASE)
+_RE_TAG_ABERTA = re.compile(
+    r"\[/?(?:pensamento|fala|acao|duvida|chamar)\]", re.IGNORECASE
+)
 _TAGS_EM_TEXTO = {
     "pensamento": "pensou, sem dizer em voz alta: ",
     "fala": "disse em voz alta: ",
@@ -84,7 +100,12 @@ def tags_para_texto(registro: str) -> str:
     def trocar(m):
         return _TAGS_EM_TEXTO[m.group(1).lower()] + m.group(2).strip()
 
-    return re.sub(r"\[(pensamento|fala|acao|duvida|chamar)\](.*?)\[/\1\]", trocar, registro, flags=re.DOTALL | re.IGNORECASE)
+    return re.sub(
+        r"\[(pensamento|fala|acao|duvida|chamar)\](.*?)\[/\1\]",
+        trocar,
+        registro,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
 
 
 def limpar_tags(texto: str) -> str:
@@ -108,7 +129,9 @@ def carregar_memoria_longo_prazo(agente: str) -> str:
 
     caminho_mesa = os.path.join(pasta, "mesa.txt")
     if os.path.exists(caminho_mesa):
-        memoria += "=== HISTÓRICO PERMANENTE DA MESA ===\n" + _ler(caminho_mesa) + "\n\n"
+        memoria += (
+            "=== HISTÓRICO PERMANENTE DA MESA ===\n" + _ler(caminho_mesa) + "\n\n"
+        )
 
     cenas = _arquivos_numerados(pasta, "cena")
     if cenas:
@@ -123,7 +146,10 @@ def carregar_memoria_longo_prazo(agente: str) -> str:
         for r in rodadas:
             memoria += f"[{r}]: " + _ler(os.path.join(pasta, r)) + "\n"
 
-    return memoria or "A aventura está apenas começando. Nenhuma rodada anterior registrada."
+    return (
+        memoria
+        or "A aventura está apenas começando. Nenhuma rodada anterior registrada."
+    )
 
 
 def obter_arquivos_memoria(agente: str) -> dict:
@@ -175,7 +201,7 @@ class GerenciadorMemoriaRPG:
             if i < 0:
                 continue
             with open(caminho, "w", encoding="utf-8") as f:
-                f.write(texto[:i] + novo + texto[i + len(trecho):])
+                f.write(texto[:i] + novo + texto[i + len(trecho) :])
 
     @staticmethod
     def limpar_temp_nao_envolvidos(agentes_nao_envolvidos: List[str]):
@@ -197,9 +223,12 @@ class GerenciadorMemoriaRPG:
                 caminho_temp = os.path.join(caminho_agente, "rodada_atual_temp.txt")
 
                 if os.path.exists(caminho_temp):
-                    cabecalho = f"Rodada cancelada em {data_formatada}, motivo: {motivo}\n\n"
+                    cabecalho = (
+                        f"Rodada cancelada em {data_formatada}, motivo: {motivo}\n\n"
+                    )
                     caminho_destino = os.path.join(
-                        pasta_canceladas, f"rodada cancelada em {data_formatada}_{agente}.txt"
+                        pasta_canceladas,
+                        f"rodada cancelada em {data_formatada}_{agente}.txt",
                     )
                     with open(caminho_destino, "w", encoding="utf-8") as f:
                         f.write(cabecalho + _ler(caminho_temp))
@@ -255,7 +284,7 @@ class GerenciadorMemoriaRPG:
             """
 
             mensagems.append(SystemMessage(content=prompt_base))
-            
+
             prompt_dinamico = f"""
             ## PERSONAGEM ALVO
             Foque a perspectiva e os sentimentos exclusivamente no personagem: {agente}.
@@ -265,7 +294,7 @@ class GerenciadorMemoriaRPG:
             
             CRÔNICA DA RODADA:
             """
-            
+
             mensagems.append(HumanMessage(content=prompt_dinamico))
 
             llm_historiador = obter_llm(temperature=0.3)
@@ -295,7 +324,10 @@ class GerenciadorMemoriaRPG:
         if not rodadas:
             return
         print(f"\nCompilando {len(rodadas)} rodada(s) em CENA para {agente}...")
-        conteudo_rodadas = "".join(f"\n--- {nome_arq} ---\n" + _ler(os.path.join(pasta, nome_arq)) for nome_arq in rodadas)
+        conteudo_rodadas = "".join(
+            f"\n--- {nome_arq} ---\n" + _ler(os.path.join(pasta, nome_arq))
+            for nome_arq in rodadas
+        )
 
         alvo_chars = min(10000, max(2000, int(len(conteudo_rodadas) * 0.4)))
         prompt = f"""Você é o Historiador de uma mesa de RPG cooperativo. Sintetize estes resumos de rodadas, da perspectiva de {agente}, em uma narrativa fluida de CENA.
@@ -335,7 +367,9 @@ class GerenciadorMemoriaRPG:
         caminhos = [os.path.join(pasta, f) for f in _arquivos_numerados(pasta, "cena")]
         if not caminhos:
             return "", []
-        conteudo_cenas = "".join(f"\n--- {os.path.basename(arq)} ---\n" + _ler(arq) for arq in caminhos)
+        conteudo_cenas = "".join(
+            f"\n--- {os.path.basename(arq)} ---\n" + _ler(arq) for arq in caminhos
+        )
 
         alvo_chars = min(25000, max(4000, int(len(conteudo_cenas) * 0.4)))
         prompt = f"""Você é o Historiador de uma mesa de RPG cooperativo. Faça um resumo consolidado destas cenas para o histórico de longo prazo de {agente}.
@@ -450,11 +484,15 @@ class GerenciadorMemoriaRPG:
 
             if mesa_original:
                 alvo = int(len(mesa_original) * (1 - reducao / 100))
-                reduzido = GerenciadorMemoriaRPG._reduzir_mesa(agente, mesa_original, alvo)
+                reduzido = GerenciadorMemoriaRPG._reduzir_mesa(
+                    agente, mesa_original, alvo
+                )
                 if not reduzido:
                     raise ValueError("a LLM devolveu um resumo vazio")
                 if len(reduzido) >= len(mesa_original):
-                    raise ValueError("o resumo não ficou menor que o histórico original")
+                    raise ValueError(
+                        "o resumo não ficou menor que o histórico original"
+                    )
                 if len(reduzido) > alvo:
                     aviso = f" (o histórico antigo ficou com {len(reduzido)} caracteres, acima do alvo de {alvo})"
                 with open(caminho_mesa, "w", encoding="utf-8") as f:

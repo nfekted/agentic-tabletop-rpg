@@ -16,13 +16,22 @@ def situacao_combate() -> str:
 
         rotulos = {}  # id -> texto do participante
         for p in dados["personagens"]:
-            rotulos[p["id"]] = _rotulo(p["nome"], calcular_situacao(carregar_status_jogador(p["nome"])))
-        em_combate = {p["id"] for p in dados["personagens"] + dados["tokens"] if p.get("ordem") is not None}
+            rotulos[p["id"]] = _rotulo(
+                p["nome"], calcular_situacao(carregar_status_jogador(p["nome"]))
+            )
+        em_combate = {
+            p["id"]
+            for p in dados["personagens"] + dados["tokens"]
+            if p.get("ordem") is not None
+        }
         for k in dados["tokens"]:
             if k["categoria"] == "item":
                 rotulos[k["id"]] = f"[Item: {k['nome_exibicao']}]"
             else:
-                rotulos[k["id"]] = _rotulo(k["nome_exibicao"], calcular_situacao(k["ficha_dados"].get("status", [])))
+                rotulos[k["id"]] = _rotulo(
+                    k["nome_exibicao"],
+                    calcular_situacao(k["ficha_dados"].get("status", [])),
+                )
 
         linhas, nas_areas = [], set()
         for a in dados["areas"]:
@@ -32,7 +41,9 @@ def situacao_combate() -> str:
                 linhas.append(f"- {a['nome']}: " + ", ".join(rotulos[i] for i in ids))
         soltos = [i for i in rotulos if i not in nas_areas and i in em_combate]
         if soltos:
-            linhas.append("- Sem área definida: " + ", ".join(rotulos[i] for i in soltos))
+            linhas.append(
+                "- Sem área definida: " + ", ".join(rotulos[i] for i in soltos)
+            )
         return "\n".join(linhas)
     except Exception:
         return ""

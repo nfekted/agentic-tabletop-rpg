@@ -33,7 +33,9 @@ def caminho_token(categoria: str, nome_arquivo: str) -> str:
 def listar_tokens(categoria: str) -> list[str]:
     pasta = caminho_categoria(categoria)
     os.makedirs(pasta, exist_ok=True)
-    return sorted(f for f in os.listdir(pasta) if f.endswith(".txt") and not f.startswith("."))
+    return sorted(
+        f for f in os.listdir(pasta) if f.endswith(".txt") and not f.startswith(".")
+    )
 
 
 def carregar_token(categoria: str, nome_arquivo: str) -> str:
@@ -89,11 +91,15 @@ def remover_imagem_token(categoria: str, nome_arquivo: str):
         caminho = caminho_imagem_token(categoria, nome_arquivo)
 
 
-def salvar_imagem_token(categoria: str, nome_arquivo: str, nome_upload: str, conteudo: bytes) -> str | None:
+def salvar_imagem_token(
+    categoria: str, nome_arquivo: str, nome_upload: str, conteudo: bytes
+) -> str | None:
     if not conteudo:
         return None
     remover_imagem_token(categoria, nome_arquivo)
-    caminho = os.path.splitext(caminho_token(categoria, nome_arquivo))[0] + extensao_imagem(nome_upload, ".png")
+    caminho = os.path.splitext(caminho_token(categoria, nome_arquivo))[
+        0
+    ] + extensao_imagem(nome_upload, ".png")
     with open(caminho, "wb") as f:
         f.write(conteudo)
     return caminho
@@ -109,7 +115,9 @@ def carregar_ficha_token(categoria: str, nome_arquivo: str) -> dict:
     if categoria == "item":
         return {"status": [], "atributos": []}
     try:
-        with open(caminho_ficha_token(categoria, nome_arquivo), "r", encoding="utf-8") as f:
+        with open(
+            caminho_ficha_token(categoria, nome_arquivo), "r", encoding="utf-8"
+        ) as f:
             dados = json.load(f)
     except (OSError, ValueError):
         dados = {}

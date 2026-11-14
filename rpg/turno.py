@@ -87,6 +87,7 @@ def sincronizar_personagens(agentes: list[str]) -> dict:
 
 # --- ÁREAS ---
 
+
 def adicionar_area(nome: str) -> str | None:
     nome = nome.strip()
     if not nome:
@@ -96,11 +97,13 @@ def adicionar_area(nome: str) -> str | None:
         return None
 
     area_id = f"area_{uuid.uuid4().hex[:6]}"
-    dados["areas"].append({
-        "id": area_id,
-        "nome": nome,
-        "participantes": [],
-    })
+    dados["areas"].append(
+        {
+            "id": area_id,
+            "nome": nome,
+            "participantes": [],
+        }
+    )
     salvar_turno(dados)
     return area_id
 
@@ -154,6 +157,7 @@ def desvincular_participante(participante_id: str) -> bool:
 
 # --- TOKENS NO TURNO ---
 
+
 def _gerar_nome_exibicao_token(nome_base: str, tokens_existentes: list[dict]) -> str:
     nome_limpo = re.sub(r"\.txt$", "", nome_base, flags=re.IGNORECASE)
     nome_limpo = nome_limpo.replace("_", " ").title().strip()
@@ -174,7 +178,7 @@ def _gerar_nome_exibicao_token(nome_base: str, tokens_existentes: list[dict]) ->
 
     if not numeros_usados and not sem_numero_encontrado:
         return f"{nome_limpo} 1"
-    
+
     proximo = max(numeros_usados or [1 if sem_numero_encontrado else 0]) + 1
     return f"{nome_limpo} {proximo}"
 
@@ -193,7 +197,8 @@ def adicionar_token_ao_turno(categoria: str, nome_arquivo: str) -> dict | None:
     ordem_inicial = None
     if dados["em_andamento"]:
         ordens_existentes = [
-            p["ordem"] for p in (dados["personagens"] + dados["tokens"])
+            p["ordem"]
+            for p in (dados["personagens"] + dados["tokens"])
             if p.get("ordem") is not None
         ]
         ordem_inicial = (max(ordens_existentes) + 1) if ordens_existentes else 1
@@ -205,7 +210,10 @@ def adicionar_token_ao_turno(categoria: str, nome_arquivo: str) -> dict | None:
         "arquivo": nome_arquivo,
         "tipo_icone": icone,
         "ordem": ordem_inicial,
-        "ficha_dados": {"conteudo": conteudo, **carregar_ficha_token(categoria, nome_arquivo)},
+        "ficha_dados": {
+            "conteudo": conteudo,
+            **carregar_ficha_token(categoria, nome_arquivo),
+        },
     }
     dados["tokens"].append(novo_token)
     salvar_turno(dados)
@@ -251,13 +259,16 @@ def ajustar_status_token(token_id: str, nome_status: str, delta: int) -> bool:
         for s in t["ficha_dados"].get("status", []):
             if s.get("nome") == nome_status:
                 maximo = int(s.get("valor_max") or 0)
-                s["valor_atual"] = max(0, min(maximo, int(s.get("valor_atual") or 0) + delta))
+                s["valor_atual"] = max(
+                    0, min(maximo, int(s.get("valor_atual") or 0) + delta)
+                )
                 salvar_turno(dados)
                 return True
     return False
 
 
 # --- GESTÃO DE ORDENS E FLUXO ---
+
 
 def atualizar_ordem_participante(participante_id: str, ordem: int | None) -> bool:
     dados = carregar_turno()
@@ -303,17 +314,29 @@ def avancar_proxima_acao(turno_dados: dict) -> tuple[bool, str, str | None]:
     # Devolve (ok, mensagem, evento): evento é "inicio" (combate começou) ou "nova_rodada" (a ordem voltou ao primeiro).
     empates = verificar_empates(turno_dados)
     if empates:
-        return False, f"⚠️ Empate detectado na(s) ordem(ns): {', '.join(map(str, empates))}. Defina ordens distintas!", None
+        return (
+            False,
+            f"⚠️ Empate detectado na(s) ordem(ns): {', '.join(map(str, empates))}. Defina ordens distintas!",
+            None,
+        )
 
     fila = obter_fila_ordens(turno_dados)
     if not fila:
-        return False, "⚠️ Nenhum participante possui uma ordem definida (mínimo 1).", None
+        return (
+            False,
+            "⚠️ Nenhum participante possui uma ordem definida (mínimo 1).",
+            None,
+        )
 
-    def passar_para(ordem: int, prefixo: str, evento: str | None) -> tuple[bool, str, str | None]:
+    def passar_para(
+        ordem: int, prefixo: str, evento: str | None
+    ) -> tuple[bool, str, str | None]:
         turno_dados["ordem_atual"] = ordem
         salvar_turno(turno_dados)
         participante = obter_participante_por_ordem(turno_dados, ordem)
-        nome = participante.get("nome") or participante.get("nome_exibicao", "Participante")
+        nome = participante.get("nome") or participante.get(
+            "nome_exibicao", "Participante"
+        )
         return True, f"{prefixo}Turno de **{nome}** (Ordem #{ordem}).", evento
 
     if not turno_dados.get("em_andamento"):

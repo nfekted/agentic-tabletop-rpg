@@ -11,7 +11,11 @@ _CAMINHO_CONFIG = os.path.join(ARQUIVOS, "config.json")
 _CAMINHO_JOGADORES = os.path.join(ARQUIVOS, "jogadores.json")
 
 # tipo de API (qual cliente usar); o modelo é digitado pelo usuário, como na documentação do provedor
-TIPOS_API = {"gemini": "Google Gemini", "openai": "OpenAI-compatível", "local": "Local (Ollama, Omniroute...)"}
+TIPOS_API = {
+    "gemini": "Google Gemini",
+    "openai": "OpenAI-compatível",
+    "local": "Local (Ollama, Omniroute...)",
+}
 
 CONFIG_PADRAO = {
     "tipo_api": "local",
@@ -41,7 +45,9 @@ def _migrar(dados: dict) -> dict:
         dados["tipo_api"], dados["modelo"] = tipo, modelo
         url = (dados.get("base_url") or "").rstrip("/")
         if antigo == "Ollama local":  # o Ollama fala o protocolo OpenAI em /v1
-            dados["base_url"] = (url or "http://localhost:11434") + ("" if url.endswith("/v1") else "/v1")
+            dados["base_url"] = (url or "http://localhost:11434") + (
+                "" if url.endswith("/v1") else "/v1"
+            )
     return dados
 
 
@@ -94,7 +100,9 @@ def obter_llm(temperature: float = 0.8, cfg: dict | None = None):
         )
     if tipo == "local":
         if not base_url:
-            raise ValueError("Informe o endereço (base URL) do servidor local nas configurações.")
+            raise ValueError(
+                "Informe o endereço (base URL) do servidor local nas configurações."
+            )
         return ChatOpenAI(
             model=modelo,
             api_key=api_key or "local-key",
@@ -124,10 +132,12 @@ def carregar_dados_jogadores() -> list:
                             jogador["morto"] = True
                         lista_normalizada.append(jogador)
                     elif isinstance(item, str) and item.strip():
-                        lista_normalizada.append({
-                            "nome": item.strip(),
-                            "modificadores": "",
-                        })
+                        lista_normalizada.append(
+                            {
+                                "nome": item.strip(),
+                                "modificadores": "",
+                            }
+                        )
                         precisa_salvar = True
                 if precisa_salvar:
                     salvar_dados_jogadores(lista_normalizada)
@@ -150,7 +160,11 @@ def carregar_agentes() -> list:
 def carregar_todos_agentes() -> list:
     # Vivos primeiro, mortos no fim (ficam na mesa só para consulta e transferência de itens).
     dados = carregar_dados_jogadores()
-    return [j["nome"] for j in sorted(dados, key=lambda j: bool(j.get("morto"))) if j.get("nome")]
+    return [
+        j["nome"]
+        for j in sorted(dados, key=lambda j: bool(j.get("morto")))
+        if j.get("nome")
+    ]
 
 
 def _achar_jogador(dados: list, nome: str) -> dict | None:

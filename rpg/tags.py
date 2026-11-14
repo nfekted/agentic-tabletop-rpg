@@ -2,7 +2,6 @@ import re
 import unicodedata
 from typing import Dict, Optional
 
-
 _TAGS = ("pensamento", "fala", "acao", "duvida", "chamar")
 
 
@@ -18,7 +17,11 @@ def extrair_tags_resposta(texto: str) -> Dict[str, Optional[str]]:
     # sem tag fechada: aceita "[tag] texto" até a próxima tag ou o fim
     if not any(resultado.values()):
         nomes = "|".join(_TAGS)
-        partes = re.findall(rf"\[({nomes})\](.*?)(?=\[(?:{nomes}|/)|$)", texto, re.DOTALL | re.IGNORECASE)
+        partes = re.findall(
+            rf"\[({nomes})\](.*?)(?=\[(?:{nomes}|/)|$)",
+            texto,
+            re.DOTALL | re.IGNORECASE,
+        )
         for t, c in partes:
             c_strip = c.strip()
             if c_strip:
@@ -46,7 +49,11 @@ def formatar_para_autor(tags: Dict[str, Optional[str]]) -> str:
 
 def _normalizar_nome(nome: str) -> str:
     sem_acento = unicodedata.normalize("NFD", nome)
-    return "".join(c for c in sem_acento if not unicodedata.combining(c)).casefold().strip()
+    return (
+        "".join(c for c in sem_acento if not unicodedata.combining(c))
+        .casefold()
+        .strip()
+    )
 
 
 def separar_chamada(texto: str, nomes: list) -> Optional[tuple]:

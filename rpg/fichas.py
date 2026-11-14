@@ -50,7 +50,11 @@ def _garantir_base():
 def listar_arquivos_regras() -> list:
     # conjuntos selecionáveis (sem a base)
     _garantir_base()
-    return sorted(f for f in os.listdir(PASTA_REGRAS) if f.endswith(".txt") and not f.startswith(".") and f != ARQUIVO_BASE)
+    return sorted(
+        f
+        for f in os.listdir(PASTA_REGRAS)
+        if f.endswith(".txt") and not f.startswith(".") and f != ARQUIVO_BASE
+    )
 
 
 def obter_regra_ativa() -> str | None:
@@ -112,14 +116,25 @@ def carregar_regras() -> str:
     # base + conjunto ativo, como se fossem um texto só
     _garantir_base()
     ativa = obter_regra_ativa()
-    partes = [carregar_regra(ARQUIVO_BASE).strip(), carregar_regra(ativa).strip() if ativa else ""]
+    partes = [
+        carregar_regra(ARQUIVO_BASE).strip(),
+        carregar_regra(ativa).strip() if ativa else "",
+    ]
     return "\n\n".join(p for p in partes if p)
 
 
 # --- Ficha: um .json por seção ({nome}_<seção>.json) ---
 
 # Ordem das seções no prompt: do que menos muda para o que mais muda (favorece o cache de prefixo da LLM)
-SECOES = ("base", "personalidade", "atributos", "pericias", "habilidades", "status", "itens")
+SECOES = (
+    "base",
+    "personalidade",
+    "atributos",
+    "pericias",
+    "habilidades",
+    "status",
+    "itens",
+)
 
 CAMPOS_BASE = (
     ("nome", "Nome"),
@@ -133,13 +148,18 @@ CAMPOS_PERSONALIDADE = (
     ("medos_gatilhos", "Medos/Gatilhos"),
     ("segredos_pessoais", "Segredos pessoais"),
 )
-BLOCOS_HABILIDADES = (("habilidades", "HABILIDADES"), ("poderes", "PODERES"), ("passivas", "PASSIVAS"))
+BLOCOS_HABILIDADES = (
+    ("habilidades", "HABILIDADES"),
+    ("poderes", "PODERES"),
+    ("passivas", "PASSIVAS"),
+)
 TAMANHO_MOCHILA_PADRAO = 5
 
 CAMINHO_PADRAO = os.path.join(ARQUIVOS, "padrao_ficha.json")
 
 
 # --- Normalização: item de lista sem "nome" é descartado; opcionais vazios viram "" ou None ---
+
 
 def _texto(valor) -> str:
     return "" if valor is None else str(valor).strip()
@@ -150,7 +170,11 @@ def _linha(valor) -> str:
 
 
 def _numero(valor, inteiro=False):
-    if valor is None or isinstance(valor, bool) or (isinstance(valor, str) and not valor.strip()):
+    if (
+        valor is None
+        or isinstance(valor, bool)
+        or (isinstance(valor, str) and not valor.strip())
+    ):
         return None
     try:
         n = float(str(valor).replace(",", "."))
@@ -189,12 +213,14 @@ def _normalizar_status(lista) -> list:
     for i in _dicts(lista):
         nome = _texto(i.get("nome"))
         if nome:
-            saida.append({
-                "nome": nome,
-                "valor_atual": _numero(i.get("valor_atual"), inteiro=True) or 0,
-                "valor_max": _numero(i.get("valor_max"), inteiro=True) or 0,
-                "cor": _texto(i.get("cor")) or "#DC143C",
-            })
+            saida.append(
+                {
+                    "nome": nome,
+                    "valor_atual": _numero(i.get("valor_atual"), inteiro=True) or 0,
+                    "valor_max": _numero(i.get("valor_max"), inteiro=True) or 0,
+                    "cor": _texto(i.get("cor")) or "#DC143C",
+                }
+            )
     return saida
 
 
@@ -210,7 +236,11 @@ def _normalizar_habilidades(dados) -> dict:
     dados = dados if isinstance(dados, dict) else {}
     return {
         chave: [
-            {"nome": nome, "custo": _texto(i.get("custo")), "descricao": _texto(i.get("descricao"))}
+            {
+                "nome": nome,
+                "custo": _texto(i.get("custo")),
+                "descricao": _texto(i.get("descricao")),
+            }
             for i in _dicts(dados.get(chave))
             if (nome := _texto(i.get("nome")))
         ]
@@ -243,8 +273,12 @@ def _normalizar_itens(dados) -> dict:
     )
     return {
         "tamanho_mochila": max(0, tamanho or 0),
-        "equipamento": [i for i in map(_normalizar_item, _dicts(dados.get("equipamento"))) if i],
-        "mochila": [i for i in map(_normalizar_item, _dicts(dados.get("mochila"))) if i],
+        "equipamento": [
+            i for i in map(_normalizar_item, _dicts(dados.get("equipamento"))) if i
+        ],
+        "mochila": [
+            i for i in map(_normalizar_item, _dicts(dados.get("mochila"))) if i
+        ],
     }
 
 
@@ -260,7 +294,12 @@ def _normalizar_situacoes(lista) -> list:
     for k, padrao in enumerate(LIMIARES_SITUACAO):
         item = itens[k] if k < len(itens) else {}
         pct = _numero(item.get("pct"), inteiro=True)
-        saida.append({"pct": padrao if pct is None else max(0, min(100, pct)), "nome": _linha(item.get("nome"))})
+        saida.append(
+            {
+                "pct": padrao if pct is None else max(0, min(100, pct)),
+                "nome": _linha(item.get("nome")),
+            }
+        )
     return saida
 
 
@@ -268,7 +307,13 @@ def _normalizar_padrao(dados) -> dict:
     dados = dados if isinstance(dados, dict) else {}
     brutos = {_texto(i.get("nome")): i for i in _dicts(dados.get("status"))}
     status = [
-        {"nome": i["nome"], "cor": i["cor"], "situacoes": _normalizar_situacoes(brutos.get(i["nome"], {}).get("situacoes"))}
+        {
+            "nome": i["nome"],
+            "cor": i["cor"],
+            "situacoes": _normalizar_situacoes(
+                brutos.get(i["nome"], {}).get("situacoes")
+            ),
+        }
         for i in _normalizar_status(dados.get("status"))
     ]
     atributos = [{"nome": i["nome"]} for i in _normalizar_pares(dados.get("atributos"))]
@@ -316,7 +361,9 @@ def ficha_do_padrao(dados) -> dict:
     dados = dados if isinstance(dados, dict) else {}
     return {
         "status": _aplicar_padrao_status(_normalizar_status(dados.get("status"))),
-        "atributos": _aplicar_padrao_atributos(_normalizar_pares(dados.get("atributos"))),
+        "atributos": _aplicar_padrao_atributos(
+            _normalizar_pares(dados.get("atributos"))
+        ),
     }
 
 
@@ -338,10 +385,14 @@ def calcular_situacao(status_lista: list) -> str:
 
 def _aplicar_padrao_atributos(salvos: list) -> list:
     por_nome = {a["nome"]: a["valor"] for a in salvos}
-    return [{"nome": p["nome"], "valor": por_nome.get(p["nome"], "")} for p in carregar_padrao()["atributos"]]
+    return [
+        {"nome": p["nome"], "valor": por_nome.get(p["nome"], "")}
+        for p in carregar_padrao()["atributos"]
+    ]
 
 
 # --- Formatação em markdown para o prompt (seção vazia devolve "" e não entra) ---
+
 
 def _bloco(titulo: str, linhas: list) -> str:
     return "\n".join([titulo, *linhas]) if linhas else ""
@@ -363,12 +414,21 @@ def formatar_base_markdown(base: dict) -> str:
 
 
 def formatar_status_markdown(status_lista: list) -> str:
-    linhas = [f"- **{i['nome']}**: {i['valor_atual']}/{i['valor_max']}" for i in status_lista]
+    linhas = [
+        f"- **{i['nome']}**: {i['valor_atual']}/{i['valor_max']}" for i in status_lista
+    ]
     return _bloco("## STATUS ATUAIS", linhas)
 
 
 def _formatar_pares(titulo: str, pares: list) -> str:
-    linhas = [f"- {p['nome']}: {_linha(p['valor'])}" if _linha(p["valor"]) else f"- {p['nome']}" for p in pares]
+    linhas = [
+        (
+            f"- {p['nome']}: {_linha(p['valor'])}"
+            if _linha(p["valor"])
+            else f"- {p['nome']}"
+        )
+        for p in pares
+    ]
     return _bloco(titulo, linhas)
 
 
@@ -390,7 +450,9 @@ def formatar_habilidades_markdown(habilidades: dict) -> str:
                 partes.append(f"Usa {_linha(h['custo'])}")
             if _linha(h["descricao"]):
                 partes.append(_linha(h["descricao"]))
-            linhas.append(f"- {h['nome']}: {', '.join(partes)}" if partes else f"- {h['nome']}")
+            linhas.append(
+                f"- {h['nome']}: {', '.join(partes)}" if partes else f"- {h['nome']}"
+            )
         if linhas:
             blocos.append(_bloco(f"## {titulo}", linhas))
     return "\n\n".join(blocos)
@@ -426,7 +488,9 @@ def peso_livre(itens: dict) -> float:
 
 def formatar_itens_markdown(itens: dict) -> str:
     blocos = []
-    equipamento = _bloco("## EQUIPAMENTOS", [_linha_item(i) for i in itens["equipamento"]])
+    equipamento = _bloco(
+        "## EQUIPAMENTOS", [_linha_item(i) for i in itens["equipamento"]]
+    )
     if equipamento:
         blocos.append(equipamento)
 
@@ -434,12 +498,16 @@ def formatar_itens_markdown(itens: dict) -> str:
     grupos = {}
     for item in itens["mochila"]:
         grupos.setdefault(json.dumps(item, sort_keys=True), [item, 0])[1] += 1
-    linhas = [_linha_item(item, f"{n}x " if n > 1 else "") for item, n in grupos.values()]
+    linhas = [
+        _linha_item(item, f"{n}x " if n > 1 else "") for item, n in grupos.values()
+    ]
     tamanho = itens["tamanho_mochila"]
     if linhas or tamanho > 0:
         corpo = _bloco("## MOCHILA", linhas) or "## MOCHILA"
         if tamanho > 0:
-            corpo += ("\n\n" if linhas else "\n") + f"Mochila: {_fmt_num(peso_livre(itens))}/{tamanho} livres"
+            corpo += (
+                "\n\n" if linhas else "\n"
+            ) + f"Mochila: {_fmt_num(peso_livre(itens))}/{tamanho} livres"
         blocos.append(corpo)
     return "\n\n".join(blocos)
 
@@ -456,21 +524,51 @@ def formatar_personalidade_markdown(personalidade: dict) -> str:
 # --- Registro das seções: modelo inicial, normalização e formatação de cada uma ---
 
 _SECOES = {
-    "base": (lambda ag: {"nome": ag, "classe": "", "passado_origem": "", "detalhes_adicionais": "", "missoes_anteriores": ""}, _normalizar_base, formatar_base_markdown),
+    "base": (
+        lambda ag: {
+            "nome": ag,
+            "classe": "",
+            "passado_origem": "",
+            "detalhes_adicionais": "",
+            "missoes_anteriores": "",
+        },
+        _normalizar_base,
+        formatar_base_markdown,
+    ),
     "status": (lambda ag: [], _normalizar_status, formatar_status_markdown),
     "atributos": (lambda ag: [], _normalizar_pares, formatar_atributos_markdown),
     "pericias": (lambda ag: [], _normalizar_pares, formatar_pericias_markdown),
-    "habilidades": (lambda ag: {}, _normalizar_habilidades, formatar_habilidades_markdown),
+    "habilidades": (
+        lambda ag: {},
+        _normalizar_habilidades,
+        formatar_habilidades_markdown,
+    ),
     "itens": (lambda ag: {}, _normalizar_itens, formatar_itens_markdown),
-    "personalidade": (lambda ag: {}, _normalizar_personalidade, formatar_personalidade_markdown),
+    "personalidade": (
+        lambda ag: {},
+        _normalizar_personalidade,
+        formatar_personalidade_markdown,
+    ),
 }
+
+
+def normalizar_ficha(dados) -> dict:
+    # Ficha vinda de fora (ex.: gerada pela IA): cada seção normalizada como em carregar_secao, sem ler arquivo.
+    dados = dados if isinstance(dados, dict) else {}
+    ficha = {secao: _SECOES[secao][1](dados.get(secao)) for secao in SECOES}
+    ficha["status"] = _aplicar_padrao_status(ficha["status"])
+    ficha["atributos"] = _aplicar_padrao_atributos(ficha["atributos"])
+    return ficha
 
 
 # --- Gestão da ficha (carga, gravação, inicialização) ---
 
+
 def caminhos_subarquivos(agente: str) -> dict:
     nome = agente.strip().lower()
-    return {secao: os.path.join(PASTA_FICHAS, f"{nome}_{secao}.json") for secao in SECOES}
+    return {
+        secao: os.path.join(PASTA_FICHAS, f"{nome}_{secao}.json") for secao in SECOES
+    }
 
 
 def carregar_secao(agente: str, secao: str):
@@ -493,7 +591,9 @@ def salvar_secao(agente: str, secao: str, dados):
     salvar_json(caminhos_subarquivos(agente)[secao], normalizar(dados))
 
 
-def transferir_item(origem: str, destino: str, zona: str, indice: int, nome: str) -> tuple[dict, dict]:
+def transferir_item(
+    origem: str, destino: str, zona: str, indice: int, nome: str
+) -> tuple[dict, dict]:
     # Tira o item de `zona` da origem e o põe na mochila do destino; `nome` confere que o índice não ficou velho.
     itens_origem = carregar_secao(origem, "itens")
     lista = itens_origem[zona]
@@ -514,7 +614,11 @@ def anexar_missao(agente: str, texto: str, titulo: str = ""):
         raise ValueError("O resumo da missão está vazio.")
     base = carregar_secao(agente, "base")
     entrada = f"[{titulo}]\n{texto}" if titulo else texto
-    base["missoes_anteriores"] = f"{base['missoes_anteriores']}\n\n{entrada}" if base["missoes_anteriores"] else entrada
+    base["missoes_anteriores"] = (
+        f"{base['missoes_anteriores']}\n\n{entrada}"
+        if base["missoes_anteriores"]
+        else entrada
+    )
     salvar_secao(agente, "base", base)
 
 
@@ -549,9 +653,17 @@ def lembrete_recursos(agente: str) -> str:
     # atenção: custos e descrições continuam só na ficha.
     habilidades = carregar_secao(agente, "habilidades")
     itens = carregar_secao(agente, "itens")
-    grupos = [(titulo.capitalize(), [h["nome"] for h in habilidades.get(chave, [])]) for chave, titulo in BLOCOS_HABILIDADES]
-    grupos += [("Equipados", [i["nome"] for i in itens["equipamento"]]), ("Na mochila", list(dict.fromkeys(i["nome"] for i in itens["mochila"])))]
-    return "\n".join(f"- {titulo}: {', '.join(nomes)}" for titulo, nomes in grupos if nomes)
+    grupos = [
+        (titulo.capitalize(), [h["nome"] for h in habilidades.get(chave, [])])
+        for chave, titulo in BLOCOS_HABILIDADES
+    ]
+    grupos += [
+        ("Equipados", [i["nome"] for i in itens["equipamento"]]),
+        ("Na mochila", list(dict.fromkeys(i["nome"] for i in itens["mochila"]))),
+    ]
+    return "\n".join(
+        f"- {titulo}: {', '.join(nomes)}" for titulo, nomes in grupos if nomes
+    )
 
 
 def carregar_ficha(agente: str) -> str:

@@ -11,9 +11,16 @@ from rpg.paths import RAIZ as _PASTA_RAIZ, MESAS as PASTA_MESAS
 _PASTA_STAGING = os.path.join(PASTA_MESAS, ".restore_tmp")
 
 _RAIZES = ("arquivos", "tokens")
-_CONFIG_LLM = os.path.join("arquivos", "config.json")  # contém a API Key: fora do backup
-_PRESERVAR = (_CONFIG_LLM, os.path.join("arquivos", "limites.json"))  # configuração/uso da LLM: sobrevivem a restaurar e reiniciar
-_IGNORAR_ARQUIVOS = {"fila.json"}  # a fila de requests não é restaurada: uma ação pela metade não faz sentido
+_CONFIG_LLM = os.path.join(
+    "arquivos", "config.json"
+)  # contém a API Key: fora do backup
+_PRESERVAR = (
+    _CONFIG_LLM,
+    os.path.join("arquivos", "limites.json"),
+)  # configuração/uso da LLM: sobrevivem a restaurar e reiniciar
+_IGNORAR_ARQUIVOS = {
+    "fila.json"
+}  # a fila de requests não é restaurada: uma ação pela metade não faz sentido
 _IGNORAR_PASTAS = {"__pycache__"}
 _NOME_VALIDO = re.compile(r"^[\w\- ]+$", re.UNICODE)
 _SUFIXO_AUTOSAVE = r"_autosave_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}"
@@ -32,7 +39,9 @@ def nome_valido(nome: str):
 
 
 def _caminho_nome_mesa() -> str:
-    return os.path.join(_PASTA_RAIZ, "arquivos", "mesa.json")  # entra no backup: restaurar volta para a mesa do zip
+    return os.path.join(
+        _PASTA_RAIZ, "arquivos", "mesa.json"
+    )  # entra no backup: restaurar volta para a mesa do zip
 
 
 def nome_mesa_atual() -> str:
@@ -62,7 +71,9 @@ def _caminho_mesa(nome: str) -> str:
 def listar_mesas() -> list[str]:
     os.makedirs(PASTA_MESAS, exist_ok=True)
     arquivos = [f for f in os.listdir(PASTA_MESAS) if f.lower().endswith(".zip")]
-    arquivos.sort(key=lambda f: os.path.getmtime(os.path.join(PASTA_MESAS, f)), reverse=True)
+    arquivos.sort(
+        key=lambda f: os.path.getmtime(os.path.join(PASTA_MESAS, f)), reverse=True
+    )
     return [f[:-4] for f in arquivos]
 
 
@@ -71,7 +82,10 @@ def excluir_mesa(nome: str):
     if nome not in listar_mesas():
         return False, "Backup não encontrado."
     if eh_autosave(nome):
-        return False, "O autosave não pode ser excluído: ele é substituído a cada rodada finalizada."
+        return (
+            False,
+            "O autosave não pode ser excluído: ele é substituído a cada rodada finalizada.",
+        )
     try:
         os.remove(_caminho_mesa(nome))
     except OSError as e:
@@ -139,7 +153,11 @@ def _gravar_zip(limpo: str):
                         zf.writestr(rel_pasta.replace(os.sep, "/") + "/", "")
                     for arq in arquivos:
                         rel = os.path.join(rel_pasta, arq)
-                        if rel in _PRESERVAR or arq in _IGNORAR_ARQUIVOS or arq.endswith(".tmp"):
+                        if (
+                            rel in _PRESERVAR
+                            or arq in _IGNORAR_ARQUIVOS
+                            or arq.endswith(".tmp")
+                        ):
                             continue
                         zf.write(os.path.join(pasta, arq), rel.replace(os.sep, "/"))
         os.replace(tmp, destino)
@@ -190,14 +208,19 @@ def restaurar_mesa(nome: str):
                 os.rename(atual, atual + ".old")
                 movidos.append(raiz)
         for raiz in _RAIZES:
-            os.rename(os.path.join(_PASTA_STAGING, raiz), os.path.join(_PASTA_RAIZ, raiz))
+            os.rename(
+                os.path.join(_PASTA_STAGING, raiz), os.path.join(_PASTA_RAIZ, raiz)
+            )
     except Exception as e:
         for raiz in _RAIZES:
             novo = os.path.join(_PASTA_RAIZ, raiz)
             if raiz in movidos and os.path.exists(novo):
                 shutil.rmtree(novo, ignore_errors=True)
         for raiz in movidos:
-            os.rename(os.path.join(_PASTA_RAIZ, raiz + ".old"), os.path.join(_PASTA_RAIZ, raiz))
+            os.rename(
+                os.path.join(_PASTA_RAIZ, raiz + ".old"),
+                os.path.join(_PASTA_RAIZ, raiz),
+            )
         shutil.rmtree(_PASTA_STAGING, ignore_errors=True)
         return False, f"Falha ao trocar os dados (nada foi alterado): {e}"
 
@@ -244,19 +267,27 @@ def _vivos_do_backup(zf: zipfile.ZipFile) -> list[str]:
         dados = json.loads(zf.read("arquivos/jogadores.json").decode("utf-8"))
     except (KeyError, ValueError):
         return []
-    return [j["nome"] for j in dados if isinstance(j, dict) and j.get("nome") and not j.get("morto")]
+    return [
+        j["nome"]
+        for j in dados
+        if isinstance(j, dict) and j.get("nome") and not j.get("morto")
+    ]
 
 
 def _membro_da_base(rel: str, categorias: set, vivos: list[str]) -> bool:
     for cat, alvo in CATEGORIAS_BASE.items():
-        if cat in categorias and (rel == alvo or (alvo.endswith("/") and rel.startswith(alvo))):
+        if cat in categorias and (
+            rel == alvo or (alvo.endswith("/") and rel.startswith(alvo))
+        ):
             return True
     if "personagens" not in categorias:
         return False
     if rel == "arquivos/jogadores.json":
         return True
     for nome in vivos:
-        if rel.startswith(f"arquivos/fichas/{nome.lower()}_") or re.fullmatch(rf"arquivos/memoria_{re.escape(nome)}/avatar\.[^/]+", rel):
+        if rel.startswith(f"arquivos/fichas/{nome.lower()}_") or re.fullmatch(
+            rf"arquivos/memoria_{re.escape(nome)}/avatar\.[^/]+", rel
+        ):
             return True
     return False
 
@@ -269,7 +300,10 @@ def importar_base(backup: str, categorias: list[str], nome_nova: str):
         return False, "Escolha ao menos uma parte da base para importar."
     nome = nome_valido(nome_nova)
     if not nome:
-        return False, "Nome da nova mesa inválido. Use apenas letras, números, espaço, '-' e '_'."
+        return (
+            False,
+            "Nome da nova mesa inválido. Use apenas letras, números, espaço, '-' e '_'.",
+        )
     if not backup or not mesa_existe(backup):
         return False, "Backup não encontrado."
 
@@ -286,11 +320,18 @@ def importar_base(backup: str, categorias: list[str], nome_nova: str):
         jogadores = os.path.join(_PASTA_STAGING, "arquivos", "jogadores.json")
         if "personagens" in escolhidas and os.path.isfile(jogadores):
             with open(jogadores, "r", encoding="utf-8") as f:
-                lista = [j for j in json.load(f) if isinstance(j, dict) and j.get("nome") and not j.get("morto")]
+                lista = [
+                    j
+                    for j in json.load(f)
+                    if isinstance(j, dict) and j.get("nome") and not j.get("morto")
+                ]
             with open(jogadores, "w", encoding="utf-8") as f:
                 json.dump(lista, f, ensure_ascii=False)
             for j in lista:
-                os.makedirs(os.path.join(_PASTA_STAGING, "arquivos", f"memoria_{j['nome']}"), exist_ok=True)
+                os.makedirs(
+                    os.path.join(_PASTA_STAGING, "arquivos", f"memoria_{j['nome']}"),
+                    exist_ok=True,
+                )
     except Exception as e:
         shutil.rmtree(_PASTA_STAGING, ignore_errors=True)
         return False, f"Não foi possível importar: {e}"
@@ -303,7 +344,9 @@ def importar_base(backup: str, categorias: list[str], nome_nova: str):
         for raiz in _RAIZES:
             base = os.path.join(_PASTA_STAGING, raiz)
             for pasta, _, arquivos in os.walk(base):
-                destino = os.path.join(_PASTA_RAIZ, os.path.relpath(pasta, _PASTA_STAGING))
+                destino = os.path.join(
+                    _PASTA_RAIZ, os.path.relpath(pasta, _PASTA_STAGING)
+                )
                 os.makedirs(destino, exist_ok=True)
                 for arq in arquivos:
                     shutil.copy2(os.path.join(pasta, arq), os.path.join(destino, arq))
@@ -328,4 +371,7 @@ def reiniciar_mesa():
                     os.remove(caminho)
     except Exception as e:
         return False, f"Erro ao reiniciar a mesa: {e}"
-    return True, "Mesa reiniciada: personagens, fichas, cenas e tokens mantidos; memórias apagadas."
+    return (
+        True,
+        "Mesa reiniciada: personagens, fichas, cenas e tokens mantidos; memórias apagadas.",
+    )

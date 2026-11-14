@@ -26,7 +26,11 @@ def _tokens(agente: str, chars: int) -> int:
 
 
 def prever_entrada(
-    agente: str, instrucao: str, historico: list, caminho_imagem: str | None = None, pensamentos: list | None = None,
+    agente: str,
+    instrucao: str,
+    historico: list,
+    caminho_imagem: str | None = None,
+    pensamentos: list | None = None,
 ) -> int:
     # Tokens previstos de uma resposta do jogador: prompt real (base, regras, memória, ficha, histórico,
     # instrução) + margem. Sem imagem no cálculo de caracteres: ela entra como custo fixo.
@@ -38,7 +42,10 @@ def prever_entrada(
 
 def _chars_arquivos(agente: str, prefixo: str) -> int:
     pasta = obter_pasta_agente(agente)
-    return sum(len(carregar_arquivo(os.path.join(pasta, f))) for f in _arquivos_numerados(pasta, prefixo))
+    return sum(
+        len(carregar_arquivo(os.path.join(pasta, f)))
+        for f in _arquivos_numerados(pasta, prefixo)
+    )
 
 
 def prever_etapa(agente: str, etapa: str) -> int:
@@ -51,4 +58,3 @@ def prever_etapa(agente: str, etapa: str) -> int:
     else:
         chars = CHARS_PROMPT_HISTORIADOR + _chars_arquivos(agente, "cena")
     return _tokens(agente, chars) + MARGEM_TOKENS
-

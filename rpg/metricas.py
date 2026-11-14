@@ -8,7 +8,13 @@ from rpg.fichas import salvar_json
 from rpg.paths import ARQUIVOS
 
 CHARS_POR_TOKEN_PADRAO = 3.0
-_PARTES = ("base", "regras", "memoria", "ficha", "turno")  # ordem das mensagens em montar_prompt
+_PARTES = (
+    "base",
+    "regras",
+    "memoria",
+    "ficha",
+    "turno",
+)  # ordem das mensagens em montar_prompt
 
 
 def caminho_metricas(agente: str) -> str:
@@ -32,7 +38,9 @@ def _texto_da_mensagem(msg) -> str:
     conteudo = getattr(msg, "content", msg)
     if isinstance(conteudo, str):
         return conteudo
-    if isinstance(conteudo, list):  # multimodal: só conta o texto (imagem é tratada à parte)
+    if isinstance(
+        conteudo, list
+    ):  # multimodal: só conta o texto (imagem é tratada à parte)
         return "".join(p.get("text", "") for p in conteudo if isinstance(p, dict))
     return str(conteudo)
 
@@ -46,7 +54,9 @@ def _usage(resp) -> dict:
     return uso if isinstance(uso, dict) else {}
 
 
-def registrar_chamada(agente: str, mensagens, resp, provedor: str, com_imagem: bool = False):
+def registrar_chamada(
+    agente: str, mensagens, resp, provedor: str, com_imagem: bool = False
+):
     # Nunca pode quebrar o jogo: qualquer erro de métrica é ignorado.
     try:
         antigo = carregar_metricas(agente)
@@ -101,7 +111,9 @@ def calcular_contexto(agente: str):
     pct = usado / limite * 100
     gatilho = int(cfg.get("gatilho_compressao_pct") or 85)
     razao = dados.get("chars_por_token") or CHARS_POR_TOKEN_PADRAO
-    partes_tokens = {k: round(v / razao) for k, v in (dados.get("partes") or {}).items()}
+    partes_tokens = {
+        k: round(v / razao) for k, v in (dados.get("partes") or {}).items()
+    }
 
     if pct >= gatilho:
         faixa = "vermelho"
@@ -132,9 +144,13 @@ def atualizar_apos_compressao(agente: str, chars_antes: int, chars_depois: int):
             return
         razao = dados.get("chars_por_token") or CHARS_POR_TOKEN_PADRAO
         delta = round((chars_antes - chars_depois) / razao)
-        dados["tokens_entrada_ultimo"] = max(0, int(dados["tokens_entrada_ultimo"]) - delta)
+        dados["tokens_entrada_ultimo"] = max(
+            0, int(dados["tokens_entrada_ultimo"]) - delta
+        )
         if dados.get("partes"):
-            dados["partes"]["memoria"] = max(0, dados["partes"].get("memoria", 0) - (chars_antes - chars_depois))
+            dados["partes"]["memoria"] = max(
+                0, dados["partes"].get("memoria", 0) - (chars_antes - chars_depois)
+            )
         dados["estimado"] = True
         dados["medicao_id"] = int(dados.get("medicao_id", 0)) + 1
         dados["atualizado_em"] = datetime.now().isoformat(timespec="seconds")

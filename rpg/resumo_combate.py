@@ -8,16 +8,28 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from rpg.config import obter_llm
 from rpg.limites import invocar
 from rpg.memoria import (
-    GerenciadorMemoriaRPG, _caminho_temp, _ler, limpar_tags, tags_para_texto, texto_resposta,
+    GerenciadorMemoriaRPG,
+    _caminho_temp,
+    _ler,
+    limpar_tags,
+    tags_para_texto,
+    texto_resposta,
 )
 
 MARCA_COMBATE = "[INICIO COMBATE]"
 PREFIXO_RESUMO = "Resumo do combate"
 
 # linha de pensamento solto do autor ("Fulano (pensamento): [pensamento]...[/pensamento]")
-_RE_LINHA_PENSAMENTO = re.compile(r"^\S+ \(pensamento\):[ \t]*\[pensamento\].*?\[/pensamento\][ \t]*\n?", re.DOTALL | re.MULTILINE | re.IGNORECASE)
-_RE_TAG_PENSAMENTO = re.compile(r"\[pensamento\].*?\[/pensamento\][ \t]*", re.DOTALL | re.IGNORECASE)
-_RE_SO_NOME = re.compile(r"^\S+( \([^)]*\))?:\s*$")  # "Fulano:" ou "Mestre (para A, B):" sem conteúdo
+_RE_LINHA_PENSAMENTO = re.compile(
+    r"^\S+ \(pensamento\):[ \t]*\[pensamento\].*?\[/pensamento\][ \t]*\n?",
+    re.DOTALL | re.MULTILINE | re.IGNORECASE,
+)
+_RE_TAG_PENSAMENTO = re.compile(
+    r"\[pensamento\].*?\[/pensamento\][ \t]*", re.DOTALL | re.IGNORECASE
+)
+_RE_SO_NOME = re.compile(
+    r"^\S+( \([^)]*\))?:\s*$"
+)  # "Fulano:" ou "Mestre (para A, B):" sem conteúdo
 
 
 def marcar_inicio(agentes: List[str]):
@@ -26,7 +38,7 @@ def marcar_inicio(agentes: List[str]):
 
 def _trecho_apos_marca(texto: str) -> str | None:
     i = texto.rfind(MARCA_COMBATE)
-    return None if i < 0 else texto[i + len(MARCA_COMBATE):].lstrip("\n")
+    return None if i < 0 else texto[i + len(MARCA_COMBATE) :].lstrip("\n")
 
 
 def normalizar(trecho: str) -> str:
@@ -102,6 +114,8 @@ Muitas ações se repetem (golpes que erram, esquivas, curas pequenas) e não pr
 Prosa corrida em terceira pessoa, em até 2 parágrafos curtos. Use os nomes próprios. Não use tags, listas nem títulos. Não invente nada."""
     mensagens = [
         SystemMessage(content=prompt_base),
-        HumanMessage(content=f"## REGISTRO DO COMBATE\n{tags_para_texto(texto)}\n\nRESUMO DO COMBATE:"),
+        HumanMessage(
+            content=f"## REGISTRO DO COMBATE\n{tags_para_texto(texto)}\n\nRESUMO DO COMBATE:"
+        ),
     ]
     return limpar_tags(texto_resposta(invocar(obter_llm(temperature=0.3), mensagens)))
