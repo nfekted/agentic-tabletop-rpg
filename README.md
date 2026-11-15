@@ -13,7 +13,7 @@ uma API em Python (FastAPI), para quem não quer mexer em terminal.
 - 🔀 Escolha do modelo: Gemini, qualquer API OpenAI-compatível ou servidor local (Ollama, Omniroute...), com o modelo digitado por você
 - 🖼️ Fotos para os jogadores e envio de imagens para contextualizar os agentes
 - 💸 Prompt dividido em partes fixas e variáveis, com cache, para economizar tokens
-- ⚔️ Modo por Turnos: gestão de cenas e combate com áreas, ordem de iniciativa (arrastar e soltar) e tokens com imagem
+- ⚔️ Modo mapa: mapa em grade com áreas, obstáculos e imagem de fundo, ordem de iniciativa (arrastar e soltar) e tokens com imagem
 - 🧠 Controle de contexto: barra por personagem e compressão de memória com roleplay
 - 📋 Padrão de status e atributos: definido uma vez, vale para todos os personagens
 - 💾 Salvar / Restaurar Mesa: backup completo da campanha em um `.zip`
@@ -42,7 +42,7 @@ uma API em Python (FastAPI), para quem não quer mexer em terminal.
   - [Conjuntos de regras (arquivos/regras/)](#conjuntos-de-regras-arquivosregras)
   - [Conjuntos de cenas (arquivos/cenas/)](#conjuntos-de-cenas-arquivoscenas)
   - [Conjunto de tokens](#conjunto-de-tokens)
-  - [Modo por Turnos](#modo-por-turnos)
+  - [Modo mapa](#modo-mapa)
   - [Ações do mestre](#ações-do-mestre)
   - [Tags de resposta](#tags-de-resposta-fala-acao-duvida-chamar-e-pensamento)
   - [Fluxo de aprovação](#fluxo-de-aprovação)
@@ -462,7 +462,7 @@ Mochila: 2/5 livres
 > ficha nova a partir do modelo. Se tiver alguma antiga que valha guardar,
 > copie o conteúdo para o novo editor.
 
-- **Ajuste rápido de status**: nos cards (Mesa e Modo por Turnos), os botões
+- **Ajuste rápido de status**: nos cards (Mesa e Modo mapa), os botões
   **−** e **+** nas pontas da barra de cada status diminuem ou aumentam o valor
   atual de 1 em 1, sem abrir a ficha. O valor nunca fica abaixo de 0 nem acima
   do máximo, e é gravado direto no `.json` do personagem.
@@ -500,7 +500,7 @@ Detalhes:
   nas fichas são descartados (todos recomeçam do padrão).
 - **Inimigos e NPCs** seguem o mesmo padrão: cada token tem os **status** e
   **atributos** do padrão (valores guardados em um `.json` ao lado do `.txt`,
-  como a imagem) e, ao entrar no Modo por Turnos, a cópia já vem com esses
+  como a imagem) e, ao entrar no Modo mapa, a cópia já vem com esses
   valores. Os selos de situação também aparecem nos tokens. **Itens** ficam só
   com o texto.
 
@@ -545,39 +545,63 @@ As cenas são salvas em `arquivos/cenas/`.
 (subpastas `inimigo/`, `npc/` e `item/`), pelo ícone **💀 Inimigos, NPCs e itens**
 da barra lateral (uma aba por categoria). Cada token pode ter uma **imagem**
 opcional, guardada ao lado do `.txt` com o mesmo nome (`goblin.txt` +
-`goblin.png`) e usada no Modo por Turnos. Inimigos e NPCs também guardam
+`goblin.png`) e usada no Modo mapa. Inimigos e NPCs também guardam
 status e atributos no padrão da ficha (veja
 [Padrão de status e atributos](#padrão-de-status-e-atributos)). Ajuda a ter tudo à mão sem buscar em
 blocos de notas, e dá para deixar já em formato de prompt, para apenas
 copiar e colar na mensagem ou na ficha do personagem. Os tokens também são
-usados no [Modo por Turnos](#modo-por-turnos).
+usados no [Modo mapa](#modo-mapa).
 
-### Modo por Turnos
+### Modo mapa
 
-No ícone **⚔️ Modo por turnos** da barra lateral, clique em **Iniciar modo por
-turnos** para abrir o painel de gestão de cenas e combate. O estado fica em
+No ícone **⚔️ Modo mapa** da barra lateral, clique em **Iniciar modo mapa**
+para abrir o painel de gestão de cenas e combate. O estado fica em
 `arquivos/turno.json` (o ícone ganha um ponto enquanto o modo está ativo).
 
-- **Personagens e Tokens** começam "soltos"; tokens são adicionados de
-  `tokens/` como **cópias isoladas** para o combate (editar a ficha do token
+- **Personagens e Tokens** começam em **Fora do mapa**; tokens são adicionados
+  de `tokens/` como **cópias isoladas** para o combate (editar a ficha do token
   ali não altera o arquivo original).
-- **Áreas da Cena**: crie zonas (Entrada, Salão, ...) e **arraste** os
-  participantes para dentro delas (ou de volta para "Soltos"). Cada
-  participante aparece em formato compacto, com status, barra de contexto e
-  balão de fala. Os botões **−** e **+** nas pontas das barras de status
-  ajustam o valor atual de 1 em 1 (entre 0 e o máximo), inclusive nos tokens.
-- **Cards dos participantes**: o nome fica em uma linha própria (quebra em vez de cortar). Os personagens têm os
-  botões **Editar ficha** (✏️) e **Ver ficha** (👁️); os tokens, a ficha da cópia usada no combate e a exclusão.
+- **Mapa da cena**: um único mapa em grade, criado com o tamanho em células
+  (1 a 100 de largura e altura). Para mudar o tamanho depois, o mapa precisa
+  estar vazio (sem áreas, obstáculos ou participantes nele); **Excluir mapa**
+  apaga junto a imagem, as áreas, os obstáculos e as posições.
+- **Posições**: **arraste** cada participante para uma célula do mapa (ou de
+  volta para "Fora do mapa"). A prévia fica vermelha onde não cabe (borda do
+  mapa, outro participante ou obstáculo). Não há regras de distância: quem
+  narra proximidade e alcance é o mestre.
+- **Editar mapa**: com a ferramenta **Área**, clique e arraste na grade para
+  desenhar uma área (Entrada, Salão, ...); áreas não se sobrepõem. Com
+  **Obstáculo**, marque células bloqueadas (armário, mesa...), com nome
+  opcional; obstáculos podem ficar dentro de áreas, mas não sobre outro
+  obstáculo nem sobre participantes. A lixeira exclui cada um.
+- **Imagem de fundo** (em Editar mapa): PNG, JPG ou WebP de até 50 MB, salva em
+  `arquivos/turno_mapa.<ext>`. **Ajuste**: Esticar (padrão), Cobrir ou Conter.
+  **Grade**: 100%, Transparente ou Invisível. Com imagem, as áreas mostram só
+  a borda. A imagem some ao excluir o mapa ou encerrar o modo.
+- **Participantes grandes**: no card, **Tamanho L × A → Aplicar** faz o
+  participante ocupar um retângulo de células (ex.: um ogro 2×2). No mapa, o
+  novo tamanho precisa caber a partir da posição atual.
+- **Cards dos participantes**: clique num participante (no mapa ou fora dele)
+  para abrir ou fechar o card; vários podem ficar abertos. O card de quem está
+  na vez abre sozinho e fecha quando a vez passa (se você o abriu antes, ele
+  continua aberto). Cada card mostra status, barra de contexto e balão de
+  fala; os botões **−** e **+** nas pontas das barras de status ajustam o
+  valor atual de 1 em 1 (entre 0 e o máximo), inclusive nos tokens. O nome
+  fica em uma linha própria (quebra em vez de cortar). Os personagens têm os
+  botões **Editar ficha** (✏️) e **Ver ficha** (👁️); os tokens, a ficha da
+  cópia usada no combate e a exclusão.
 - **Ordem de iniciativa**: clique nos participantes "sem ordem" para colocá-los
   na fila e **arraste** para reordenar. O painel avisa empates e trava a
   ordem durante o combate.
-- **Iniciar combate / Próxima ação**: destaca de quem é a vez (🔥) e avança
+- **Iniciar turnos / Próximo turno**: destaca de quem é a vez (🔥) e avança
   pela fila.
 - **Situação do combate no prompt**: com o combate em andamento, cada jogador
   recebe, antes da instrução atual, um bloco `## SITUAÇÃO DO COMBATE` com quem
   está em cada área (jogadores com a situação das barras, inimigos, NPCs e
   `[Item: ...]`), recalculado a cada resposta e nunca gravado na memória.
-  Participantes na iniciativa sem área aparecem em "Sem área definida".
+  Participantes na iniciativa sem área aparecem em "Sem área definida"; quem
+  ocupa células de duas áreas aparece nas duas. Só vão os **nomes** das áreas:
+  coordenadas, tamanhos, obstáculos e a imagem do mapa nunca entram no prompt.
 - **Resumo do combate**: ao iniciar o combate com uma rodada ativa, a linha
   `[INICIO COMBATE]` é gravada na memória da rodada dos participantes da
   iniciativa e no histórico. Quando a ordem volta ao primeiro (e o combate já
@@ -755,7 +779,7 @@ quanto cada parte pesou (prompt base, regras, memória, ficha, histórico).
 Nada disso entra no prompt.
 
 **Barra 🧠 Contexto.** Aparece nos cards (completo, compacto e inline no
-Modo por Turnos): verde abaixo de 60%, âmbar até o gatilho e vermelho depois,
+Modo mapa): verde abaixo de 60%, âmbar até o gatilho e vermelho depois,
 com um traço marcando o gatilho. Passe o mouse para ver o detalhamento.
 
 **Compressão.** Ao passar do gatilho, abre um diálogo em roleplay
@@ -812,7 +836,7 @@ por vez**. A fila aparece entre os cards e a Ação do mestre, em passos:
 
 ### Balões de fala
 
-Cada card de jogador (na tela principal e no Modo por Turnos) mostra um
+Cada card de jogador (na tela principal e no Modo mapa) mostra um
 balão com a última fala dele, que só o mestre vê por inteiro:
 - **Cinza sólido** — fala registrada na história.
 - **💭 Pensamento** — quando o personagem pensa algo, o `[pensamento]` aparece
@@ -822,7 +846,7 @@ balão com a última fala dele, que só o mestre vê por inteiro:
   pública.
 
 O balão **cresce conforme o tamanho da resposta** (com rolagem para textos
-muito longos). No Modo por Turnos, cards inline mostram o balão **logo acima**
+muito longos). No Modo mapa, cards inline mostram o balão **logo acima**
 do card. O **✖** fecha o balão só visualmente — a fala continua guardada — e
 o botão **💬 Restaurar última fala** a traz de volta. Uma fala nova reabre o
 balão sozinha.
@@ -883,7 +907,7 @@ relevantes deixa o prompt menor e mais estável.
 A lista de jogadores não é fixa. Na Mesa, clique no card **Adicionar jogador**,
 digite um nome (sem espaços) e confirme — o card aparece na hora, sem reiniciar
 nada. A lixeira 🗑️ do card (só aparece com o [personagem morto](#personagem-morto)) **exclui o personagem por completo**: ficha,
-memória (rodadas, cenas e mesa), foto e presença no modo por turnos. Não dá
+memória (rodadas, cenas e mesa), foto e presença no modo mapa. Não dá
 para desfazer, então salve a mesa antes se tiver dúvida.
 
 **Pedir à IA.** No mesmo diálogo, a opção *Pedir à IA* abre um campo para você descrever o personagem
@@ -914,7 +938,7 @@ reaproveita também esse texto (o cache costuma exigir ~1.024 tokens de prefixo,
 O botão 💀 do card marca o personagem como **Morto**. O card fica esmaecido, vai para o
 **fim da lista** e o personagem sai da cena: não recebe mais as mensagens do "geral", não
 aparece como destinatário de mensagens direcionadas ou privadas (a API também recusa), não
-responde, não é perguntado sobre compressão de memória e deixa o modo por turnos. A ficha, a
+responde, não é perguntado sobre compressão de memória e deixa o modo mapa. A ficha, a
 memória e o inventário continuam acessíveis, então dá para **transferir os itens** dele para
 outros personagens (a passagem só entra na memória de quem está vivo). Pelo mesmo botão (agora
 💓) o personagem pode ser **revivido**. A lixeira 🗑️ só aparece enquanto o personagem está morto:
@@ -1036,7 +1060,7 @@ backup antes, não há como desfazer):
 │   ├── tags.py             # Extração de [fala], [acao], [duvida], [chamar], [pensamento]
 │   ├── cenas.py            # Cenas pré-cadastradas
 │   ├── tokens_manager.py   # Inimigos, NPCs e itens, com imagem (pasta tokens/)
-│   ├── turno.py            # Regras e persistência do Modo por Turnos
+│   ├── turno.py            # Regras e persistência do Modo mapa
 │   ├── historico.py        # Audiência das linhas do histórico (@[A|B]) e o que cada jogador vê
 │   ├── resumo_combate.py   # Marca [INICIO COMBATE], trechos por grupo e resumo
 │   ├── situacao.py         # Bloco SITUAÇÃO DO COMBATE do prompt
@@ -1053,7 +1077,8 @@ backup antes, não há como desfazer):
     ├── config.json             # Provedor, chave, limites de contexto
     ├── jogadores.json          # Lista centralizada de jogadores da mesa
     ├── padrao_ficha.json       # Padrão de status e atributos (nome e cor)
-    ├── turno.json              # Estado do Modo por Turnos (se ativo)
+    ├── turno.json              # Estado do Modo mapa (se ativo)
+    ├── turno_mapa.png          # Imagem de fundo do mapa (se houver; .png/.jpg/.webp)
     ├── sessao.json             # Rodada em andamento: histórico, falas, chamadas pendentes
     ├── desfazer.json           # Pontos de retorno do botão Desfazer
     ├── anotacoes_mestre.txt    # Anotações do mestre (os jogadores não veem)

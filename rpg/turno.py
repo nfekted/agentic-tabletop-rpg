@@ -2,11 +2,12 @@
 import json
 import os
 import re
+import time
 import uuid
 from collections import Counter
 
 from rpg.fichas import salvar_json
-from rpg.tokens_manager import carregar_ficha_token, carregar_token
+from rpg.tokens_manager import EXTENSOES_IMAGEM, carregar_ficha_token, carregar_token, extensao_imagem
 from rpg.paths import ARQUIVOS
 
 CAMINHO_TURNO = os.path.join(ARQUIVOS, "turno.json")
@@ -37,6 +38,9 @@ def carregar_turno() -> dict | None:
             dados.setdefault("tokens", [])
             for p in dados["personagens"] + dados["tokens"]:
                 p.setdefault("tamanho", {"largura": 1, "altura": 1})
+            if dados["mapa"]:
+                for k, v in _MAPA_PADRAO.items():
+                    dados["mapa"].setdefault(k, v)
             return dados
     except Exception:
         return None
@@ -65,6 +69,7 @@ def iniciar_turno(agentes: list[str]) -> dict:
 
 
 def encerrar_turno() -> bool:
+    _apagar_imagem_mapa()
     if turno_ativo():
         try:
             os.remove(CAMINHO_TURNO)
@@ -99,6 +104,9 @@ def sincronizar_personagens(agentes: list[str]) -> dict:
 # mas não sobrepõem outro obstáculo. Nada disso vai para o prompt além do nome da área.
 
 MAPA_MAX = 100
+AJUSTES_IMAGEM = ("esticar", "cobrir", "conter")  # como a imagem de fundo ocupa a grade
+GRADES = ("normal", "suave", "oculta")  # linhas da grade sobre a imagem
+_MAPA_PADRAO = {"imagem_v": None, "ajuste": "esticar", "grade": "normal"}
 
 
 def _participante(dados: dict, participante_id: str) -> dict | None:
@@ -155,16 +163,80 @@ def criar_mapa(largura: int, altura: int) -> bool:
         raise ValueError("Já existe um mapa. Exclua-o para criar outro.")
     if not (1 <= largura <= MAPA_MAX and 1 <= altura <= MAPA_MAX):
         raise ValueError(f"Largura e altura devem estar entre 1 e {MAPA_MAX}.")
-    dados["mapa"] = {"largura": largura, "altura": altura}
+    dados["mapa"] = {"largura": largura, "altura": altura, **_MAPA_PADRAO}
+    salvar_turno(dados)
+    return True
+
+
+def redimensionar_mapa(largura: int, altura: int) -> bool:
+    # Só com o mapa vazio: sem áreas, obstáculos nem participantes nele.
+    dados = carregar_turno()
+    if not dados or not dados["mapa"]:
+        return False
+    if dados["areas"] or dados["obstaculos"] or any(
+        p.get("pos") for p in dados["personagens"] + dados["tokens"]
+    ):
+        raise ValueError("Para mudar o tamanho, o mapa precisa estar vazio (sem áreas, obstáculos ou participantes).")
+    if not (1 <= largura <= MAPA_MAX and 1 <= altura <= MAPA_MAX):
+        raise ValueError(f"Largura e altura devem estar entre 1 e {MAPA_MAX}.")
+    dados["mapa"].update(largura=largura, altura=altura)
+    salvar_turno(dados)
+    return True
+
+
+def aparencia_mapa(ajuste: str, grade: str) -> bool:
+    dados = carregar_turno()
+    if not dados or not dados["mapa"]:
+        return False
+    if ajuste not in AJUSTES_IMAGEM or grade not in GRADES:
+        raise ValueError("Opção de aparência inválida.")
+    dados["mapa"].update(ajuste=ajuste, grade=grade)
+    salvar_turno(dados)
+    return True
+
+
+# Imagem de fundo: um único arquivo ao lado do turno.json; some junto com o mapa ou o modo.
+def caminho_imagem_mapa() -> str | None:
+    base = os.path.join(os.path.dirname(CAMINHO_TURNO), "turno_mapa")
+    return next((base + ext for ext in EXTENSOES_IMAGEM if os.path.exists(base + ext)), None)
+
+
+def _apagar_imagem_mapa() -> None:
+    while caminho := caminho_imagem_mapa():
+        os.remove(caminho)
+
+
+def salvar_imagem_mapa(nome_upload: str, conteudo: bytes) -> bool:
+    dados = carregar_turno()
+    if not dados or not dados["mapa"]:
+        return False
+    if not conteudo:
+        raise ValueError("Arquivo vazio.")
+    _apagar_imagem_mapa()
+    caminho = os.path.join(os.path.dirname(CAMINHO_TURNO), "turno_mapa" + extensao_imagem(nome_upload, ".png"))
+    with open(caminho, "wb") as f:
+        f.write(conteudo)
+    dados["mapa"]["imagem_v"] = int(time.time() * 1000)  # muda a URL para o navegador não usar a antiga
+    salvar_turno(dados)
+    return True
+
+
+def remover_imagem_mapa() -> bool:
+    dados = carregar_turno()
+    if not dados or not dados["mapa"]:
+        return False
+    _apagar_imagem_mapa()
+    dados["mapa"]["imagem_v"] = None
     salvar_turno(dados)
     return True
 
 
 def excluir_mapa() -> bool:
-    # Leva junto as áreas, os obstáculos e as posições.
+    # Leva junto a imagem, as áreas, os obstáculos e as posições.
     dados = carregar_turno()
     if not dados or not dados["mapa"]:
         return False
+    _apagar_imagem_mapa()
     dados["mapa"] = None
     dados["areas"] = []
     dados["obstaculos"] = []

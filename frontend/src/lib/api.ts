@@ -40,3 +40,5 @@ export const avatarUrl = (nome: string, v: number | null) =>
 
 export const tokenImagemUrl = (categoria: string, arquivo: string, v?: number) =>
   `/api/tokens/${categoria}/${encodeURIComponent(arquivo)}/imagem${v ? `?v=${v}` : ''}`
+
+export const imagemMapaUrl = (v: number) => `/api/turno/mapa/imagem?v=${v}`

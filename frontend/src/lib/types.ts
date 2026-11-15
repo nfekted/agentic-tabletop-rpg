@@ -154,7 +154,9 @@ export type TurnoToken = {
   situacao?: string
   ficha_dados: { conteudo: string; status: Status[]; atributos?: ParNomeValor[] }
 }
-export type TurnoMapa = { largura: number; altura: number }
+export type AjusteImagem = 'esticar' | 'cobrir' | 'conter'
+export type GradeMapa = 'normal' | 'suave' | 'oculta'
+export type TurnoMapa = { largura: number; altura: number; imagem_v: number | null; ajuste: AjusteImagem; grade: GradeMapa }
 export type TurnoArea = { id: string; nome: string; x: number; y: number; largura: number; altura: number }
 export type TurnoObstaculo = TurnoArea // mesmo formato; nome pode ser vazio
 type TurnoDados = {

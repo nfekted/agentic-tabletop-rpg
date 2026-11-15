@@ -161,6 +161,10 @@ export function TurnoView() {
           }}
           onCriarMapa={(largura, altura) => run(() => api.post('/turno/mapa', { largura, altura }))}
           onExcluirMapa={() => run(() => api.del('/turno/mapa'))}
+          onRedimensionarMapa={(tamanho) => run(() => api.put('/turno/mapa', tamanho))}
+          onAparencia={(aparencia) => run(() => api.put('/turno/mapa/aparencia', aparencia))}
+          onEnviarImagem={(f) => run(() => { const fd = new FormData(); fd.append('imagem', f); return api.post('/turno/mapa/imagem', fd) })}
+          onRemoverImagem={() => run(() => api.del('/turno/mapa/imagem'))}
           onPosicionar={(pid, pos) => run(() => pos
             ? api.put(`/turno/participantes/${pid}/posicao`, pos)
             : api.del(`/turno/participantes/${pid}/posicao`))}

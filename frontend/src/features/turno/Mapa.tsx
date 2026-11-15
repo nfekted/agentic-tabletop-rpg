@@ -3,22 +3,28 @@ import {
   DndContext, DragOverlay, PointerSensor, pointerWithin, useDraggable, useDroppable, useSensor, useSensors,
   type DragEndEvent, type DragMoveEvent, type DragStartEvent,
 } from '@dnd-kit/core'
-import { Map as MapaIcone, PencilRuler, Trash2 } from 'lucide-react'
+import { ImagePlus, Map as MapaIcone, PencilRuler, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import type { Pos, Tamanho, TurnoArea, TurnoMapa, TurnoObstaculo } from '@/lib/types'
+import { imagemMapaUrl } from '@/lib/api'
+import type { AjusteImagem, GradeMapa, Pos, Tamanho, TurnoArea, TurnoMapa, TurnoObstaculo } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { CardParticipante, Icone, type Part } from './Participante'
 
 const CELULA = 48 // px
+// [borda e texto, preenchimento] — com imagem de fundo a área fica só com a borda
 const CORES_AREA = [
-  'border-sky-400/70 bg-sky-400/10 text-sky-300',
-  'border-emerald-400/70 bg-emerald-400/10 text-emerald-300',
-  'border-amber-400/70 bg-amber-400/10 text-amber-300',
-  'border-rose-400/70 bg-rose-400/10 text-rose-300',
-  'border-violet-400/70 bg-violet-400/10 text-violet-300',
-  'border-teal-400/70 bg-teal-400/10 text-teal-300',
+  ['border-sky-400/70 text-sky-300', 'bg-sky-400/10'],
+  ['border-emerald-400/70 text-emerald-300', 'bg-emerald-400/10'],
+  ['border-amber-400/70 text-amber-300', 'bg-amber-400/10'],
+  ['border-rose-400/70 text-rose-300', 'bg-rose-400/10'],
+  ['border-violet-400/70 text-violet-300', 'bg-violet-400/10'],
+  ['border-teal-400/70 text-teal-300', 'bg-teal-400/10'],
 ]
+const AJUSTES: [AjusteImagem, string][] = [['esticar', 'Esticar'], ['cobrir', 'Cobrir'], ['conter', 'Conter']]
+const GRADES: [GradeMapa, string][] = [['normal', '100%'], ['suave', 'Transparente'], ['oculta', 'Invisível']]
+const TAMANHO_IMAGEM: Record<AjusteImagem, string> = { esticar: '100% 100%', cobrir: 'cover', conter: 'contain' }
+const COR_LINHAS: Record<GradeMapa, string> = { normal: 'text-foreground/60', suave: 'text-foreground/20', oculta: '' }
 
 type Ret = { x: number; y: number; largura: number; altura: number }
 type Ferramenta = 'area' | 'obstaculo'
@@ -49,7 +55,7 @@ function CriarMapa({ onCriar }: { onCriar: (largura: number, altura: number) => 
   return (
     <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed p-8 text-center">
       <MapaIcone className="size-8 text-muted-foreground" />
-      <p className="text-sm text-muted-foreground">Ainda não há mapa. Escolha o tamanho em células (1 a 100); para mudar depois, exclua e crie outro.</p>
+      <p className="text-sm text-muted-foreground">Ainda não há mapa. Escolha o tamanho em células (1 a 100); dá para mudar depois enquanto o mapa estiver vazio.</p>
       <div className="flex items-center gap-1.5">
         <Input type="number" min={1} max={100} value={largura} onChange={(e) => setLargura(e.target.value)} className="w-20" aria-label="Largura" />
         <span className="text-muted-foreground">×</span>
@@ -109,25 +115,36 @@ function Grade({ mapa, areas, obstaculos, grade, alvo, alvoLivre, editando, pend
   children: React.ReactNode
 }) {
   const { setNodeRef } = useDroppable({ id: 'mapa' })
+  const imagem = mapa.imagem_v ? imagemMapaUrl(mapa.imagem_v) : null
+  // Camadas do fundo: as linhas da grade (por cima) e a imagem; sem imagem, só as linhas, como sempre.
+  const linha = (dir: string) => [`linear-gradient(to ${dir}, currentColor 1px, transparent 1px)`, `${CELULA}px ${CELULA}px`, 'repeat', '0 0']
+  const camadas = [
+    ...(!imagem || mapa.grade !== 'oculta' ? [linha('right'), linha('bottom')] : []),
+    ...(imagem ? [[`url("${imagem}")`, TAMANHO_IMAGEM[mapa.ajuste], 'no-repeat', 'center']] : []),
+  ]
+  const camada = (i: number) => camadas.map((c) => c[i]).join(', ') || undefined
   return (
     <div ref={setNodeRef} className={cn('max-h-[70vh] overflow-auto rounded-2xl border bg-card/40 p-2', editando && 'border-primary')}>
       <div
         ref={grade}
-        className="relative grid overflow-hidden text-muted-foreground/15"
+        className={cn('relative grid overflow-hidden', imagem ? COR_LINHAS[mapa.grade] : 'text-muted-foreground/15')}
         style={{
           gridTemplateColumns: `repeat(${mapa.largura}, ${CELULA}px)`,
           gridTemplateRows: `repeat(${mapa.altura}, ${CELULA}px)`,
           width: mapa.largura * CELULA,
-          backgroundImage: 'linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)',
-          backgroundSize: `${CELULA}px ${CELULA}px`,
-          boxShadow: 'inset -1px -1px 0 currentColor',
+          backgroundImage: camada(0),
+          backgroundSize: camada(1),
+          backgroundRepeat: camada(2),
+          backgroundPosition: camada(3),
+          boxShadow: imagem && mapa.grade === 'oculta' ? undefined : 'inset -1px -1px 0 currentColor',
         }}
       >
         {areas.map((a, i) => (
           <div key={a.id}
-            className={cn('pointer-events-none flex items-start justify-between gap-1 rounded-lg border-2 p-1 text-[11px] font-semibold leading-none', CORES_AREA[i % CORES_AREA.length])}
+            className={cn('pointer-events-none flex items-start justify-between gap-1 rounded-lg border-2 p-1 text-[11px] font-semibold leading-none',
+              CORES_AREA[i % CORES_AREA.length][0], !imagem && CORES_AREA[i % CORES_AREA.length][1])}
             style={{ gridColumn: `${a.x + 1} / span ${a.largura}`, gridRow: `${a.y + 1} / span ${a.altura}` }}>
-            <span className="truncate">{a.nome}</span>
+            <span className={cn('truncate', imagem && 'rounded bg-card/80 px-0.5 py-px')}>{a.nome}</span>
             {editando && (
               <button onClick={() => onExcluirArea(a.id)} aria-label={`Excluir área ${a.nome}`} title={`Excluir área ${a.nome}`}
                 className="pointer-events-auto relative z-40 rounded bg-card/80 p-0.5 text-muted-foreground hover:text-destructive">
@@ -197,7 +214,7 @@ function NomearRet({ r, ferramenta, problema, onCriar, onCancelar }: {
 }
 
 // Tamanho no mapa (em células). Com o participante no mapa, o servidor recusa se não couber a partir da posição atual.
-function TamanhoControle({ tamanho, onAplicar }: { tamanho: Tamanho; onAplicar: (t: Tamanho) => void }) {
+function TamanhoControle({ tamanho, rotulo = 'Tamanho', onAplicar }: { tamanho: Tamanho; rotulo?: string; onAplicar: (t: Tamanho) => void }) {
   const [largura, setLargura] = useState(String(tamanho.largura))
   const [altura, setAltura] = useState(String(tamanho.altura))
   const l = Number(largura), a = Number(altura)
@@ -205,7 +222,7 @@ function TamanhoControle({ tamanho, onAplicar }: { tamanho: Tamanho; onAplicar: 
   const mudou = l !== tamanho.largura || a !== tamanho.altura
   return (
     <div className="flex items-center gap-1.5 px-1 text-xs text-muted-foreground">
-      <span>Tamanho</span>
+      <span>{rotulo}</span>
       <Input type="number" min={1} max={100} value={largura} onChange={(e) => setLargura(e.target.value)} className="h-7 w-14" aria-label="Largura em células" />
       <span>×</span>
       <Input type="number" min={1} max={100} value={altura} onChange={(e) => setAltura(e.target.value)} className="h-7 w-14" aria-label="Altura em células" />
@@ -214,11 +231,61 @@ function TamanhoControle({ tamanho, onAplicar }: { tamanho: Tamanho; onAplicar: 
   )
 }
 
+function Segmentado<T extends string>({ rotulo, opcoes, valor, onChange }: {
+  rotulo: string; opcoes: [T, string][]; valor: T; onChange: (v: T) => void
+}) {
+  return (
+    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <span>{rotulo}</span>
+      <div className="flex rounded-lg border p-0.5">
+        {opcoes.map(([v, nome]) => (
+          <Button key={v} size="xs" variant={valor === v ? 'secondary' : 'ghost'} onClick={() => onChange(v)}>{nome}</Button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// Edição do mapa: imagem de fundo (e como ela aparece) e tamanho da grade (só com o mapa vazio).
+function FundoControles({ mapa, vazio, onRedimensionar, onAparencia, onEnviarImagem, onRemoverImagem }: {
+  mapa: TurnoMapa; vazio: boolean
+  onRedimensionar: (t: Tamanho) => void
+  onAparencia: (a: { ajuste: AjusteImagem; grade: GradeMapa }) => void
+  onEnviarImagem: (f: File) => void
+  onRemoverImagem: () => void
+}) {
+  const arquivo = useRef<HTMLInputElement>(null)
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border bg-card/40 p-2">
+      <div className="flex items-center gap-1.5">
+        <input ref={arquivo} type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) onEnviarImagem(f); e.target.value = '' }} />
+        <Button size="sm" variant="outline" onClick={() => arquivo.current?.click()}>
+          <ImagePlus /> {mapa.imagem_v ? 'Trocar imagem' : 'Imagem de fundo'}
+        </Button>
+        {mapa.imagem_v && (
+          <Button size="sm" variant="ghost" onClick={onRemoverImagem} className="hover:text-destructive"><X /> Remover</Button>
+        )}
+      </div>
+      {mapa.imagem_v && (
+        <>
+          <Segmentado rotulo="Ajuste" opcoes={AJUSTES} valor={mapa.ajuste} onChange={(ajuste) => onAparencia({ ajuste, grade: mapa.grade })} />
+          <Segmentado rotulo="Grade" opcoes={GRADES} valor={mapa.grade} onChange={(grade) => onAparencia({ ajuste: mapa.ajuste, grade })} />
+        </>
+      )}
+      {vazio
+        ? <TamanhoControle key={`${mapa.largura}x${mapa.altura}`} rotulo="Tamanho do mapa" tamanho={mapa} onAplicar={onRedimensionar} />
+        : <p className="text-xs text-muted-foreground">Para mudar o tamanho, o mapa precisa estar vazio (sem áreas, obstáculos ou participantes).</p>}
+    </div>
+  )
+}
+
 // Mapa da cena: grade com áreas (retângulos) e participantes em células.
 // Clique num participante para abrir/fechar o card (vários ao mesmo tempo); o card de quem está na vez abre sozinho.
 // Arraste para mudar de célula ou tirá-lo do mapa. No modo "Editar mapa", desenhe áreas ou obstáculos na grade.
 export function Mapa({
-  mapa, areas, obstaculos, participantes, acoes, onCriarMapa, onExcluirMapa, onPosicionar, onRedimensionar,
+  mapa, areas, obstaculos, participantes, acoes, onCriarMapa, onExcluirMapa, onRedimensionarMapa, onAparencia,
+  onEnviarImagem, onRemoverImagem, onPosicionar, onRedimensionar,
   onCriarArea, onExcluirArea, onCriarObstaculo, onExcluirObstaculo,
 }: {
   mapa: TurnoMapa | null
@@ -228,6 +295,10 @@ export function Mapa({
   acoes: Acoes
   onCriarMapa: (largura: number, altura: number) => void
   onExcluirMapa: () => void
+  onRedimensionarMapa: (tamanho: Tamanho) => void
+  onAparencia: (aparencia: { ajuste: AjusteImagem; grade: GradeMapa }) => void
+  onEnviarImagem: (arquivo: File) => void
+  onRemoverImagem: () => void
   onPosicionar: (participanteId: string, pos: Pos | null) => void
   onRedimensionar: (participanteId: string, tamanho: Tamanho) => void
   onCriarArea: (area: Ret & { nome: string }) => void
@@ -343,7 +414,7 @@ export function Mapa({
             </Button>
             {confirmando ? (
               <>
-                <Button variant="destructive" size="sm" onClick={() => { setConfirmando(false); sairDaEdicao(); onExcluirMapa() }}>Excluir mapa, áreas e posições</Button>
+                <Button variant="destructive" size="sm" onClick={() => { setConfirmando(false); sairDaEdicao(); onExcluirMapa() }}>Excluir mapa, imagem, áreas e posições</Button>
                 <Button variant="outline" size="sm" onClick={() => setConfirmando(false)}>Cancelar</Button>
               </>
             ) : (
@@ -353,6 +424,11 @@ export function Mapa({
         )}
       </div>
 
+      {editando && mapa && (
+        <FundoControles mapa={mapa} vazio={!areas.length && !obstaculos.length && !noMapa.length}
+          onRedimensionar={onRedimensionarMapa} onAparencia={onAparencia}
+          onEnviarImagem={onEnviarImagem} onRemoverImagem={onRemoverImagem} />
+      )}
       {editando && (pendente ? (
         <NomearRet r={pendente} ferramenta={ferramenta} problema={motivo(pendente)} onCancelar={() => setPendente(null)}
           onCriar={(nome) => {

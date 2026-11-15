@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from api.deps import agente_valido, checar_limites, nome_arquivo_valido, trava_mestre, trava_turno
@@ -14,6 +15,11 @@ router = APIRouter(tags=["turno"])
 class MapaIn(BaseModel):
     largura: int
     altura: int
+
+
+class AparenciaIn(BaseModel):
+    ajuste: str
+    grade: str
 
 
 class AreaIn(BaseModel):
@@ -164,6 +170,65 @@ def excluir_mapa():
     with trava_turno():
         _exigir_ativo()
         if not t.excluir_mapa():
+            raise HTTPException(404, "Não há mapa.")
+        return _estado()
+
+
+@router.put("/turno/mapa")
+def redimensionar_mapa(body: MapaIn):
+    with trava_turno():
+        _exigir_ativo()
+        try:
+            if not t.redimensionar_mapa(body.largura, body.altura):
+                raise HTTPException(404, "Não há mapa.")
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        return _estado()
+
+
+@router.put("/turno/mapa/aparencia")
+def aparencia_mapa(body: AparenciaIn):
+    with trava_turno():
+        _exigir_ativo()
+        try:
+            if not t.aparencia_mapa(body.ajuste, body.grade):
+                raise HTTPException(404, "Não há mapa.")
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        return _estado()
+
+
+_MAX_IMAGEM_MAPA = 50 * 1024 * 1024
+
+
+@router.get("/turno/mapa/imagem")
+def imagem_mapa():
+    caminho = t.caminho_imagem_mapa()
+    if not caminho:
+        raise HTTPException(404, "Mapa sem imagem.")
+    return FileResponse(caminho)
+
+
+@router.post("/turno/mapa/imagem")
+def enviar_imagem_mapa(imagem: UploadFile = File(...)):
+    dados = imagem.file.read(_MAX_IMAGEM_MAPA + 1)
+    if len(dados) > _MAX_IMAGEM_MAPA:
+        raise HTTPException(413, "Imagem maior que 50 MB.")
+    with trava_turno():
+        _exigir_ativo()
+        try:
+            if not t.salvar_imagem_mapa(imagem.filename or "", dados):
+                raise HTTPException(404, "Não há mapa.")
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        return _estado()
+
+
+@router.delete("/turno/mapa/imagem")
+def remover_imagem_mapa():
+    with trava_turno():
+        _exigir_ativo()
+        if not t.remover_imagem_mapa():
             raise HTTPException(404, "Não há mapa.")
         return _estado()
 
