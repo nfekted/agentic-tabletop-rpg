@@ -7,14 +7,14 @@ import { StatusBars } from '@/components/StatusBars'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { tokenImagemUrl } from '@/lib/api'
-import type { Fala, Jogador, TurnoToken } from '@/lib/types'
+import type { Fala, Jogador, Pos, TurnoToken } from '@/lib/types'
 import { useUi } from '@/lib/ui-context'
 import { cn } from '@/lib/utils'
 
 // Participante do combate: personagem (jogador) ou token (cópia isolada de inimigo/NPC/item).
 export type Part =
-  | { id: string; tipo: 'personagem'; nome: string; ordem: number | null; jogador?: Jogador; fala?: Fala }
-  | { id: string; tipo: 'token'; nome: string; ordem: number | null; token: TurnoToken; imagem?: boolean }
+  | { id: string; tipo: 'personagem'; nome: string; ordem: number | null; pos: Pos | null; jogador?: Jogador; fala?: Fala }
+  | { id: string; tipo: 'token'; nome: string; ordem: number | null; pos: Pos | null; token: TurnoToken; imagem?: boolean }
 
 export function Icone({ p, className }: { p: Part; className?: string }) {
   const [erro, setErro] = useState(false)

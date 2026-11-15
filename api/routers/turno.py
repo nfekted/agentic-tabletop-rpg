@@ -11,12 +11,22 @@ from services import combate
 router = APIRouter(tags=["turno"])
 
 
-class NomeIn(BaseModel):
+class MapaIn(BaseModel):
+    largura: int
+    altura: int
+
+
+class AreaIn(BaseModel):
     nome: str
+    x: int
+    y: int
+    largura: int
+    altura: int
 
 
-class ParticipanteIn(BaseModel):
-    participante_id: str
+class PosicaoIn(BaseModel):
+    x: int
+    y: int
 
 
 class TokenIn(BaseModel):
@@ -125,12 +135,34 @@ def sugerir_resumo(body: SugerirIn):
         return {"resumo": combate.sugerir(agente)}
 
 
-@router.post("/turno/areas", status_code=201)
-def criar_area(body: NomeIn):
+@router.post("/turno/mapa", status_code=201)
+def criar_mapa(body: MapaIn):
     with trava_turno():
         _exigir_ativo()
-        if not t.adicionar_area(body.nome):
-            raise HTTPException(400, "Nome da área inválido.")
+        try:
+            t.criar_mapa(body.largura, body.altura)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        return _estado()
+
+
+@router.delete("/turno/mapa")
+def excluir_mapa():
+    with trava_turno():
+        _exigir_ativo()
+        if not t.excluir_mapa():
+            raise HTTPException(404, "Não há mapa.")
+        return _estado()
+
+
+@router.post("/turno/areas", status_code=201)
+def criar_area(body: AreaIn):
+    with trava_turno():
+        _exigir_ativo()
+        try:
+            t.adicionar_area(body.nome, body.x, body.y, body.largura, body.altura)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
         return _estado()
 
 
@@ -143,20 +175,25 @@ def remover_area(area_id: str):
         return _estado()
 
 
-@router.put("/turno/areas/{area_id}/participantes")
-def vincular(area_id: str, body: ParticipanteIn):
+@router.put("/turno/participantes/{participante_id}/posicao")
+def posicionar(participante_id: str, body: PosicaoIn):
     with trava_turno():
         _exigir_ativo()
-        if not t.vincular_participante(area_id, body.participante_id):
-            raise HTTPException(404, "Área não encontrada.")
+        try:
+            ok = t.posicionar_participante(participante_id, body.x, body.y)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        if not ok:
+            raise HTTPException(404, "Participante não encontrado.")
         return _estado()
 
 
-@router.delete("/turno/participantes/{participante_id}/area")
-def desvincular(participante_id: str):
+@router.delete("/turno/participantes/{participante_id}/posicao")
+def retirar_do_mapa(participante_id: str):
     with trava_turno():
         _exigir_ativo()
-        t.desvincular_participante(participante_id)
+        if not t.retirar_do_mapa(participante_id):
+            raise HTTPException(404, "Participante não encontrado.")
         return _estado()
 
 

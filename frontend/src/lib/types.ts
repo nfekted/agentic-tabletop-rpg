@@ -139,7 +139,8 @@ export type TokenCategoria = {
   arquivos: { arquivo: string; tem_imagem: boolean }[]
 }
 
-type TurnoPersonagem = { id: string; nome: string; ordem: number | null }
+export type Pos = { x: number; y: number }
+type TurnoPersonagem = { id: string; nome: string; ordem: number | null; pos: Pos | null }
 export type TurnoToken = {
   id: string
   nome_exibicao: string
@@ -147,13 +148,16 @@ export type TurnoToken = {
   arquivo?: string
   tipo_icone: string
   ordem: number | null
+  pos: Pos | null
   situacao?: string
   ficha_dados: { conteudo: string; status: Status[]; atributos?: ParNomeValor[] }
 }
-export type TurnoArea = { id: string; nome: string; participantes: string[] }
+export type TurnoMapa = { largura: number; altura: number }
+export type TurnoArea = { id: string; nome: string; x: number; y: number; largura: number; altura: number }
 type TurnoDados = {
   em_andamento: boolean
   ordem_atual: number | null
+  mapa: TurnoMapa | null
   areas: TurnoArea[]
   personagens: TurnoPersonagem[]
   tokens: TurnoToken[]

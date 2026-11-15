@@ -1,6 +1,6 @@
 # Bloco "Situação do combate" do prompt: onde cada participante está e em que estado (calculado na hora).
 from rpg.fichas import calcular_situacao, carregar_status_jogador
-from rpg.turno import carregar_turno
+from rpg.turno import area_na_posicao, carregar_turno
 
 
 def _rotulo(nome: str, situacao: str) -> str:
@@ -33,9 +33,16 @@ def situacao_combate() -> str:
                     calcular_situacao(k["ficha_dados"].get("status", [])),
                 )
 
+        # A área vem da posição no mapa; as coordenadas nunca entram no prompt.
+        area_de = {}
+        for p in dados["personagens"] + dados["tokens"]:
+            a = area_na_posicao(dados, p.get("pos"))
+            if a:
+                area_de[p["id"]] = a["id"]
+
         linhas, nas_areas = [], set()
         for a in dados["areas"]:
-            ids = [i for i in a["participantes"] if i in rotulos]
+            ids = [i for i in rotulos if area_de.get(i) == a["id"]]
             nas_areas.update(ids)
             if ids:
                 linhas.append(f"- {a['nome']}: " + ", ".join(rotulos[i] for i in ids))

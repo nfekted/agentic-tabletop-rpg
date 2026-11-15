@@ -30,6 +30,7 @@ def carregar_turno() -> dict | None:
             dados = json.load(f)
             dados.setdefault("em_andamento", False)
             dados.setdefault("ordem_atual", None)
+            dados.setdefault("mapa", None)
             dados.setdefault("areas", [])
             dados.setdefault("personagens", [])
             dados.setdefault("tokens", [])
@@ -43,13 +44,14 @@ def salvar_turno(dados: dict) -> None:
 
 
 def _novo_personagem(nome: str) -> dict:
-    return {"id": f"p_{nome}", "nome": nome, "ordem": None}
+    return {"id": f"p_{nome}", "nome": nome, "ordem": None, "pos": None}
 
 
 def iniciar_turno(agentes: list[str]) -> dict:
     dados = {
         "em_andamento": False,
         "ordem_atual": None,
+        "mapa": None,
         "areas": [],
         "personagens": [_novo_personagem(ag) for ag in agentes],
         "tokens": [],
@@ -85,24 +87,75 @@ def sincronizar_personagens(agentes: list[str]) -> dict:
     return dados
 
 
-# --- ÁREAS ---
+# --- MAPA E ÁREAS ---
+# Mapa em grade (x, y a partir de 0). Áreas são retângulos sem sobreposição; cada participante
+# ocupa uma célula (pos) ou fica fora do mapa (pos = None). A área de alguém é deduzida da posição.
+
+MAPA_MAX = 100
 
 
-def adicionar_area(nome: str) -> str | None:
-    nome = nome.strip()
-    if not nome:
+def _participante(dados: dict, participante_id: str) -> dict | None:
+    for p in dados["personagens"] + dados["tokens"]:
+        if p["id"] == participante_id:
+            return p
+    return None
+
+
+def _dentro(ret: dict, x: int, y: int) -> bool:
+    return ret["x"] <= x < ret["x"] + ret["largura"] and ret["y"] <= y < ret["y"] + ret["altura"]
+
+
+def area_na_posicao(dados: dict, pos: dict | None) -> dict | None:
+    if not pos:
         return None
+    return next((a for a in dados["areas"] if _dentro(a, pos["x"], pos["y"])), None)
+
+
+def criar_mapa(largura: int, altura: int) -> bool:
+    dados = carregar_turno()
+    if not dados:
+        return False
+    if dados["mapa"]:
+        raise ValueError("Já existe um mapa. Exclua-o para criar outro.")
+    if not (1 <= largura <= MAPA_MAX and 1 <= altura <= MAPA_MAX):
+        raise ValueError(f"Largura e altura devem estar entre 1 e {MAPA_MAX}.")
+    dados["mapa"] = {"largura": largura, "altura": altura}
+    salvar_turno(dados)
+    return True
+
+
+def excluir_mapa() -> bool:
+    # Leva junto as áreas e as posições.
+    dados = carregar_turno()
+    if not dados or not dados["mapa"]:
+        return False
+    dados["mapa"] = None
+    dados["areas"] = []
+    for p in dados["personagens"] + dados["tokens"]:
+        p["pos"] = None
+    salvar_turno(dados)
+    return True
+
+
+def adicionar_area(nome: str, x: int, y: int, largura: int, altura: int) -> str | None:
+    nome = nome.strip()
     dados = carregar_turno()
     if not dados:
         return None
+    mapa = dados["mapa"]
+    if not mapa:
+        raise ValueError("Crie o mapa antes das áreas.")
+    if not nome:
+        raise ValueError("Nome da área inválido.")
+    if largura < 1 or altura < 1 or x < 0 or y < 0 or x + largura > mapa["largura"] or y + altura > mapa["altura"]:
+        raise ValueError("A área precisa caber dentro do mapa.")
+    for a in dados["areas"]:
+        if x < a["x"] + a["largura"] and a["x"] < x + largura and y < a["y"] + a["altura"] and a["y"] < y + altura:
+            raise ValueError(f"A área sobrepõe \"{a['nome']}\".")
 
     area_id = f"area_{uuid.uuid4().hex[:6]}"
     dados["areas"].append(
-        {
-            "id": area_id,
-            "nome": nome,
-            "participantes": [],
-        }
+        {"id": area_id, "nome": nome, "x": x, "y": y, "largura": largura, "altura": altura}
     )
     salvar_turno(dados)
     return area_id
@@ -121,38 +174,37 @@ def remover_area(area_id: str) -> bool:
     return False
 
 
-def vincular_participante(area_id: str, participante_id: str) -> bool:
+def posicionar_participante(participante_id: str, x: int, y: int) -> bool:
     dados = carregar_turno()
     if not dados:
         return False
+    p = _participante(dados, participante_id)
+    if not p:
+        return False
+    mapa = dados["mapa"]
+    if not mapa:
+        raise ValueError("Não há mapa.")
+    if not (0 <= x < mapa["largura"] and 0 <= y < mapa["altura"]):
+        raise ValueError("Posição fora do mapa.")
+    for o in dados["personagens"] + dados["tokens"]:
+        if o is not p and o.get("pos") == {"x": x, "y": y}:
+            raise ValueError("Célula ocupada.")
+    p["pos"] = {"x": x, "y": y}
+    salvar_turno(dados)
+    return True
 
-    for a in dados["areas"]:
-        if participante_id in a["participantes"]:
-            a["participantes"].remove(participante_id)
 
-    for a in dados["areas"]:
-        if a["id"] == area_id:
-            if participante_id not in a["participantes"]:
-                a["participantes"].append(participante_id)
-            salvar_turno(dados)
-            return True
-    return False
-
-
-def desvincular_participante(participante_id: str) -> bool:
+def retirar_do_mapa(participante_id: str) -> bool:
     dados = carregar_turno()
     if not dados:
         return False
-
-    alterado = False
-    for a in dados["areas"]:
-        if participante_id in a["participantes"]:
-            a["participantes"].remove(participante_id)
-            alterado = True
-
-    if alterado:
+    p = _participante(dados, participante_id)
+    if not p:
+        return False
+    if p.get("pos"):
+        p["pos"] = None
         salvar_turno(dados)
-    return alterado
+    return True
 
 
 # --- TOKENS NO TURNO ---
@@ -210,6 +262,7 @@ def adicionar_token_ao_turno(categoria: str, nome_arquivo: str) -> dict | None:
         "arquivo": nome_arquivo,
         "tipo_icone": icone,
         "ordem": ordem_inicial,
+        "pos": None,
         "ficha_dados": {
             "conteudo": conteudo,
             **carregar_ficha_token(categoria, nome_arquivo),
@@ -225,8 +278,6 @@ def remover_token_do_turno(token_id: str) -> bool:
     if not dados:
         return False
 
-    desvincular_participante(token_id)
-    dados = carregar_turno()
     antes = len(dados["tokens"])
     dados["tokens"] = [t for t in dados["tokens"] if t["id"] != token_id]
     if len(dados["tokens"]) < antes:

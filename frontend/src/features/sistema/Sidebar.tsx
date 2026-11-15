@@ -44,7 +44,7 @@ export function Sidebar() {
     >
       <div className="hidden size-10 items-center justify-center text-primary md:mb-3 md:flex"><Dices className="size-7" /></div>
       {nav('mesa', Dices, 'Mesa')}
-      {nav('turnos', Swords, 'Modo por turnos', turno?.ativo)}
+      {nav('turnos', Swords, 'Modo mapa', turno?.ativo)}
       {nav('tokens', Skull, 'Inimigos, NPCs e itens')}
       <Item icone={NotebookPen} rotulo="Anotações do mestre" onClick={() => abrir({ tipo: 'anotacoes' })} />
       <div className="hidden flex-1 md:block" />

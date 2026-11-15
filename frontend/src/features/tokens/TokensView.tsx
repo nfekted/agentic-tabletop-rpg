@@ -121,7 +121,7 @@ export function TokensView() {
     <div className="space-y-4">
       <div>
         <h1 className="text-xl font-semibold">👾 Inimigos, NPCs e Itens</h1>
-        <p className="text-sm text-muted-foreground">Anotações e imagens reutilizáveis. No modo por turnos entram como cópias isoladas.</p>
+        <p className="text-sm text-muted-foreground">Anotações e imagens reutilizáveis. No modo mapa entram como cópias isoladas.</p>
       </div>
       <Tabs defaultValue={ids[0]}>
         <TabsList>{ids.map((id) => <TabsTrigger key={id} value={id}>{data[id].rotulo} ({data[id].arquivos.length})</TabsTrigger>)}</TabsList>

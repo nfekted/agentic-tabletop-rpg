@@ -25,7 +25,7 @@ export function AvatarDialog({ nome, onFechar }: { nome: string; onFechar: () =>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Foto de {nome}</DialogTitle>
-          <DialogDescription>Aparece no card do jogador e no modo por turnos.</DialogDescription>
+          <DialogDescription>Aparece no card do jogador e no modo mapa.</DialogDescription>
         </DialogHeader>
         <div className="flex justify-center">
           {previa

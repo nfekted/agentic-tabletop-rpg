@@ -126,7 +126,7 @@ export function ExcluirJogadorDialog({ nome, onFechar }: { nome: string; onFecha
         <DialogHeader>
           <DialogTitle>Excluir {nome}?</DialogTitle>
           <DialogDescription>
-            Remove o jogador por completo: ficha, memória (rodadas, cenas e mesa), foto e presença no modo por turnos.
+            Remove o jogador por completo: ficha, memória (rodadas, cenas e mesa), foto e presença no modo mapa.
             Não dá para desfazer — se quiser garantir, salve a mesa antes.
           </DialogDescription>
         </DialogHeader>

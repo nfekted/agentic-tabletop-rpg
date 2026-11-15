@@ -19,7 +19,7 @@ import { useJogadores, useSessao, useTokens, useTurno } from '@/hooks/queries'
 import { api } from '@/lib/api'
 import type { TurnoEstado, TurnoToken } from '@/lib/types'
 import { semTxt } from '@/lib/utils'
-import { Areas } from './Areas'
+import { Mapa } from './Mapa'
 import { ResumoCombateDialog } from './ResumoCombateDialog'
 import { FilaIniciativa } from './FilaIniciativa'
 import type { Part } from './Participante'
@@ -84,22 +84,22 @@ export function TurnoView() {
     return (
       <div className="mx-auto flex max-w-md flex-col items-center gap-3 py-16 text-center">
         <Swords className="size-12 text-primary" />
-        <h1 className="text-xl font-semibold">Modo por turnos</h1>
+        <h1 className="text-xl font-semibold">Modo mapa</h1>
         <p className="text-sm text-muted-foreground">
-          Gestão de cenas e combate: áreas, ordem de iniciativa e tokens de inimigos, NPCs e itens.
+          Mapa da cena com áreas, ordem de iniciativa e tokens de inimigos, NPCs e itens.
         </p>
-        <Button size="lg" onClick={() => run(() => api.post('/turno/iniciar'))}><Play /> Iniciar modo por turnos</Button>
+        <Button size="lg" onClick={() => run(() => api.post('/turno/iniciar'))}><Play /> Iniciar modo mapa</Button>
       </div>
     )
 
   const t = estado.turno
   const participantes: Part[] = [
     ...t.personagens.map((p): Part => ({
-      id: p.id, tipo: 'personagem', nome: p.nome, ordem: p.ordem,
+      id: p.id, tipo: 'personagem', nome: p.nome, ordem: p.ordem, pos: p.pos,
       jogador: jogadores.find((j) => j.nome === p.nome), fala: sessao?.ultima_fala[p.nome],
     })),
     ...t.tokens.map((k): Part => ({
-      id: k.id, tipo: 'token', nome: k.nome_exibicao, ordem: k.ordem, token: k,
+      id: k.id, tipo: 'token', nome: k.nome_exibicao, ordem: k.ordem, pos: k.pos, token: k,
       imagem: catalogo?.[k.categoria]?.arquivos.find((a) => a.arquivo === k.arquivo)?.tem_imagem,
     })),
   ]
@@ -109,9 +109,9 @@ export function TurnoView() {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-2">
-        <h1 className="mr-auto text-xl font-semibold">⚔️ Modo por turnos</h1>
+        <h1 className="mr-auto text-xl font-semibold">⚔️ Modo mapa</h1>
         <Button disabled={estado.empates.length > 0 || acao.isPending} onClick={() => run(() => api.post('/turno/proxima'))}>
-          {t.em_andamento ? <StepForward /> : <Play />} {t.em_andamento ? 'Próxima ação' : 'Iniciar combate'}
+          {t.em_andamento ? <StepForward /> : <Play />} {t.em_andamento ? 'Próximo turno' : 'Iniciar turnos'}
         </Button>
         {t.em_andamento && <Button variant="outline" onClick={() => setResumo('ciclo')}><FileText /> Resumir combate</Button>}
         <Button variant="outline" onClick={() => (t.em_andamento ? setResumo('encerrar') : run(() => api.del('/turno')))}><Square /> Encerrar modo</Button>
@@ -150,7 +150,8 @@ export function TurnoView() {
           </section>
         </div>
 
-        <Areas
+        <Mapa
+          mapa={t.mapa}
           areas={t.areas}
           participantes={participantes}
           acoes={{
@@ -158,12 +159,13 @@ export function TurnoView() {
             onFicha: (p) => setFichaToken(p.id),
             onRemoverToken: (p) => run(() => api.del(`/turno/tokens/${p.id}`)),
           }}
-          onCriar={(nome) => run(() => api.post('/turno/areas', { nome }))}
-          onExcluir={(id) => run(() => api.del(`/turno/areas/${id}`))}
-          onMover={(pid, areaId) =>
-            run(() => areaId
-              ? api.put(`/turno/areas/${areaId}/participantes`, { participante_id: pid })
-              : api.del(`/turno/participantes/${pid}/area`))}
+          onCriarMapa={(largura, altura) => run(() => api.post('/turno/mapa', { largura, altura }))}
+          onExcluirMapa={() => run(() => api.del('/turno/mapa'))}
+          onPosicionar={(pid, pos) => run(() => pos
+            ? api.put(`/turno/participantes/${pid}/posicao`, pos)
+            : api.del(`/turno/participantes/${pid}/posicao`))}
+          onCriarArea={(area) => run(() => api.post('/turno/areas', area))}
+          onExcluirArea={(id) => run(() => api.del(`/turno/areas/${id}`))}
         />
       </div>
 

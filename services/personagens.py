@@ -17,8 +17,6 @@ def _tirar_da_cena(nome: str):
         if turno:
             pid = f"p_{nome}"
             turno["personagens"] = [p for p in turno["personagens"] if p["id"] != pid]
-            for a in turno["areas"]:
-                a["participantes"] = [x for x in a["participantes"] if x != pid]
             salvar_turno(turno)
 
     s = sessao.obter()

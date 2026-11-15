@@ -103,7 +103,7 @@ export function ResumoCombateDialog({ encerrar, onFechar, onConcluir }: {
           </DialogDescription>
         </DialogHeader>
         {!data || (encerrar && vazio) ? <Carregando /> : data.grupos.length === 0 ? (
-          <p className="text-sm text-muted-foreground">O combate ainda não foi marcado (inicie o combate com uma rodada ativa).</p>
+          <p className="text-sm text-muted-foreground">O combate ainda não foi marcado (clique em "Iniciar turnos").</p>
         ) : (
           <Tabs defaultValue={chave(data.grupos[0])}>
             {data.grupos.length > 1 && (
