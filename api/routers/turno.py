@@ -32,6 +32,11 @@ class ObstaculoIn(BaseModel):
     altura: int
 
 
+class TamanhoIn(BaseModel):
+    largura: int
+    altura: int
+
+
 class PosicaoIn(BaseModel):
     x: int
     y: int
@@ -209,6 +214,19 @@ def posicionar(participante_id: str, body: PosicaoIn):
         _exigir_ativo()
         try:
             ok = t.posicionar_participante(participante_id, body.x, body.y)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        if not ok:
+            raise HTTPException(404, "Participante não encontrado.")
+        return _estado()
+
+
+@router.put("/turno/participantes/{participante_id}/tamanho")
+def redimensionar(participante_id: str, body: TamanhoIn):
+    with trava_turno():
+        _exigir_ativo()
+        try:
+            ok = t.redimensionar_participante(participante_id, body.largura, body.altura)
         except ValueError as e:
             raise HTTPException(400, str(e))
         if not ok:

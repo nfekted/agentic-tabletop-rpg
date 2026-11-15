@@ -95,11 +95,11 @@ export function TurnoView() {
   const t = estado.turno
   const participantes: Part[] = [
     ...t.personagens.map((p): Part => ({
-      id: p.id, tipo: 'personagem', nome: p.nome, ordem: p.ordem, pos: p.pos,
+      id: p.id, tipo: 'personagem', nome: p.nome, ordem: p.ordem, pos: p.pos, tamanho: p.tamanho,
       jogador: jogadores.find((j) => j.nome === p.nome), fala: sessao?.ultima_fala[p.nome],
     })),
     ...t.tokens.map((k): Part => ({
-      id: k.id, tipo: 'token', nome: k.nome_exibicao, ordem: k.ordem, pos: k.pos, token: k,
+      id: k.id, tipo: 'token', nome: k.nome_exibicao, ordem: k.ordem, pos: k.pos, tamanho: k.tamanho, token: k,
       imagem: catalogo?.[k.categoria]?.arquivos.find((a) => a.arquivo === k.arquivo)?.tem_imagem,
     })),
   ]
@@ -164,6 +164,7 @@ export function TurnoView() {
           onPosicionar={(pid, pos) => run(() => pos
             ? api.put(`/turno/participantes/${pid}/posicao`, pos)
             : api.del(`/turno/participantes/${pid}/posicao`))}
+          onRedimensionar={(pid, tamanho) => run(() => api.put(`/turno/participantes/${pid}/tamanho`, tamanho))}
           onCriarArea={(area) => run(() => api.post('/turno/areas', area))}
           onExcluirArea={(id) => run(() => api.del(`/turno/areas/${id}`))}
           obstaculos={t.obstaculos}

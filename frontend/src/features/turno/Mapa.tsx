@@ -1,12 +1,12 @@
 import { useRef, useState } from 'react'
 import {
   DndContext, DragOverlay, PointerSensor, pointerWithin, useDraggable, useDroppable, useSensor, useSensors,
-  type DragEndEvent, type DragMoveEvent,
+  type DragEndEvent, type DragMoveEvent, type DragStartEvent,
 } from '@dnd-kit/core'
 import { Map as MapaIcone, PencilRuler, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import type { Pos, TurnoArea, TurnoMapa, TurnoObstaculo } from '@/lib/types'
+import type { Pos, Tamanho, TurnoArea, TurnoMapa, TurnoObstaculo } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { CardParticipante, Icone, type Part } from './Participante'
 
@@ -36,7 +36,8 @@ const retangulo = (a: Pos, b: Pos): Ret => ({
 })
 const sobrepoe = <T extends Ret>(r: Ret, lista: T[]) =>
   lista.find((a) => r.x < a.x + a.largura && a.x < r.x + r.largura && r.y < a.y + a.altura && a.y < r.y + r.altura)
-const dentro = (r: Ret, c: Pos) => r.x <= c.x && c.x < r.x + r.largura && r.y <= c.y && c.y < r.y + r.altura
+const retDe = (p: Part): Ret | null => (p.pos ? { ...p.pos, ...p.tamanho } : null)
+const grande = (p: Part) => p.tamanho.largura > 1 || p.tamanho.altura > 1
 const pxRet = (r: Ret): React.CSSProperties =>
   ({ left: r.x * CELULA, top: r.y * CELULA, width: r.largura * CELULA, height: r.altura * CELULA })
 
@@ -102,7 +103,7 @@ function RetPrevia({ r, invalido }: { r: Ret; invalido: boolean }) {
 
 function Grade({ mapa, areas, obstaculos, grade, alvo, alvoLivre, editando, pendente, motivo, onDesenhar, onExcluirArea, onExcluirObstaculo, children }: {
   mapa: TurnoMapa; areas: TurnoArea[]; obstaculos: TurnoObstaculo[]; grade: React.RefObject<HTMLDivElement | null>
-  alvo: Pos | null; alvoLivre: boolean
+  alvo: Ret | null; alvoLivre: boolean
   editando: boolean; pendente: Ret | null; motivo: (r: Ret) => string | null; onDesenhar: (r: Ret) => void
   onExcluirArea: (id: string) => void; onExcluirObstaculo: (id: string) => void
   children: React.ReactNode
@@ -112,7 +113,7 @@ function Grade({ mapa, areas, obstaculos, grade, alvo, alvoLivre, editando, pend
     <div ref={setNodeRef} className={cn('max-h-[70vh] overflow-auto rounded-2xl border bg-card/40 p-2', editando && 'border-primary')}>
       <div
         ref={grade}
-        className="relative grid text-muted-foreground/15"
+        className="relative grid overflow-hidden text-muted-foreground/15"
         style={{
           gridTemplateColumns: `repeat(${mapa.largura}, ${CELULA}px)`,
           gridTemplateRows: `repeat(${mapa.altura}, ${CELULA}px)`,
@@ -152,9 +153,9 @@ function Grade({ mapa, areas, obstaculos, grade, alvo, alvoLivre, editando, pend
           </div>
         ))}
         {alvo && (
-          <div className={cn('pointer-events-none z-20 rounded-md border-2 border-dashed',
+          <div className={cn('pointer-events-none absolute z-20 rounded-md border-2 border-dashed',
             alvoLivre ? 'border-primary bg-primary/20' : 'border-destructive bg-destructive/20')}
-            style={{ gridColumn: alvo.x + 1, gridRow: alvo.y + 1 }} />
+            style={pxRet(alvo)} />
         )}
         {children}
         {pendente && <RetPrevia r={pendente} invalido={!!motivo(pendente)} />}
@@ -195,11 +196,29 @@ function NomearRet({ r, ferramenta, problema, onCriar, onCancelar }: {
   )
 }
 
+// Tamanho no mapa (em células). Com o participante no mapa, o servidor recusa se não couber a partir da posição atual.
+function TamanhoControle({ tamanho, onAplicar }: { tamanho: Tamanho; onAplicar: (t: Tamanho) => void }) {
+  const [largura, setLargura] = useState(String(tamanho.largura))
+  const [altura, setAltura] = useState(String(tamanho.altura))
+  const l = Number(largura), a = Number(altura)
+  const valido = Number.isInteger(l) && Number.isInteger(a) && l >= 1 && l <= 100 && a >= 1 && a <= 100
+  const mudou = l !== tamanho.largura || a !== tamanho.altura
+  return (
+    <div className="flex items-center gap-1.5 px-1 text-xs text-muted-foreground">
+      <span>Tamanho</span>
+      <Input type="number" min={1} max={100} value={largura} onChange={(e) => setLargura(e.target.value)} className="h-7 w-14" aria-label="Largura em células" />
+      <span>×</span>
+      <Input type="number" min={1} max={100} value={altura} onChange={(e) => setAltura(e.target.value)} className="h-7 w-14" aria-label="Altura em células" />
+      <Button size="sm" variant="secondary" disabled={!valido || !mudou} onClick={() => onAplicar({ largura: l, altura: a })}>Aplicar</Button>
+    </div>
+  )
+}
+
 // Mapa da cena: grade com áreas (retângulos) e participantes em células.
 // Clique num participante para abrir/fechar o card (vários ao mesmo tempo); o card de quem está na vez abre sozinho.
 // Arraste para mudar de célula ou tirá-lo do mapa. No modo "Editar mapa", desenhe áreas ou obstáculos na grade.
 export function Mapa({
-  mapa, areas, obstaculos, participantes, acoes, onCriarMapa, onExcluirMapa, onPosicionar,
+  mapa, areas, obstaculos, participantes, acoes, onCriarMapa, onExcluirMapa, onPosicionar, onRedimensionar,
   onCriarArea, onExcluirArea, onCriarObstaculo, onExcluirObstaculo,
 }: {
   mapa: TurnoMapa | null
@@ -210,6 +229,7 @@ export function Mapa({
   onCriarMapa: (largura: number, altura: number) => void
   onExcluirMapa: () => void
   onPosicionar: (participanteId: string, pos: Pos | null) => void
+  onRedimensionar: (participanteId: string, tamanho: Tamanho) => void
   onCriarArea: (area: Ret & { nome: string }) => void
   onExcluirArea: (id: string) => void
   onCriarObstaculo: (obstaculo: Ret & { nome: string }) => void
@@ -220,7 +240,8 @@ export function Mapa({
   const [abertos, setAbertos] = useState<Set<string>>(new Set())
   const [confirmando, setConfirmando] = useState(false)
   const [arrastando, setArrastando] = useState<Part | null>(null)
-  const [alvo, setAlvo] = useState<Pos | null>(null)
+  const [alvo, setAlvo] = useState<Ret | null>(null)
+  const pega = useRef<Pos>({ x: 0, y: 0 }) // célula do token em que o ponteiro pegou
   const [editando, setEditando] = useState(false)
   const [pendente, setPendente] = useState<Ret | null>(null)
   const [ferramenta, setFerramenta] = useState<Ferramenta>('area')
@@ -249,11 +270,10 @@ export function Mapa({
   const noMapa = mapa ? participantes.filter((p) => p.pos) : []
   const fora = participantes.filter((p) => !mapa || !p.pos)
   const cards = participantes.filter(aberto)
-  const ocupante = (c: Pos) => noMapa.find((p) => p.pos!.x === c.x && p.pos!.y === c.y)
-  const livre = (c: Pos, id: string) => {
-    const o = ocupante(c)
-    return (!o || o.id === id) && !obstaculos.some((b) => dentro(b, c))
-  }
+  const livre = (r: Ret, id: string) =>
+    !!mapa && r.x >= 0 && r.y >= 0 && r.x + r.largura <= mapa.largura && r.y + r.altura <= mapa.altura
+    && !sobrepoe(r, noMapa.filter((p) => p.id !== id).map((p) => retDe(p)!))
+    && !sobrepoe(r, obstaculos)
   // Por que o retângulo desenhado não pode ser criado (null = pode).
   const motivo = (r: Ret): string | null => {
     if (ferramenta === 'area') {
@@ -261,36 +281,52 @@ export function Mapa({
       return a ? `Sobrepõe "${a.nome}".` : null
     }
     if (sobrepoe(r, obstaculos)) return 'Sobrepõe outro obstáculo.'
-    if (noMapa.some((p) => dentro(r, p.pos!))) return 'Há participantes nessas células.'
+    if (sobrepoe(r, noMapa.map((p) => retDe(p)!))) return 'Há participantes nessas células.'
     return null
   }
 
-  // Célula sob o ponteiro (só quando ele está sobre a parte visível do mapa).
-  const celula = (e: DragMoveEvent | DragEndEvent): Pos | null => {
+  const aoIniciar = (e: DragStartEvent) => {
+    const p = participantes.find((q) => q.id === e.active.id) ?? null
+    setArrastando(p)
+    // Token grande: mantém sob o ponteiro a célula em que ele foi pego (ex.: o canto de baixo).
+    const r = e.active.rect.current.initial
+    const ini = e.activatorEvent as PointerEvent
+    pega.current = p?.pos && r
+      ? {
+        x: Math.max(0, Math.min(p.tamanho.largura - 1, Math.floor((ini.clientX - r.left) / CELULA))),
+        y: Math.max(0, Math.min(p.tamanho.altura - 1, Math.floor((ini.clientY - r.top) / CELULA))),
+      }
+      : { x: 0, y: 0 }
+  }
+
+  // Retângulo que o participante ocuparia (só com o ponteiro sobre a parte visível do mapa).
+  const destino = (e: DragMoveEvent | DragEndEvent): Ret | null => {
     const el = grade.current
-    if (!mapa || !el || e.over?.id !== 'mapa') return null
+    const p = participantes.find((q) => q.id === e.active.id)
+    if (!mapa || !el || !p || e.over?.id !== 'mapa') return null
     const ini = e.activatorEvent as PointerEvent
     const r = el.getBoundingClientRect()
     const x = Math.floor((ini.clientX + e.delta.x - r.left) / CELULA)
     const y = Math.floor((ini.clientY + e.delta.y - r.top) / CELULA)
-    return x >= 0 && y >= 0 && x < mapa.largura && y < mapa.altura ? { x, y } : null
+    if (x < 0 || y < 0 || x >= mapa.largura || y >= mapa.altura) return null
+    return { x: x - pega.current.x, y: y - pega.current.y, ...p.tamanho }
   }
 
   const aoMover = (e: DragMoveEvent) => {
-    const c = celula(e)
-    setAlvo((a) => (a?.x === c?.x && a?.y === c?.y ? a : c))
+    const d = destino(e)
+    setAlvo((a) => (a?.x === d?.x && a?.y === d?.y ? a : d))
   }
 
   const aoSoltar = (e: DragEndEvent) => {
     const id = String(e.active.id)
     const atual = participantes.find((p) => p.id === id)?.pos ?? null
-    const c = celula(e)
+    const d = destino(e)
     setArrastando(null)
     setAlvo(null)
     if (e.over?.id === 'fora') {
       if (atual) onPosicionar(id, null)
-    } else if (c && livre(c, id) && (atual?.x !== c.x || atual?.y !== c.y)) {
-      onPosicionar(id, c)
+    } else if (d && livre(d, id) && (atual?.x !== d.x || atual?.y !== d.y)) {
+      onPosicionar(id, { x: d.x, y: d.y })
     }
   }
 
@@ -342,7 +378,7 @@ export function Mapa({
       ))}
 
       <DndContext sensors={sensors} collisionDetection={pointerWithin}
-        onDragStart={(e) => setArrastando(participantes.find((p) => p.id === e.active.id) ?? null)}
+        onDragStart={aoIniciar}
         onDragMove={aoMover} onDragEnd={aoSoltar}
         onDragCancel={() => { setArrastando(null); setAlvo(null) }}>
         {mapa ? (
@@ -352,10 +388,11 @@ export function Mapa({
             onExcluirArea={onExcluirArea} onExcluirObstaculo={onExcluirObstaculo}>
             {noMapa.map((p) => (
               <Arrastavel key={p.id} p={p} desativado={editando} onClick={() => alternar(p)}
-                className="z-10 flex items-center justify-center"
-                style={{ gridColumn: p.pos!.x + 1, gridRow: p.pos!.y + 1 }}>
+                className={cn('z-10 flex items-center justify-center', grande(p) && 'p-1')}
+                style={{ gridColumn: `${p.pos!.x + 1} / span ${p.tamanho.largura}`, gridRow: `${p.pos!.y + 1} / span ${p.tamanho.altura}` }}>
                 <Icone p={p} className={cn(
-                  'size-10 rounded-full transition-shadow',
+                  grande(p) ? 'size-full rounded-2xl text-3xl' : 'size-10 rounded-full',
+                  'transition-shadow',
                   suaVez(p) && 'ring-2 ring-primary',
                   aberto(p) && 'ring-2 ring-foreground',
                 )} />
@@ -377,19 +414,29 @@ export function Mapa({
         </ForaDoMapa>
 
         <DragOverlay>
-          {arrastando && <Icone p={arrastando} className="size-10 rounded-full shadow-xl ring-2 ring-primary" />}
+          {arrastando && (grande(arrastando) ? (
+            <div className="p-1" style={{ width: arrastando.tamanho.largura * CELULA, height: arrastando.tamanho.altura * CELULA }}>
+              <Icone p={arrastando} className="size-full rounded-2xl text-3xl shadow-xl ring-2 ring-primary" />
+            </div>
+          ) : (
+            <Icone p={arrastando} className="size-10 rounded-full shadow-xl ring-2 ring-primary" />
+          ))}
         </DragOverlay>
       </DndContext>
 
       {cards.length > 0 && (
         <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
           {cards.map((p) => (
-            <CardParticipante key={p.id}
-              p={p}
-              suaVez={suaVez(p)}
-              onFicha={p.tipo === 'token' ? () => acoes.onFicha(p) : undefined}
-              onRemover={p.tipo === 'token' ? () => acoes.onRemoverToken(p) : undefined}
-            />
+            <div key={p.id} className="space-y-1.5">
+              <CardParticipante
+                p={p}
+                suaVez={suaVez(p)}
+                onFicha={p.tipo === 'token' ? () => acoes.onFicha(p) : undefined}
+                onRemover={p.tipo === 'token' ? () => acoes.onRemoverToken(p) : undefined}
+              />
+              <TamanhoControle key={`${p.tamanho.largura}x${p.tamanho.altura}`} tamanho={p.tamanho}
+                onAplicar={(t) => onRedimensionar(p.id, t)} />
+            </div>
           ))}
         </div>
       )}

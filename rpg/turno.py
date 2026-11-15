@@ -35,6 +35,8 @@ def carregar_turno() -> dict | None:
             dados.setdefault("obstaculos", [])
             dados.setdefault("personagens", [])
             dados.setdefault("tokens", [])
+            for p in dados["personagens"] + dados["tokens"]:
+                p.setdefault("tamanho", {"largura": 1, "altura": 1})
             return dados
     except Exception:
         return None
@@ -45,7 +47,7 @@ def salvar_turno(dados: dict) -> None:
 
 
 def _novo_personagem(nome: str) -> dict:
-    return {"id": f"p_{nome}", "nome": nome, "ordem": None, "pos": None}
+    return {"id": f"p_{nome}", "nome": nome, "ordem": None, "pos": None, "tamanho": {"largura": 1, "altura": 1}}
 
 
 def iniciar_turno(agentes: list[str]) -> dict:
@@ -91,7 +93,8 @@ def sincronizar_personagens(agentes: list[str]) -> dict:
 
 # --- MAPA E ÁREAS ---
 # Mapa em grade (x, y a partir de 0). Áreas são retângulos sem sobreposição; cada participante
-# ocupa uma célula (pos) ou fica fora do mapa (pos = None). A área de alguém é deduzida da posição.
+# ocupa um retângulo (pos = canto superior esquerdo + tamanho) ou fica fora do mapa (pos = None).
+# As áreas de alguém são deduzidas desse retângulo (pode estar em mais de uma).
 # Obstáculos (armário, mesa...) são retângulos que bloqueiam células; podem ficar dentro de áreas,
 # mas não sobrepõem outro obstáculo. Nada disso vai para o prompt além do nome da área.
 
@@ -105,8 +108,12 @@ def _participante(dados: dict, participante_id: str) -> dict | None:
     return None
 
 
-def _dentro(ret: dict, x: int, y: int) -> bool:
-    return ret["x"] <= x < ret["x"] + ret["largura"] and ret["y"] <= y < ret["y"] + ret["altura"]
+def _ret(p: dict, pos: dict | None = None, tamanho: dict | None = None) -> dict | None:
+    # Retângulo que o participante ocupa (ou ocuparia com outra posição/tamanho); None fora do mapa.
+    pos = pos or p.get("pos")
+    if not pos:
+        return None
+    return {"x": pos["x"], "y": pos["y"], **(tamanho or p["tamanho"])}
 
 
 def _sobreposto(ret: dict, outros: list[dict]) -> dict | None:
@@ -123,10 +130,21 @@ def _cabe(mapa: dict, ret: dict) -> bool:
             and ret["x"] + ret["largura"] <= mapa["largura"] and ret["y"] + ret["altura"] <= mapa["altura"])
 
 
-def area_na_posicao(dados: dict, pos: dict | None) -> dict | None:
-    if not pos:
-        return None
-    return next((a for a in dados["areas"] if _dentro(a, pos["x"], pos["y"])), None)
+def areas_do_participante(dados: dict, p: dict) -> list[dict]:
+    ret = _ret(p)
+    if not ret:
+        return []
+    return [a for a in dados["areas"] if _sobreposto(ret, [a])]
+
+
+def _validar_lugar(dados: dict, p: dict, ret: dict) -> None:
+    if not _cabe(dados["mapa"], ret):
+        raise ValueError("Não cabe no mapa nessa posição.")
+    outros = [r for o in dados["personagens"] + dados["tokens"] if o is not p and (r := _ret(o))]
+    if _sobreposto(ret, outros):
+        raise ValueError("Célula ocupada.")
+    if _sobreposto(ret, dados["obstaculos"]):
+        raise ValueError("Célula bloqueada por um obstáculo.")
 
 
 def criar_mapa(largura: int, altura: int) -> bool:
@@ -202,14 +220,27 @@ def posicionar_participante(participante_id: str, x: int, y: int) -> bool:
     mapa = dados["mapa"]
     if not mapa:
         raise ValueError("Não há mapa.")
-    if not (0 <= x < mapa["largura"] and 0 <= y < mapa["altura"]):
-        raise ValueError("Posição fora do mapa.")
-    for o in dados["personagens"] + dados["tokens"]:
-        if o is not p and o.get("pos") == {"x": x, "y": y}:
-            raise ValueError("Célula ocupada.")
-    if any(_dentro(o, x, y) for o in dados["obstaculos"]):
-        raise ValueError("Célula bloqueada por um obstáculo.")
-    p["pos"] = {"x": x, "y": y}
+    pos = {"x": x, "y": y}
+    _validar_lugar(dados, p, _ret(p, pos=pos))
+    p["pos"] = pos
+    salvar_turno(dados)
+    return True
+
+
+def redimensionar_participante(participante_id: str, largura: int, altura: int) -> bool:
+    # No mapa, o novo tamanho precisa caber a partir da posição atual.
+    dados = carregar_turno()
+    if not dados:
+        return False
+    p = _participante(dados, participante_id)
+    if not p:
+        return False
+    if not (1 <= largura <= MAPA_MAX and 1 <= altura <= MAPA_MAX):
+        raise ValueError(f"Largura e altura devem estar entre 1 e {MAPA_MAX}.")
+    tamanho = {"largura": largura, "altura": altura}
+    if p.get("pos"):
+        _validar_lugar(dados, p, _ret(p, tamanho=tamanho))
+    p["tamanho"] = tamanho
     salvar_turno(dados)
     return True
 
@@ -240,7 +271,7 @@ def adicionar_obstaculo(nome: str, x: int, y: int, largura: int, altura: int) ->
     if _sobreposto(ret, dados["obstaculos"]):
         raise ValueError("O obstáculo sobrepõe outro obstáculo.")
     for p in dados["personagens"] + dados["tokens"]:
-        if p.get("pos") and _dentro(ret, p["pos"]["x"], p["pos"]["y"]):
+        if _sobreposto(ret, [r for r in [_ret(p)] if r]):
             raise ValueError("Há participantes nessas células. Mova-os antes de criar o obstáculo.")
 
     obstaculo_id = f"obs_{uuid.uuid4().hex[:6]}"
@@ -318,6 +349,7 @@ def adicionar_token_ao_turno(categoria: str, nome_arquivo: str) -> dict | None:
         "tipo_icone": icone,
         "ordem": ordem_inicial,
         "pos": None,
+        "tamanho": {"largura": 1, "altura": 1},
         "ficha_dados": {
             "conteudo": conteudo,
             **carregar_ficha_token(categoria, nome_arquivo),

@@ -140,7 +140,8 @@ export type TokenCategoria = {
 }
 
 export type Pos = { x: number; y: number }
-type TurnoPersonagem = { id: string; nome: string; ordem: number | null; pos: Pos | null }
+export type Tamanho = { largura: number; altura: number }
+type TurnoPersonagem = { id: string; nome: string; ordem: number | null; pos: Pos | null; tamanho: Tamanho }
 export type TurnoToken = {
   id: string
   nome_exibicao: string
@@ -149,6 +150,7 @@ export type TurnoToken = {
   tipo_icone: string
   ordem: number | null
   pos: Pos | null
+  tamanho: Tamanho
   situacao?: string
   ficha_dados: { conteudo: string; status: Status[]; atributos?: ParNomeValor[] }
 }
