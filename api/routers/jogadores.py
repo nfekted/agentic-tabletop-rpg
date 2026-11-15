@@ -4,7 +4,8 @@ from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from api.deps import agente_valido, trava_mestre
+from api.deps import agente_valido, checar_limites, trava_mestre
+from api.routers.fichas import FichaIn
 from rpg.config import (
     adicionar_agente,
     carregar_todos_agentes,
@@ -12,7 +13,8 @@ from rpg.config import (
     obter_modificadores_jogador,
     salvar_modificadores_jogador,
 )
-from rpg.fichas import calcular_situacao, carregar_secao, carregar_status_jogador
+from rpg.criacao import gerar_ficha
+from rpg.fichas import calcular_situacao, carregar_secao, carregar_status_jogador, salvar_subarquivos_ficha
 from rpg.imagens import caminho_avatar, remover_avatar_jogador, salvar_avatar_jogador
 from rpg.memoria import tamanho_rodada_atual
 from rpg.metricas import calcular_contexto
@@ -25,6 +27,11 @@ _MAX_AVATAR = 8 * 1024 * 1024
 
 class NovoJogador(BaseModel):
     nome: str
+    ficha: FichaIn | None = None  # ficha revisada (ex.: gerada pela IA); sem ela, nasce a ficha modelo
+
+
+class DescricaoIn(BaseModel):
+    descricao: str
 
 
 class Modificadores(BaseModel):
@@ -60,7 +67,22 @@ def listar():
 def criar(body: NovoJogador):
     if not adicionar_agente(body.nome):
         raise HTTPException(400, "Nome inválido (use letras/números/_, sem espaços) ou já existente.")
-    return _card(body.nome.strip())
+    nome = body.nome.strip()
+    if body.ficha:
+        salvar_subarquivos_ficha(nome, body.ficha.model_dump(exclude={"modificadores"}))
+        salvar_modificadores_jogador(nome, body.ficha.modificadores)
+    return _card(nome)
+
+
+@router.post("/jogadores/gerar")
+def gerar(body: DescricaoIn):
+    # A IA monta a ficha a partir da descrição; nada é gravado (o mestre revisa e cria com POST /jogadores).
+    with trava_mestre():
+        checar_limites(1)
+        try:
+            return gerar_ficha(body.descricao)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
 
 
 @router.delete("/jogadores/{nome}")

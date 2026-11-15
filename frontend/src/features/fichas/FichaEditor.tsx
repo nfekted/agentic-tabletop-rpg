@@ -30,7 +30,12 @@ const CAMPOS_PERSONALIDADE: Campo[] = [
   { chave: 'segredos_pessoais', rotulo: 'Segredos pessoais', dica: 'Informações confidenciais de background' },
 ]
 
-function Form({ inicial, nome, aba, onFechar }: { inicial: Ficha; nome: string; aba?: string; onFechar: () => void }) {
+// rascunho: ficha ainda não gravada (ex.: gerada pela IA); o rodapé vira "Voltar" / "Criar personagem"
+type Rascunho = { onCriar: (f: Ficha) => void; onVoltar: () => void; criando: boolean; bloqueado: boolean }
+
+export function FichaForm({ inicial, nome, aba, onFechar, rascunho }: {
+  inicial: Ficha; nome: string; aba?: string; onFechar: () => void; rascunho?: Rascunho
+}) {
   const [f, setF] = useState<Ficha>(inicial)
   const { data: padrao } = usePadraoFicha()
   const semPadrao = padrao && !padrao.configurado
@@ -84,7 +89,9 @@ function Form({ inicial, nome, aba, onFechar }: { inicial: Ficha; nome: string; 
         <TabsContent value="itens" className="pt-2">
           <ItensEditor valor={f.itens} onChange={(itens) => setF({ ...f, itens })}
             transferencia={{
-              outros, bloqueio: itensAlterados ? 'Salve a ficha antes de passar itens' : transferir.isPending ? 'Aguarde…' : null,
+              outros,
+              bloqueio: rascunho ? 'Crie o personagem antes de passar itens'
+                : itensAlterados ? 'Salve a ficha antes de passar itens' : transferir.isPending ? 'Aguarde…' : null,
               onEscolher: (zona, indice, destino) => transferir.mutate({ zona, indice, destino }, {
                 onSuccess: (r) => { setItensSalvos(r.itens); setF((x) => ({ ...x, itens: r.itens })) },
               }),
@@ -96,8 +103,17 @@ function Form({ inicial, nome, aba, onFechar }: { inicial: Ficha; nome: string; 
         </TabsContent>
       </Tabs>
       <DialogFooter>
-        <Button variant="outline" onClick={onFechar}>Fechar</Button>
-        <Button disabled={salvar.isPending} onClick={() => salvar.mutate(undefined, { onSuccess: (r) => { setItensSalvos(r.itens); setF((x) => ({ ...x, itens: r.itens })) } })}>Salvar ficha</Button>
+        {rascunho ? (
+          <>
+            <Button variant="outline" disabled={rascunho.criando} onClick={rascunho.onVoltar}>Voltar à descrição</Button>
+            <Button disabled={rascunho.criando || rascunho.bloqueado} onClick={() => rascunho.onCriar(f)}>Criar personagem</Button>
+          </>
+        ) : (
+          <>
+            <Button variant="outline" onClick={onFechar}>Fechar</Button>
+            <Button disabled={salvar.isPending} onClick={() => salvar.mutate(undefined, { onSuccess: (r) => { setItensSalvos(r.itens); setF((x) => ({ ...x, itens: r.itens })) } })}>Salvar ficha</Button>
+          </>
+        )}
       </DialogFooter>
     </>
   )
@@ -112,7 +128,7 @@ export function FichaEditor({ nome, aba, onFechar }: { nome: string; aba?: strin
           <DialogTitle>Ficha de {nome}</DialogTitle>
           <DialogDescription>Preencha os campos; o que ficar em branco não vai para o prompt do agente.</DialogDescription>
         </DialogHeader>
-        {isLoading || !data ? <Carregando /> : <Form inicial={data} nome={nome} aba={aba} onFechar={onFechar} />}
+        {isLoading || !data ? <Carregando /> : <FichaForm inicial={data} nome={nome} aba={aba} onFechar={onFechar} />}
       </DialogContent>
     </DialogAberto>
   )

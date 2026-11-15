@@ -289,7 +289,10 @@ def preparar_aprovar_chamada(chamada_id: str) -> tuple[list[str], list[dict], st
     _envolver(destino)
     salvar()
 
-    instrucao = f"{origem} chamou você: '{c['mensagem']}'. Responda usando as tags {_TAGS}."
+    instrucao = (
+        f"{origem} chamou você: '{c['mensagem']}'. Você pode aceitar e agir junto na ação pedida, ou recusar e "
+        f"fazer outra coisa. Responda usando as tags {_TAGS}."
+    )
     return presentes, [{"agente": destino, "instrucao": instrucao}], f"chamado por {origem}"
 
 

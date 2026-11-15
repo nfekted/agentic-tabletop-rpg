@@ -1,29 +1,85 @@
 import { useState } from 'react'
+import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DialogAberto } from '@/components/DialogAberto'
 import {
   DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { FichaForm } from '@/features/fichas/FichaEditor'
 import { useAcao, useAcaoMestre, useMesaAtual } from '@/hooks/queries'
 import { api } from '@/lib/api'
-import type { AcaoResposta } from '@/lib/types'
+import type { AcaoResposta, Ficha } from '@/lib/types'
 
 export function NovoJogadorDialog({ onFechar }: { onFechar: () => void }) {
   const [nome, setNome] = useState('')
-  const criar = useAcao(() => api.post('/jogadores', { nome }), [['jogadores'], ['turno']], `${nome} entrou na mesa.`)
+  const [modo, setModo] = useState<'nome' | 'ia'>('nome')
+  const [descricao, setDescricao] = useState('')
+  const [gerada, setGerada] = useState<{ ficha: Ficha; versao: number } | null>(null)
+  const criar = useAcao(
+    (ficha?: Ficha) => api.post('/jogadores', { nome: nome.trim(), ficha }),
+    [['jogadores'], ['turno']], `${nome.trim()} entrou na mesa.`,
+  )
+  const gerar = useAcao(() => api.post<{ nome: string; ficha: Ficha }>('/jogadores/gerar', { descricao }))
   const enviar = () => nome.trim() && criar.mutate(undefined, { onSuccess: onFechar })
+  const pedirFicha = () => descricao.trim() && gerar.mutate(undefined, {
+    onSuccess: (r) => { setNome(r.nome); setGerada((g) => ({ ficha: r.ficha, versao: (g?.versao ?? 0) + 1 })) },
+  })
+
+  if (gerada)
+    return (
+      <DialogAberto onFechar={onFechar}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Revisar personagem gerado</DialogTitle>
+            <DialogDescription>Nada foi gravado ainda. Ajuste o que quiser e clique em “Criar personagem”.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="nome-jogador">Nome do jogador (letras, números ou _, sem espaços)</Label>
+            <Input id="nome-jogador" value={nome} onChange={(e) => setNome(e.target.value)} />
+          </div>
+          <FichaForm key={gerada.versao} inicial={gerada.ficha} nome={nome.trim()} onFechar={onFechar}
+            rascunho={{
+              criando: criar.isPending, bloqueado: !nome.trim(), onVoltar: () => setGerada(null),
+              onCriar: (f) => criar.mutate(f, { onSuccess: onFechar }),
+            }} />
+        </DialogContent>
+      </DialogAberto>
+    )
+
   return (
     <DialogAberto onFechar={onFechar}>
-      <DialogContent>
+      <DialogContent className={modo === 'ia' ? 'max-h-[90vh] overflow-y-auto sm:max-w-2xl' : undefined}>
         <DialogHeader>
           <DialogTitle>Adicionar jogador</DialogTitle>
-          <DialogDescription>Use letras, números ou _ (sem espaços). O jogador nasce com uma ficha modelo.</DialogDescription>
+          <DialogDescription>
+            {modo === 'nome'
+              ? 'Use letras, números ou _ (sem espaços). O jogador nasce com uma ficha modelo.'
+              : 'Descreva o personagem. A IA monta a ficha seguindo as regras, o padrão de status e atributos e o grupo atual; você revisa antes de criar.'}
+          </DialogDescription>
         </DialogHeader>
-        <Input autoFocus placeholder="Nome do jogador" value={nome} onChange={(e) => setNome(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && enviar()} />
+        <div className="flex gap-2">
+          <Button size="sm" variant={modo === 'nome' ? 'secondary' : 'outline'} onClick={() => setModo('nome')}>Só o nome</Button>
+          <Button size="sm" variant={modo === 'ia' ? 'secondary' : 'outline'} onClick={() => setModo('ia')}>Pedir à IA</Button>
+        </div>
+        {modo === 'nome' ? (
+          <Input autoFocus placeholder="Nome do jogador" value={nome} onChange={(e) => setNome(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && enviar()} />
+        ) : (
+          <Textarea autoFocus className="max-h-[50vh] min-h-32 overflow-y-auto" value={descricao} disabled={gerar.isPending} onChange={(e) => setDescricao(e.target.value)}
+            placeholder="Ex.: policial veterano, cínico, bom de tiro, com medo de altura e uma filha que não vê há anos." />
+        )}
         <DialogFooter>
           <Button variant="outline" onClick={onFechar}>Cancelar</Button>
-          <Button disabled={!nome.trim() || criar.isPending} onClick={enviar}>Adicionar</Button>
+          {modo === 'nome' ? (
+            <Button disabled={!nome.trim() || criar.isPending} onClick={enviar}>Adicionar</Button>
+          ) : (
+            <Button disabled={!descricao.trim() || gerar.isPending} onClick={pedirFicha}>
+              {gerar.isPending && <Loader2 className="animate-spin" />}
+              {gerar.isPending ? 'Gerando ficha…' : 'Gerar ficha'}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </DialogAberto>

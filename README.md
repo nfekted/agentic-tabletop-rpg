@@ -652,9 +652,12 @@ caso:
 |---|---|---|
 | `[acao]` | O personagem está realizando uma ação | A ação é considerada resolvida; ninguém reage automaticamente |
 | `[duvida]` | O personagem faz uma pergunta **ao mestre** | Aparece no balão e no histórico; você responde com uma nova fala dirigida a ele. **Não consome o turno**: depois da sua resposta, a próxima resposta do personagem é a ação do turno |
-| `[chamar]` | O personagem chama outro jogador: `[chamar]Nome: mensagem[/chamar]` | A fala dele é registrada e você decide se o chamado é acionado (veja abaixo) |
+| `[chamar]` | O personagem pede que outro jogador aja junto: `[chamar]Nome: mensagem[/chamar]`. Serve para pedir ajuda a quem ainda não agiu depois da sua última fala (ex.: "me ajude a empurrar a porta", "me cure") ou para trazer quem está em outro lugar | A fala dele é registrada e você decide se o chamado é acionado (veja abaixo). O chamado pode aceitar e agir junto, ou recusar e fazer outra coisa |
 | `[pensamento]` | Um pensamento interno que o personagem **não diz em voz alta** | Nunca é mostrado a outros jogadores nem entra no histórico compartilhado da cena — fica só na memória privada daquele personagem. Dentro da mesma rodada, o próprio personagem relê seus **3 últimos pensamentos** no prompt (zerados ao finalizar a rodada) |
 | *(nenhuma tag)* ou `[fala]` | Fala/reação social comum | Registrada na memória de quem presencia a cena |
+
+**Ajuda:** além de pedir com `[chamar]`, um personagem pode se oferecer para ajudar quem agiu antes dele, declarando
+isso em `[acao]`. Na ajuda, todos usam a mesma perícia (e o mesmo atributo) da ação principal.
 
 `[duvida]` não combina com `[acao]` nem `[chamar]`. O nome em `[chamar]` precisa
 ser o de um jogador da mesa (a IA recebe a lista no prompt); nome inválido vira
@@ -879,9 +882,21 @@ relevantes deixa o prompt menor e mais estável.
 
 A lista de jogadores não é fixa. Na Mesa, clique no card **Adicionar jogador**,
 digite um nome (sem espaços) e confirme — o card aparece na hora, sem reiniciar
-nada. A lixeira 🗑️ do card **exclui o personagem por completo**: ficha,
+nada. A lixeira 🗑️ do card (só aparece com o [personagem morto](#personagem-morto)) **exclui o personagem por completo**: ficha,
 memória (rodadas, cenas e mesa), foto e presença no modo por turnos. Não dá
 para desfazer, então salve a mesa antes se tiver dúvida.
+
+**Pedir à IA.** No mesmo diálogo, a opção *Pedir à IA* abre um campo para você descrever o personagem
+(ex.: "policial veterano, cínico, bom de tiro, com medo de altura"). Uma chamada à LLM monta a ficha completa
+seguindo as **regras ativas**, os nomes do **padrão de status e atributos** e os **personagens vivos já na mesa**
+(para complementar o grupo). A ficha abre no editor **sem ser gravada**: ajuste o que quiser, confira o nome do
+jogador (sugerido a partir do nome da ficha) e clique em *Criar personagem*. *Voltar à descrição* descarta a ficha e
+permite gerar outra; fechar o diálogo não grava nada. Campos que a IA inventar são descartados, e status e
+atributos ficam exatamente os do padrão. Para o [cache de prompt](#cache-de-prompt-economia-de-tokens), a ordem é:
+instruções + padrão + regras (system prompt fixo), depois **o seu texto** e, por último, o grupo (que muda a cada
+personagem criado). O cache dos provedores reaproveita o começo idêntico do prompt; então, se você cola sempre o mesmo
+texto-base de criação e deixa o pedido específico do personagem **no fim** dele, gerar vários personagens seguidos
+reaproveita também esse texto (o cache costuma exigir ~1.024 tokens de prefixo, o que as regras normalmente garantem).
 
 ### Equipado, mochila e detalhes de habilidades e itens
 
