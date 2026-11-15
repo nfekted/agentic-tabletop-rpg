@@ -24,6 +24,14 @@ class AreaIn(BaseModel):
     altura: int
 
 
+class ObstaculoIn(BaseModel):
+    nome: str = ""
+    x: int
+    y: int
+    largura: int
+    altura: int
+
+
 class PosicaoIn(BaseModel):
     x: int
     y: int
@@ -172,6 +180,26 @@ def remover_area(area_id: str):
         _exigir_ativo()
         if not t.remover_area(area_id):
             raise HTTPException(404, "Área não encontrada.")
+        return _estado()
+
+
+@router.post("/turno/obstaculos", status_code=201)
+def criar_obstaculo(body: ObstaculoIn):
+    with trava_turno():
+        _exigir_ativo()
+        try:
+            t.adicionar_obstaculo(body.nome, body.x, body.y, body.largura, body.altura)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        return _estado()
+
+
+@router.delete("/turno/obstaculos/{obstaculo_id}")
+def remover_obstaculo(obstaculo_id: str):
+    with trava_turno():
+        _exigir_ativo()
+        if not t.remover_obstaculo(obstaculo_id):
+            raise HTTPException(404, "Obstáculo não encontrado.")
         return _estado()
 
 

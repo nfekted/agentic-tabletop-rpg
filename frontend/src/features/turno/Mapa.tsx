@@ -6,7 +6,7 @@ import {
 import { Map as MapaIcone, PencilRuler, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import type { Pos, TurnoArea, TurnoMapa } from '@/lib/types'
+import type { Pos, TurnoArea, TurnoMapa, TurnoObstaculo } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { CardParticipante, Icone, type Part } from './Participante'
 
@@ -21,6 +21,7 @@ const CORES_AREA = [
 ]
 
 type Ret = { x: number; y: number; largura: number; altura: number }
+type Ferramenta = 'area' | 'obstaculo'
 
 type Acoes = {
   ordemAtual: number | null
@@ -33,8 +34,9 @@ const retangulo = (a: Pos, b: Pos): Ret => ({
   x: Math.min(a.x, b.x), y: Math.min(a.y, b.y),
   largura: Math.abs(a.x - b.x) + 1, altura: Math.abs(a.y - b.y) + 1,
 })
-const sobrepoe = (r: Ret, areas: TurnoArea[]) =>
-  areas.find((a) => r.x < a.x + a.largura && a.x < r.x + r.largura && r.y < a.y + a.altura && a.y < r.y + r.altura)
+const sobrepoe = <T extends Ret>(r: Ret, lista: T[]) =>
+  lista.find((a) => r.x < a.x + a.largura && a.x < r.x + r.largura && r.y < a.y + a.altura && a.y < r.y + r.altura)
+const dentro = (r: Ret, c: Pos) => r.x <= c.x && c.x < r.x + r.largura && r.y <= c.y && c.y < r.y + r.altura
 const pxRet = (r: Ret): React.CSSProperties =>
   ({ left: r.x * CELULA, top: r.y * CELULA, width: r.largura * CELULA, height: r.altura * CELULA })
 
@@ -69,8 +71,8 @@ function Arrastavel({ p, desativado, className, style, onClick, children }: {
   )
 }
 
-// Camada do modo de edição: clique e arraste para desenhar o retângulo de uma área.
-function DesenharArea({ mapa, areas, onConcluir }: { mapa: TurnoMapa; areas: TurnoArea[]; onConcluir: (r: Ret) => void }) {
+// Camada do modo de edição: clique e arraste para desenhar o retângulo de uma área ou obstáculo.
+function DesenharRet({ mapa, motivo, onConcluir }: { mapa: TurnoMapa; motivo: (r: Ret) => string | null; onConcluir: (r: Ret) => void }) {
   const [ini, setIni] = useState<Pos | null>(null)
   const [fim, setFim] = useState<Pos | null>(null)
   const cel = (e: React.PointerEvent<HTMLDivElement>): Pos => {
@@ -86,7 +88,7 @@ function DesenharArea({ mapa, areas, onConcluir }: { mapa: TurnoMapa; areas: Tur
       onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); const c = cel(e); setIni(c); setFim(c) }}
       onPointerMove={(e) => { if (ini) setFim(cel(e)) }}
       onPointerUp={() => { if (ret) onConcluir(ret); setIni(null); setFim(null) }}>
-      {ret && <RetPrevia r={ret} invalido={!!sobrepoe(ret, areas)} />}
+      {ret && <RetPrevia r={ret} invalido={!!motivo(ret)} />}
     </div>
   )
 }
@@ -98,10 +100,11 @@ function RetPrevia({ r, invalido }: { r: Ret; invalido: boolean }) {
   )
 }
 
-function Grade({ mapa, areas, grade, alvo, alvoLivre, editando, pendente, onDesenhar, onExcluirArea, children }: {
-  mapa: TurnoMapa; areas: TurnoArea[]; grade: React.RefObject<HTMLDivElement | null>
+function Grade({ mapa, areas, obstaculos, grade, alvo, alvoLivre, editando, pendente, motivo, onDesenhar, onExcluirArea, onExcluirObstaculo, children }: {
+  mapa: TurnoMapa; areas: TurnoArea[]; obstaculos: TurnoObstaculo[]; grade: React.RefObject<HTMLDivElement | null>
   alvo: Pos | null; alvoLivre: boolean
-  editando: boolean; pendente: Ret | null; onDesenhar: (r: Ret) => void; onExcluirArea: (id: string) => void
+  editando: boolean; pendente: Ret | null; motivo: (r: Ret) => string | null; onDesenhar: (r: Ret) => void
+  onExcluirArea: (id: string) => void; onExcluirObstaculo: (id: string) => void
   children: React.ReactNode
 }) {
   const { setNodeRef } = useDroppable({ id: 'mapa' })
@@ -132,14 +135,30 @@ function Grade({ mapa, areas, grade, alvo, alvoLivre, editando, pendente, onDese
             )}
           </div>
         ))}
+        {obstaculos.map((o) => (
+          <div key={o.id} title={o.nome || 'Obstáculo'}
+            className="pointer-events-none flex items-start justify-between gap-1 overflow-hidden rounded-md border border-muted-foreground/50 p-0.5 text-[10px] leading-none text-muted-foreground"
+            style={{
+              gridColumn: `${o.x + 1} / span ${o.largura}`, gridRow: `${o.y + 1} / span ${o.altura}`,
+              backgroundImage: 'repeating-linear-gradient(45deg, color-mix(in oklab, currentColor 35%, transparent) 0 2px, transparent 2px 8px)',
+            }}>
+            <span className="truncate rounded bg-card/80 px-0.5">{o.nome}</span>
+            {editando && (
+              <button onClick={() => onExcluirObstaculo(o.id)} aria-label={`Excluir obstáculo ${o.nome}`} title="Excluir obstáculo"
+                className="pointer-events-auto relative z-40 shrink-0 rounded bg-card/80 p-0.5 hover:text-destructive">
+                <Trash2 className="size-3" />
+              </button>
+            )}
+          </div>
+        ))}
         {alvo && (
           <div className={cn('pointer-events-none z-20 rounded-md border-2 border-dashed',
             alvoLivre ? 'border-primary bg-primary/20' : 'border-destructive bg-destructive/20')}
             style={{ gridColumn: alvo.x + 1, gridRow: alvo.y + 1 }} />
         )}
         {children}
-        {pendente && <RetPrevia r={pendente} invalido={!!sobrepoe(pendente, areas)} />}
-        {editando && !pendente && <DesenharArea mapa={mapa} areas={areas} onConcluir={onDesenhar} />}
+        {pendente && <RetPrevia r={pendente} invalido={!!motivo(pendente)} />}
+        {editando && !pendente && <DesenharRet mapa={mapa} motivo={motivo} onConcluir={onDesenhar} />}
       </div>
     </div>
   )
@@ -157,31 +176,35 @@ function ForaDoMapa({ vazio, children }: { vazio: boolean; children: React.React
   )
 }
 
-function NomearArea({ r, conflito, onCriar, onCancelar }: {
-  r: Ret; conflito?: TurnoArea; onCriar: (nome: string) => void; onCancelar: () => void
+function NomearRet({ r, ferramenta, problema, onCriar, onCancelar }: {
+  r: Ret; ferramenta: Ferramenta; problema: string | null; onCriar: (nome: string) => void; onCancelar: () => void
 }) {
   const [nome, setNome] = useState('')
-  const ok = !!nome.trim() && !conflito
+  const area = ferramenta === 'area'
+  const ok = (!area || !!nome.trim()) && !problema
   return (
     <div className="flex flex-wrap items-center gap-1.5 rounded-xl border bg-card p-2 text-sm">
-      <span className="text-muted-foreground">Nova área {r.largura} × {r.altura}:</span>
-      <Input autoFocus value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome (Entrada, Salão…)" className="w-56"
+      <span className="text-muted-foreground">{area ? 'Nova área' : 'Novo obstáculo'} {r.largura} × {r.altura}:</span>
+      <Input autoFocus value={nome} onChange={(e) => setNome(e.target.value)} className="w-56"
+        placeholder={area ? 'Nome (Entrada, Salão…)' : 'Nome opcional (Armário, Mesa…)'}
         onKeyDown={(e) => { if (e.key === 'Enter' && ok) onCriar(nome.trim()); if (e.key === 'Escape') onCancelar() }} />
       <Button size="sm" disabled={!ok} onClick={() => onCriar(nome.trim())}>Criar</Button>
       <Button size="sm" variant="outline" onClick={onCancelar}>Cancelar</Button>
-      {conflito && <span className="text-xs text-destructive">Sobrepõe "{conflito.nome}".</span>}
+      {problema && <span className="text-xs text-destructive">{problema}</span>}
     </div>
   )
 }
 
 // Mapa da cena: grade com áreas (retângulos) e participantes em células.
 // Clique num participante para abrir/fechar o card (vários ao mesmo tempo); o card de quem está na vez abre sozinho.
-// Arraste para mudar de célula ou tirá-lo do mapa. No modo "Editar áreas", desenhe retângulos na grade.
+// Arraste para mudar de célula ou tirá-lo do mapa. No modo "Editar mapa", desenhe áreas ou obstáculos na grade.
 export function Mapa({
-  mapa, areas, participantes, acoes, onCriarMapa, onExcluirMapa, onPosicionar, onCriarArea, onExcluirArea,
+  mapa, areas, obstaculos, participantes, acoes, onCriarMapa, onExcluirMapa, onPosicionar,
+  onCriarArea, onExcluirArea, onCriarObstaculo, onExcluirObstaculo,
 }: {
   mapa: TurnoMapa | null
   areas: TurnoArea[]
+  obstaculos: TurnoObstaculo[]
   participantes: Part[]
   acoes: Acoes
   onCriarMapa: (largura: number, altura: number) => void
@@ -189,6 +212,8 @@ export function Mapa({
   onPosicionar: (participanteId: string, pos: Pos | null) => void
   onCriarArea: (area: Ret & { nome: string }) => void
   onExcluirArea: (id: string) => void
+  onCriarObstaculo: (obstaculo: Ret & { nome: string }) => void
+  onExcluirObstaculo: (id: string) => void
 }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
   const grade = useRef<HTMLDivElement>(null)
@@ -198,6 +223,7 @@ export function Mapa({
   const [alvo, setAlvo] = useState<Pos | null>(null)
   const [editando, setEditando] = useState(false)
   const [pendente, setPendente] = useState<Ret | null>(null)
+  const [ferramenta, setFerramenta] = useState<Ferramenta>('area')
 
   const suaVez = (p: Part) => acoes.emAndamento && !!p.ordem && p.ordem === acoes.ordemAtual
   const vezId = participantes.find(suaVez)?.id ?? null
@@ -224,7 +250,20 @@ export function Mapa({
   const fora = participantes.filter((p) => !mapa || !p.pos)
   const cards = participantes.filter(aberto)
   const ocupante = (c: Pos) => noMapa.find((p) => p.pos!.x === c.x && p.pos!.y === c.y)
-  const livre = (c: Pos, id: string) => { const o = ocupante(c); return !o || o.id === id }
+  const livre = (c: Pos, id: string) => {
+    const o = ocupante(c)
+    return (!o || o.id === id) && !obstaculos.some((b) => dentro(b, c))
+  }
+  // Por que o retângulo desenhado não pode ser criado (null = pode).
+  const motivo = (r: Ret): string | null => {
+    if (ferramenta === 'area') {
+      const a = sobrepoe(r, areas)
+      return a ? `Sobrepõe "${a.nome}".` : null
+    }
+    if (sobrepoe(r, obstaculos)) return 'Sobrepõe outro obstáculo.'
+    if (noMapa.some((p) => dentro(r, p.pos!))) return 'Há participantes nessas células.'
+    return null
+  }
 
   // Célula sob o ponteiro (só quando ele está sobre a parte visível do mapa).
   const celula = (e: DragMoveEvent | DragEndEvent): Pos | null => {
@@ -264,7 +303,7 @@ export function Mapa({
         {mapa && (
           <div className="flex flex-wrap gap-1.5">
             <Button variant={editando ? 'default' : 'outline'} size="sm" onClick={() => (editando ? sairDaEdicao() : setEditando(true))}>
-              <PencilRuler /> {editando ? 'Concluir edição' : 'Editar áreas'}
+              <PencilRuler /> {editando ? 'Concluir edição' : 'Editar mapa'}
             </Button>
             {confirmando ? (
               <>
@@ -279,10 +318,27 @@ export function Mapa({
       </div>
 
       {editando && (pendente ? (
-        <NomearArea r={pendente} conflito={sobrepoe(pendente, areas)} onCancelar={() => setPendente(null)}
-          onCriar={(nome) => { onCriarArea({ nome, ...pendente }); setPendente(null) }} />
+        <NomearRet r={pendente} ferramenta={ferramenta} problema={motivo(pendente)} onCancelar={() => setPendente(null)}
+          onCriar={(nome) => {
+            (ferramenta === 'area' ? onCriarArea : onCriarObstaculo)({ nome, ...pendente })
+            setPendente(null)
+          }} />
       ) : (
-        <p className="text-xs text-muted-foreground">Clique e arraste na grade para desenhar uma área. Use a lixeira de uma área para excluí-la.</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex rounded-lg border p-0.5">
+            {(['area', 'obstaculo'] as const).map((f) => (
+              <Button key={f} size="sm" variant={ferramenta === f ? 'secondary' : 'ghost'} onClick={() => setFerramenta(f)}>
+                {f === 'area' ? 'Área' : 'Obstáculo'}
+              </Button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {ferramenta === 'area'
+              ? 'Clique e arraste na grade para desenhar uma área.'
+              : 'Clique e arraste para marcar células bloqueadas (armário, mesa…). Podem ficar dentro de áreas.'}
+            {' '}Use a lixeira para excluir.
+          </p>
+        </div>
       ))}
 
       <DndContext sensors={sensors} collisionDetection={pointerWithin}
@@ -290,8 +346,10 @@ export function Mapa({
         onDragMove={aoMover} onDragEnd={aoSoltar}
         onDragCancel={() => { setArrastando(null); setAlvo(null) }}>
         {mapa ? (
-          <Grade mapa={mapa} areas={areas} grade={grade} alvo={alvo} alvoLivre={!!alvo && !!arrastando && livre(alvo, arrastando.id)}
-            editando={editando} pendente={pendente} onDesenhar={setPendente} onExcluirArea={onExcluirArea}>
+          <Grade mapa={mapa} areas={areas} obstaculos={obstaculos} grade={grade}
+            alvo={alvo} alvoLivre={!!alvo && !!arrastando && livre(alvo, arrastando.id)}
+            editando={editando} pendente={pendente} motivo={motivo} onDesenhar={setPendente}
+            onExcluirArea={onExcluirArea} onExcluirObstaculo={onExcluirObstaculo}>
             {noMapa.map((p) => (
               <Arrastavel key={p.id} p={p} desativado={editando} onClick={() => alternar(p)}
                 className="z-10 flex items-center justify-center"

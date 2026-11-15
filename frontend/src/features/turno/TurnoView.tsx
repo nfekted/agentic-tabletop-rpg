@@ -166,6 +166,9 @@ export function TurnoView() {
             : api.del(`/turno/participantes/${pid}/posicao`))}
           onCriarArea={(area) => run(() => api.post('/turno/areas', area))}
           onExcluirArea={(id) => run(() => api.del(`/turno/areas/${id}`))}
+          obstaculos={t.obstaculos}
+          onCriarObstaculo={(o) => run(() => api.post('/turno/obstaculos', o))}
+          onExcluirObstaculo={(id) => run(() => api.del(`/turno/obstaculos/${id}`))}
         />
       </div>
 

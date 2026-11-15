@@ -154,11 +154,13 @@ export type TurnoToken = {
 }
 export type TurnoMapa = { largura: number; altura: number }
 export type TurnoArea = { id: string; nome: string; x: number; y: number; largura: number; altura: number }
+export type TurnoObstaculo = TurnoArea // mesmo formato; nome pode ser vazio
 type TurnoDados = {
   em_andamento: boolean
   ordem_atual: number | null
   mapa: TurnoMapa | null
   areas: TurnoArea[]
+  obstaculos: TurnoObstaculo[]
   personagens: TurnoPersonagem[]
   tokens: TurnoToken[]
 }

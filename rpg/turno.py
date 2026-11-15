@@ -32,6 +32,7 @@ def carregar_turno() -> dict | None:
             dados.setdefault("ordem_atual", None)
             dados.setdefault("mapa", None)
             dados.setdefault("areas", [])
+            dados.setdefault("obstaculos", [])
             dados.setdefault("personagens", [])
             dados.setdefault("tokens", [])
             return dados
@@ -53,6 +54,7 @@ def iniciar_turno(agentes: list[str]) -> dict:
         "ordem_atual": None,
         "mapa": None,
         "areas": [],
+        "obstaculos": [],
         "personagens": [_novo_personagem(ag) for ag in agentes],
         "tokens": [],
     }
@@ -90,6 +92,8 @@ def sincronizar_personagens(agentes: list[str]) -> dict:
 # --- MAPA E ÁREAS ---
 # Mapa em grade (x, y a partir de 0). Áreas são retângulos sem sobreposição; cada participante
 # ocupa uma célula (pos) ou fica fora do mapa (pos = None). A área de alguém é deduzida da posição.
+# Obstáculos (armário, mesa...) são retângulos que bloqueiam células; podem ficar dentro de áreas,
+# mas não sobrepõem outro obstáculo. Nada disso vai para o prompt além do nome da área.
 
 MAPA_MAX = 100
 
@@ -103,6 +107,20 @@ def _participante(dados: dict, participante_id: str) -> dict | None:
 
 def _dentro(ret: dict, x: int, y: int) -> bool:
     return ret["x"] <= x < ret["x"] + ret["largura"] and ret["y"] <= y < ret["y"] + ret["altura"]
+
+
+def _sobreposto(ret: dict, outros: list[dict]) -> dict | None:
+    return next(
+        (o for o in outros
+         if ret["x"] < o["x"] + o["largura"] and o["x"] < ret["x"] + ret["largura"]
+         and ret["y"] < o["y"] + o["altura"] and o["y"] < ret["y"] + ret["altura"]),
+        None,
+    )
+
+
+def _cabe(mapa: dict, ret: dict) -> bool:
+    return (ret["largura"] >= 1 and ret["altura"] >= 1 and ret["x"] >= 0 and ret["y"] >= 0
+            and ret["x"] + ret["largura"] <= mapa["largura"] and ret["y"] + ret["altura"] <= mapa["altura"])
 
 
 def area_na_posicao(dados: dict, pos: dict | None) -> dict | None:
@@ -125,12 +143,13 @@ def criar_mapa(largura: int, altura: int) -> bool:
 
 
 def excluir_mapa() -> bool:
-    # Leva junto as áreas e as posições.
+    # Leva junto as áreas, os obstáculos e as posições.
     dados = carregar_turno()
     if not dados or not dados["mapa"]:
         return False
     dados["mapa"] = None
     dados["areas"] = []
+    dados["obstaculos"] = []
     for p in dados["personagens"] + dados["tokens"]:
         p["pos"] = None
     salvar_turno(dados)
@@ -147,16 +166,15 @@ def adicionar_area(nome: str, x: int, y: int, largura: int, altura: int) -> str 
         raise ValueError("Crie o mapa antes das áreas.")
     if not nome:
         raise ValueError("Nome da área inválido.")
-    if largura < 1 or altura < 1 or x < 0 or y < 0 or x + largura > mapa["largura"] or y + altura > mapa["altura"]:
+    ret = {"x": x, "y": y, "largura": largura, "altura": altura}
+    if not _cabe(mapa, ret):
         raise ValueError("A área precisa caber dentro do mapa.")
-    for a in dados["areas"]:
-        if x < a["x"] + a["largura"] and a["x"] < x + largura and y < a["y"] + a["altura"] and a["y"] < y + altura:
-            raise ValueError(f"A área sobrepõe \"{a['nome']}\".")
+    outra = _sobreposto(ret, dados["areas"])
+    if outra:
+        raise ValueError(f"A área sobrepõe \"{outra['nome']}\".")
 
     area_id = f"area_{uuid.uuid4().hex[:6]}"
-    dados["areas"].append(
-        {"id": area_id, "nome": nome, "x": x, "y": y, "largura": largura, "altura": altura}
-    )
+    dados["areas"].append({"id": area_id, "nome": nome, **ret})
     salvar_turno(dados)
     return area_id
 
@@ -189,6 +207,8 @@ def posicionar_participante(participante_id: str, x: int, y: int) -> bool:
     for o in dados["personagens"] + dados["tokens"]:
         if o is not p and o.get("pos") == {"x": x, "y": y}:
             raise ValueError("Célula ocupada.")
+    if any(_dentro(o, x, y) for o in dados["obstaculos"]):
+        raise ValueError("Célula bloqueada por um obstáculo.")
     p["pos"] = {"x": x, "y": y}
     salvar_turno(dados)
     return True
@@ -205,6 +225,41 @@ def retirar_do_mapa(participante_id: str) -> bool:
         p["pos"] = None
         salvar_turno(dados)
     return True
+
+
+def adicionar_obstaculo(nome: str, x: int, y: int, largura: int, altura: int) -> str | None:
+    dados = carregar_turno()
+    if not dados:
+        return None
+    mapa = dados["mapa"]
+    if not mapa:
+        raise ValueError("Crie o mapa antes dos obstáculos.")
+    ret = {"x": x, "y": y, "largura": largura, "altura": altura}
+    if not _cabe(mapa, ret):
+        raise ValueError("O obstáculo precisa caber dentro do mapa.")
+    if _sobreposto(ret, dados["obstaculos"]):
+        raise ValueError("O obstáculo sobrepõe outro obstáculo.")
+    for p in dados["personagens"] + dados["tokens"]:
+        if p.get("pos") and _dentro(ret, p["pos"]["x"], p["pos"]["y"]):
+            raise ValueError("Há participantes nessas células. Mova-os antes de criar o obstáculo.")
+
+    obstaculo_id = f"obs_{uuid.uuid4().hex[:6]}"
+    dados["obstaculos"].append({"id": obstaculo_id, "nome": nome.strip(), **ret})
+    salvar_turno(dados)
+    return obstaculo_id
+
+
+def remover_obstaculo(obstaculo_id: str) -> bool:
+    dados = carregar_turno()
+    if not dados:
+        return False
+
+    antes = len(dados["obstaculos"])
+    dados["obstaculos"] = [o for o in dados["obstaculos"] if o["id"] != obstaculo_id]
+    if len(dados["obstaculos"]) < antes:
+        salvar_turno(dados)
+        return True
+    return False
 
 
 # --- TOKENS NO TURNO ---
